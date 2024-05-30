@@ -1,0 +1,6 @@
+gollama
+**/.swp
+**/.tmp
+**/.trash
+**/*.log
+dist/
