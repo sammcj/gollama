@@ -42,13 +42,13 @@ jobs:
       # Build
       - name: Build macOS ARM64
         run: |
-          GOOS=darwin GOARCH=arm64 go build -o main.go -o gollama-macos-arm64${{ github.ref == 'refs/heads/dev' && '-dev' }}
+          GOOS=darwin GOARCH=arm64 go build -o main.go -o gollama-macos-arm64
           echo "macOS ARM64 build completed" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Build Linux
         run: |
-          GOOS=linux GOARCH=amd64 go build -o main.go -o gollama-linux-amd64${{ github.ref == 'refs/heads/dev' && '-dev' }}
-          GOOS=linux GOARCH=arm64 go build -o main.go -o gollama-linux-arm64${{ github.ref == 'refs/heads/dev' && '-dev' }}
+          GOOS=linux GOARCH=amd64 go build -o main.go -o gollama-linux-amd64
+          GOOS=linux GOARCH=arm64 go build -o main.go -o gollama-linux-arm64
           echo "Linux build completed" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload artefacts
@@ -56,9 +56,9 @@ jobs:
         with:
           name: gollama
           path: |
-            gollama-macos-arm64${{ github.ref == 'refs/heads/dev' && '-dev' }}
-            gollama-linux-amd64${{ github.ref == 'refs/heads/dev' && '-dev' }}
-            gollama-linux-arm64${{ github.ref == 'refs/heads/dev' && '-dev' }}
+            gollama-macos-arm64
+            gollama-linux-amd64
+            gollama-linux-arm64
 
       # Bump version
       - name: Bump version and push tag
@@ -82,8 +82,8 @@ jobs:
           allowUpdates: true
           prerelease: ${{ startsWith(github.ref, 'refs/heads/dev') }}
           artifacts: |
-            gollama-macos-arm64${{ github.ref == 'refs/heads/dev' && '-dev' }}
-            gollama-linux-amd64${{ github.ref == 'refs/heads/dev' && '-dev' }}
-            gollama-linux-arm64${{ github.ref == 'refs/heads/dev' && '-dev' }}
+            gollama-macos-arm64
+            gollama-linux-amd64
+            gollama-linux-arm64
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
