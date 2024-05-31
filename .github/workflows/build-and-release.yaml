@@ -1,0 +1,89 @@
+name: Build and release
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - dev
+    paths:
+      - 'main.go'
+      - 'go.mod'
+      - '.github/workflows/build-and-release.yml'
+    tags:
+      - v*
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  checks: write
+  pull-requests: write
+  packages: write
+
+concurrency:
+  group: build-and-release
+  cancel-in-progress: true
+
+jobs:
+  build-and-release:
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4
+      - uses: actions/setup-go@0c52d547c9bc32b1aa3301fd7a9cb496313a4491 # v5
+        with:
+          go-version: 1.22.1
+
+      # Install dependencies
+      - name: Install dependencies
+        run: go mod download
+
+      # Build
+      - name: Build macOS ARM64
+        run: |
+          GOOS=darwin GOARCH=arm64 go build -o main.go -o gollama-macos-arm64${{ github.ref == 'refs/heads/dev' && '-dev' }}
+          echo "macOS ARM64 build completed" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Build Linux
+        run: |
+          GOOS=linux GOARCH=amd64 go build -o main.go -o gollama-linux-amd64${{ github.ref == 'refs/heads/dev' && '-dev' }}
+          GOOS=linux GOARCH=arm64 go build -o main.go -o gollama-linux-arm64${{ github.ref == 'refs/heads/dev' && '-dev' }}
+          echo "Linux build completed" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload artefacts
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
+        with:
+          name: gollama
+          path: |
+            gollama-macos-arm64${{ github.ref == 'refs/heads/dev' && '-dev' }}
+            gollama-linux-amd64${{ github.ref == 'refs/heads/dev' && '-dev' }}
+            gollama-linux-arm64${{ github.ref == 'refs/heads/dev' && '-dev' }}
+
+      # Bump version
+      - name: Bump version and push tag
+        id: tag_version
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/main') && !contains(github.event.head_commit.message, '[skip ci]')
+        uses: mathieudutour/github-tag-action@a22cf08638b34d5badda920f9daf6e72c477b07b # v6.2
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          release_branches: main
+          pre_release_branches: dev
+
+      # Publish
+      - name: Create a GitHub release
+        uses: ncipollo/release-action@2c591bcc8ecdcd2db72b97d6147f871fcd833ba5 # v1
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/main') && !contains(github.event.head_commit.message, '[skip ci]')
+        with:
+          tag: ${{ steps.tag_version.outputs.new_tag }}
+          name: Release ${{ steps.tag_version.outputs.new_tag }}
+          body: ${{ steps.tag_version.outputs.changelog }}
+          generateReleaseNotes: true
+          allowUpdates: true
+          prerelease: ${{ startsWith(github.ref, 'refs/heads/dev') }}
+          artifacts: |
+            gollama-macos-arm64${{ github.ref == 'refs/heads/dev' && '-dev' }}
+            gollama-linux-amd64${{ github.ref == 'refs/heads/dev' && '-dev' }}
+            gollama-linux-arm64${{ github.ref == 'refs/heads/dev' && '-dev' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
