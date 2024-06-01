@@ -14,8 +14,8 @@ import (
 	"github.com/ollama/ollama/api"
 	"golang.org/x/term"
 
-	"gollama/config"
-	"gollama/logging"
+	"github.com/sammcj/gollama/config"
+	"github.com/sammcj/gollama/logging"
 )
 
 type AppModel struct {

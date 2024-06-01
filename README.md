@@ -33,6 +33,12 @@ The project started off as a rewrite of my [llamalink](https://smcleod.net/2024/
 
 ## Installation
 
+```shell
+go install github.com/sammcj/gollama@latest
+```
+
+Or from source:
+
 1. Clone the repository:
 
     ```shell

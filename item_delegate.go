@@ -5,7 +5,7 @@ import (
 	"io"
 	"strings"
 
-	"gollama/logging"
+	"github.com/sammcj/gollama/logging"
 
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"

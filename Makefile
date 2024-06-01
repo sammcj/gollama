@@ -68,5 +68,8 @@ ci: ## build for linux and macOS
 
 	echo "Build completed, run ./dist/macos/gollama or ./dist/linux_amd64/gollama or ./dist/linux_arm64/gollama"
 
+install: ## Install latest
+	go install github.com/sammcj/gollama@latest
+
 run: ## Run
 	go run *.go

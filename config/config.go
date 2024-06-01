@@ -3,10 +3,11 @@ package config
 import (
 	"encoding/json"
 	"fmt"
-	"gollama/logging"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/sammcj/gollama/logging"
 )
 
 type Config struct {
