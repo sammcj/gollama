@@ -34,8 +34,9 @@ type AppModel struct {
 	message             string
 }
 
+var Version = "development"
+
 func main() {
-	version := Version()
 
 	// Load config
 	cfg, err := config.LoadConfig()
@@ -51,8 +52,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	logging.InfoLogger.Printf("Starting gollama version %s\n", version)
-
 	// Parse command-line arguments
 	listFlag := flag.Bool("l", false, "List all available Ollama models and exit")
 	ollamaDirFlag := flag.String("ollama-dir", cfg.OllamaAPIKey, "Custom Ollama models directory")
@@ -64,7 +63,7 @@ func main() {
 	flag.Parse()
 
 	if *versionFlag {
-		fmt.Println(version)
+		fmt.Println(Version)
 		os.Exit(0)
 	}
 

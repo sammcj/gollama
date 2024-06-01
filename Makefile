@@ -54,22 +54,18 @@ test: ## Run test
 
 build: ## Run build
 	$(eval GOLLAMA_VERSION := $(shell if [ -z "$(GOLLAMA_VERSION)" ]; then echo "dev"; else echo $(GOLLAMA_VERSION); fi))
-	echo $(GOLLAMA_VERSION) > .version
-	LDFLAGS="-X github.com/sammcj/gollama/cmd.Version=$(GOLLAMA_VERSION)"
 	@echo "Building with version: $(GOLLAMA_VERSION)"
-	go build -v $(LDFLAGS)
+	go build -v -ldflags="-X 'main.Version=$(GOLLAMA_VERSION)'"
 	@echo "Build completed, run ./gollama"
 
 ci: ## build for linux and macOS
-	# generate version
 	$(eval GOLLAMA_VERSION := $(shell if [ -z "$(GOLLAMA_VERSION)" ]; then echo "dev"; else echo $(GOLLAMA_VERSION); fi))
-	LDFLAGS="-X github.com/sammcj/gollama/cmd.Version=$(GOLLAMA_VERSION)"
 	@echo "Building with version: $(GOLLAMA_VERSION)"
 
 	mkdir -p ./dist/macos ./dist/linux_amd64 ./dist/linux_arm64
-	GOOS=darwin GOARCH=arm64 go build -v $(LDFLAGS) -o ./dist/macos/
-	GOOS=linux GOARCH=amd64 go build -v $(LDFLAGS) -o ./dist/linux_amd64/
-	GOOS=linux GOARCH=arm64 go build -v $(LDFLAGS) -o ./dist/linux_arm64/
+	GOOS=darwin GOARCH=arm64 go build -v -ldflags="-X 'main.Version=$(GOLLAMA_VERSION)'" -o ./dist/macos/
+	GOOS=linux GOARCH=amd64 go build -v -ldflags="-X 'main.Version=$(GOLLAMA_VERSION)'" -o ./dist/linux_amd64/
+	GOOS=linux GOARCH=arm64 go build -v -ldflags="-X 'main.Version=$(GOLLAMA_VERSION)'" -o ./dist/linux_arm64/
 
 	# zip up each build
 	zip -r gollama-macos.zip ./dist/macos/gollama

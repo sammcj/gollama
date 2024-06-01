@@ -35,7 +35,7 @@ jobs:
         run: go mod download
 
       # Get the version we're building
-      - name: Bump version and push tag
+      - name: Get version
         id: get_version
         uses: mathieudutour/github-tag-action@a22cf08638b34d5badda920f9daf6e72c477b07b # v6.2
         with:
@@ -75,7 +75,13 @@ jobs:
       - name: Make a new latest tag and force push it
         if: ${{ steps.get_version.outputs.new_tag != 'false' }}
         run: |
+          rm -f .version
+          echo ${{ steps.get_version.outputs.new_tag }} > .version
+          git config user.name github-actions
+          git config user.email no-reply@github.com
+          git add .version
           git tag -f latest ${{ steps.get_version.outputs.new_tag }}
+          git commit -m "Bump version to ${{ steps.get_version.outputs.new_tag }} [skip ci]"
           git push origin latest --force
 
       # Publish
