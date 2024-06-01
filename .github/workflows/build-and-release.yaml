@@ -86,3 +86,11 @@ jobs:
             gollama-*.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # if the workflow is cancelled, don't mark the workflow as failed
+  if-cancelled:
+    runs-on: ubuntu-latest
+    if: cancelled()
+    steps:
+      - name: Workflow cancelled
+        run: echo "Workflow was cancelled"
