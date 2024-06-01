@@ -6,8 +6,6 @@ on:
       - main
       - dev
       - ".github/workflows/build-and-release.yml"
-    tags:
-      - v*
   pull_request:
     branches:
       - main
@@ -60,6 +58,12 @@ jobs:
           release_branches: main
           pre_release_branches: dev
 
+      # Delete latest tag
+      - name: Delete latest tag
+        if: github.ref == 'refs/heads/main'
+        run: |
+          git push origin :refs/tags/latest
+
       # Bump latest version
       - name: Bump latest version
         id: tag_latest
@@ -88,7 +92,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # if the workflow is cancelled, don't mark the workflow as failed
-  if-cancelled:
+  done:
     runs-on: ubuntu-latest
     if: cancelled()
     steps:
