@@ -3,6 +3,8 @@
 Gollama is a Go-based client for Ollama for managing models.
 It provides a TUI for listing, sorting, selecting and deleting models and can link Ollama models to LM-Studio.
 
+The project started off as a rewrite of my [llamalink](https://smcleod.net/2024/03/llamalink-ollama-to-lm-studio-llm-model-linker/) project, but I decided to expand it to include more features and make it more user-friendly.
+
 ## Table of Contents
 
 - [Gollama](#gollama)
@@ -88,13 +90,21 @@ Example configuration:
 
 ```json
 {
-  "default_sort": "Size",
-  "columns": ["Name", "Size", "Quant", "Family", "Modified", "ID"],
-  "ollama_api_key": "your-api-key",
-  "lm_studio_file_paths": "/path/to/lm-studio/models",
-  "log_level": "debug",
+  "default_sort": "modified",
+  "columns": [
+    "Name",
+    "Size",
+    "Quant",
+    "Family",
+    "Modified",
+    "ID"
+  ],
+  "ollama_api_key": "",
+  "ollama_api_url": "http://localhost:14434",
+  "lm_studio_file_paths": "",
+  "log_level": "info",
   "log_file_path": "gollama.log",
-  "sort_order": "modified",
+  "sort_order": "Size",
   "strip_string": "my-private-registry.internal/"
 }
 ```
