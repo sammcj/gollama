@@ -56,7 +56,6 @@ jobs:
       # Bump version
       - name: Bump version and push tag
         id: tag_version
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/main') && !contains(github.event.head_commit.message, '[skip ci]')
         uses: mathieudutour/github-tag-action@a22cf08638b34d5badda920f9daf6e72c477b07b # v6.2
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -66,7 +65,6 @@ jobs:
       # Publish
       - name: Create a GitHub release
         uses: ncipollo/release-action@2c591bcc8ecdcd2db72b97d6147f871fcd833ba5 # v1
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/main') && !contains(github.event.head_commit.message, '[skip ci]')
         with:
           tag: ${{ steps.tag_version.outputs.new_tag }}
           name: Release ${{ steps.tag_version.outputs.new_tag }}
