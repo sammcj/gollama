@@ -47,6 +47,7 @@ help: ## This help function
 # Targets (example targets listed below)
 lint: ## Run lint
 	gofmt -w .
+	find . -type f -name "*.go" -exec sed -i '' 's/\t/  /g' {} +
 
 test: ## Run test
 	go test -v ./...
