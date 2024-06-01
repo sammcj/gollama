@@ -6,3 +6,6 @@ gollama
 dist/
 .selected*
 dist/
+**/*.zip
+**/*.dmg
+**/*.tar.gz

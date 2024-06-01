@@ -61,6 +61,11 @@ ci: ## build for linux and macOS
 	GOOS=darwin GOARCH=arm64 go build -o ./dist/macos/
 	GOOS=linux GOARCH=amd64 go build -o ./dist/linux_amd64/
 	GOOS=linux GOARCH=arm64 go build -o ./dist/linux_arm64/
+	# zip up each build
+	zip -r gollama-macos.zip ./dist/macos/gollama
+	zip -r gollama-linux-amd64.zip ./dist/linux_amd64/gollama
+	zip -r gollama-linux-arm64.zip ./dist/linux_arm64/gollama
+
 	echo "Build completed, run ./dist/macos/gollama or ./dist/linux_amd64/gollama or ./dist/linux_arm64/gollama"
 
 run: ## Run
