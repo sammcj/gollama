@@ -35,7 +35,7 @@ type AppModel struct {
 }
 
 func main() {
-	var version = "1.0.5"
+	var version = "1.0.6"
 
 	// Load config
 	cfg, err := config.LoadConfig()
