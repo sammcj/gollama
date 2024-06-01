@@ -58,9 +58,9 @@ build: ## Run build
 
 ci: ## build for linux and macOS
 	mkdir -p ./dist/macos ./dist/linux_amd64 ./dist/linux_arm64
-	GOOS=darwin GOARCH=arm64 go build . -o ./dist/macos/gollama
-	GOOS=linux GOARCH=amd64 go build . -o ./dist/linux_amd64/gollama
-	GOOS=linux GOARCH=arm64 go build . -o ./dist/linux_arm64/gollama
+	GOOS=darwin GOARCH=arm64 go build -o ./dist/macos/
+	GOOS=linux GOARCH=amd64 go build -o ./dist/linux_amd64/
+	GOOS=linux GOARCH=arm64 go build -o ./dist/linux_arm64/
 	echo "Build completed, run ./dist/macos/gollama or ./dist/linux_amd64/gollama or ./dist/linux_arm64/gollama"
 
 run: ## Run
