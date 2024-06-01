@@ -60,6 +60,16 @@ jobs:
           release_branches: main
           pre_release_branches: dev
 
+      # Bump latest version
+      - name: Bump latest version
+        id: tag_latest
+        if: github.ref == 'refs/heads/main'
+        uses: mathieudutour/github-tag-action@a22cf08638b34d5badda920f9daf6e72c477b07b # v6.2
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          release_branches: main
+          custom_tag: latest
+
       # Publish
       - name: Create a GitHub release
         uses: ncipollo/release-action@2c591bcc8ecdcd2db72b97d6147f871fcd833ba5 # v1
