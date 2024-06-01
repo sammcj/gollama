@@ -75,8 +75,6 @@ jobs:
       - name: Make a new latest tag and force push it
         if: ${{ steps.get_version.outputs.new_tag != 'false' }}
         run: |
-          git fetch --tags
-          git checkout ${{ github.ref }}
           git tag -f latest ${{ steps.get_version.outputs.new_tag }}
           git push origin latest --force
 
