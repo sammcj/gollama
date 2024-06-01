@@ -35,8 +35,7 @@ type AppModel struct {
 }
 
 func main() {
-	var version = "1.0.0"
-	logging.InfoLogger.Printf("Starting gollama version %s\n", version)
+	var version = "1.0.3"
 
 	// Load config
 	cfg, err := config.LoadConfig()
@@ -52,7 +51,10 @@ func main() {
 		os.Exit(1)
 	}
 
+	logging.InfoLogger.Printf("Starting gollama version %s\n", version)
+
 	// Parse command-line arguments
+	listFlag := flag.Bool("l", false, "List all available Ollama models and exit")
 	ollamaDirFlag := flag.String("ollama-dir", cfg.OllamaAPIKey, "Custom Ollama models directory")
 	lmStudioDirFlag := flag.String("lm-dir", cfg.LMStudioFilePaths, "Custom LM Studio models directory")
 	noCleanupFlag := flag.Bool("no-cleanup", false, "Don't cleanup broken symlinks")
@@ -135,6 +137,11 @@ func main() {
 	}
 	if *lmStudioDirFlag == "" {
 		app.lmStudioModelsDir = filepath.Join(os.Getenv("HOME"), ".cache", "lm-studio", "models")
+	}
+
+	if *listFlag {
+		listModels(models)
+		os.Exit(0)
 	}
 
 	if *cleanupFlag {

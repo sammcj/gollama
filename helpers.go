@@ -1,10 +1,15 @@
 package main
 
 import (
+	"fmt"
+	"gollama/config"
 	"gollama/logging"
+	"os"
+	"strings"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/ollama/ollama/api"
+	"golang.org/x/term"
 )
 
 func parseAPIResponse(resp *api.ListResponse) []Model {
@@ -109,4 +114,96 @@ func wrapText(text string, width int) string {
 	}
 	wrapped += text
 	return wrapped
+}
+
+func calculateColumnWidthsTerminal() (nameWidth, sizeWidth, quantWidth, modifiedWidth, idWidth, familyWidth int) {
+	// use the terminal width to calculate column widths
+	minWidth := 120
+
+	width, _, err := term.GetSize(int(os.Stdout.Fd()))
+	if err != nil {
+		logging.ErrorLogger.Println("Error getting terminal size:", err)
+		width = minWidth
+	}
+	// make sure there's at least minWidth characters for each column
+	if width < minWidth {
+		width = minWidth
+	}
+
+	return calculateColumnWidths(width)
+}
+
+func listModels(models []Model) {
+	// read the config file to see if the user wants to strip a string from the model name
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		fmt.Println("Error loading config:", err)
+		os.Exit(1)
+	}
+
+	stripString := cfg.StripString
+	nameWidth, sizeWidth, quantWidth, modifiedWidth, idWidth, familyWidth := calculateColumnWidthsTerminal()
+
+	// align the header with the columns (length of stripString is subtracted from the name width to ensure alignment with the other columns)
+	header := fmt.Sprintf("%-*s %-*s %-*s %-*s %-*s %-*s", nameWidth-len(stripString), "Name", sizeWidth, "Size", quantWidth, "Quant", familyWidth, "Family", modifiedWidth, "Modified", idWidth, "ID")
+
+	// if stripString is set, replace the model name with the stripped string
+	if stripString != "" {
+		for i, model := range models {
+			models[i].Name = strings.Replace(model.Name, stripString, "", 1)
+		}
+	}
+
+	// Prepare columns for padding
+	var names, sizes, quants, families, modifieds, ids []string
+	for _, model := range models {
+		names = append(names, model.Name)
+		sizes = append(sizes, fmt.Sprintf("%.2fGB", model.Size))
+		quants = append(quants, model.QuantizationLevel)
+		families = append(families, model.Family)
+		modifieds = append(modifieds, model.Modified.Format("2006-01-02"))
+		ids = append(ids, model.ID)
+	}
+
+	// Pad columns to ensure alignment
+	names = padColumn(names)
+	sizes = padColumn(sizes)
+	quants = padColumn(quants)
+	families = padColumn(families)
+	modifieds = padColumn(modifieds)
+	ids = padColumn(ids)
+
+	// Print the header
+	fmt.Println(lipgloss.NewStyle().Foreground(lipgloss.Color("12")).Render(header))
+
+	for index, model := range models {
+		// colourise the model properties
+		nameColours := []lipgloss.Color{lipgloss.Color("#FFFFFF"), lipgloss.Color("#818BA9")}
+		name := lipgloss.NewStyle().Foreground(nameColours[index%len(nameColours)]).Render(names[index])
+		id := lipgloss.NewStyle().Foreground(lipgloss.Color("254")).Faint(true).Render(ids[index])
+		size := lipgloss.NewStyle().Foreground(sizeColour(model.Size)).Render(sizes[index])
+		family := lipgloss.NewStyle().Foreground(familyColour(model.Family, 0)).Render(families[index])
+		quant := lipgloss.NewStyle().Foreground(quantColour(model.QuantizationLevel)).Render(quants[index])
+		modified := lipgloss.NewStyle().Foreground(lipgloss.Color("254")).Render(modifieds[index])
+
+		row := fmt.Sprintf("%-*s %-*s %-*s %-*s %-*s %-*s", nameWidth, name, sizeWidth, size, quantWidth, quant, familyWidth, family, modifiedWidth, modified, idWidth, id)
+		fmt.Println(row)
+	}
+}
+
+// padColumn takes a slice of strings and pads them with spaces to the maximum width of all the values in that column.
+func padColumn(column []string) []string {
+	max := 0
+	for _, value := range column {
+		if len(value) > max {
+			max = len(value)
+		}
+	}
+
+	paddedColumn := make([]string, len(column))
+	for i, value := range column {
+		padding := strings.Repeat(" ", max-len(value))
+		paddedColumn[i] = wrapText(value+padding, max)
+	}
+	return paddedColumn
 }

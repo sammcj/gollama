@@ -6,8 +6,13 @@ on:
       - main
       - dev
     paths:
-      - 'main.go'
-      - 'go.mod'
+      - *.go
+      - go.mod
+      - go.sum
+      - config/*
+      - logging/*
+      - Makefile
+
       - '.github/workflows/build-and-release.yml'
     tags:
       - v*
@@ -27,7 +32,7 @@ concurrency:
 
 jobs:
   build-and-release:
-    timeout-minutes: 10
+    timeout-minutes: 15
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4
@@ -40,25 +45,21 @@ jobs:
         run: go mod download
 
       # Build
-      - name: Build macOS ARM64
+      - name: Build
+        shell: bash
         run: |
-          GOOS=darwin GOARCH=arm64 go build -o main.go -o gollama-macos-arm64
-          echo "macOS ARM64 build completed" >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Build Linux
-        run: |
-          GOOS=linux GOARCH=amd64 go build -o main.go -o gollama-linux-amd64
-          GOOS=linux GOARCH=arm64 go build -o main.go -o gollama-linux-arm64
-          echo "Linux build completed" >> "$GITHUB_STEP_SUMMARY"
+          set -x
+          make ci
+          echo "🎉 Builds completed" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload artefacts
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
         with:
           name: gollama
           path: |
-            gollama-macos-arm64
-            gollama-linux-amd64
-            gollama-linux-arm64
+            dist/macos/gollama
+            dist/linux_amd64/gollama
+            dist/linux_arm64/gollama
 
       # Bump version
       - name: Bump version and push tag
@@ -81,9 +82,11 @@ jobs:
           generateReleaseNotes: true
           allowUpdates: true
           prerelease: ${{ startsWith(github.ref, 'refs/heads/dev') }}
+          draft: ${{ startsWith(github.ref, 'refs/heads/dev') }}
           artifacts: |
-            gollama-macos-arm64
-            gollama-linux-amd64
-            gollama-linux-arm64
+            dist/macos/gollama
+            dist/linux_amd64/gollama
+            dist/linux_arm64/gollama
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+

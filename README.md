@@ -10,6 +10,7 @@ It provides a TUI for listing, sorting, selecting and deleting models and can li
   - [Features](#features)
   - [Installation](#installation)
   - [Usage](#usage)
+    - [Simple model listing](#simple-model-listing)
   - [Configuration](#configuration)
   - [Logging](#logging)
   - [Contributing](#contributing)
@@ -52,6 +53,32 @@ It provides a TUI for listing, sorting, selecting and deleting models and can li
     ```
 
 2. Use the interactive TUI to list, select, delete, and link models.
+
+### Simple model listing
+
+Gollama can also be called with `-l` to list models without the TUI.
+
+```shell
+./gollama -l
+```
+
+![](screenshots/cli-list.jpg)
+
+Other cli arguments can be listed with `--help`:
+
+```shell
+Loading config from: /Users/samm/.config/gollama/config.json
+Usage of ./gollama:
+-cleanup
+    Remove all symlinked models and empty directories and exit
+-l  List all available Ollama models and exit
+-lm-dir string
+    Custom LM Studio models directory
+-no-cleanup
+    Don't cleanup broken symlinks
+-ollama-dir string
+    Custom Ollama models directory
+```
 
 ## Configuration
 

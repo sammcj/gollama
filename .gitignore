@@ -5,3 +5,4 @@ gollama
 **/*.log
 dist/
 .selected*
+dist/
