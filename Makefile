@@ -53,8 +53,11 @@ test: ## Run test
 	go test -v ./...
 
 build: ## Run build
-	go build .
-	echo "Build completed, run ./gollama"
+	$(eval GOLLAMA_VERSION := $(shell if [ -z "$(GOLLAMA_VERSION)" ]; then echo "dev"; else echo $(GOLLAMA_VERSION); fi))
+	LDFLAGS="-X github.com/sammcj/gollama/cmd.Version=$(GOLLAMA_VERSION)"
+	@echo "Building with version: $(GOLLAMA_VERSION)"
+	go build -v $(LDFLAGS)
+	@echo "Build completed, run ./gollama"
 
 ci: ## build for linux and macOS
 	mkdir -p ./dist/macos ./dist/linux_amd64 ./dist/linux_arm64

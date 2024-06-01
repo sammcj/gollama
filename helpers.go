@@ -208,3 +208,11 @@ func padColumn(column []string) []string {
 	}
 	return paddedColumn
 }
+
+func Version() string {
+	v, ok := os.ReadFile(".version")
+	if ok != nil {
+		return "unknown"
+	}
+	return string(v)
+}

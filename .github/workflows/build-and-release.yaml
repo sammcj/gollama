@@ -34,9 +34,21 @@ jobs:
       - name: Install dependencies
         run: go mod download
 
+      # Get the version we're building
+      - name: Bump version and push tag
+        id: get_version
+        uses: mathieudutour/github-tag-action@a22cf08638b34d5badda920f9daf6e72c477b07b # v6.2
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          release_branches: main
+          pre_release_branches: dev
+          dry_run: true
+
       # Build
       - name: Build
         shell: bash
+        env:
+          GOLLAMA_VERSION: ${{ steps.get_version.outputs.new_tag }}
         run: |
           set -x
           make ci
@@ -57,23 +69,24 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           release_branches: main
           pre_release_branches: dev
+          custom_tag: ${{ steps.get_version.outputs.new_tag }}
 
       # Make a new latest tag and force push it
       - name: Make a new latest tag and force push it
-        if: ${{ steps.tag_version.outputs.new_tag != 'false' }}
+        if: ${{ steps.get_version.outputs.new_tag != 'false' }}
         run: |
           git fetch --tags
           git checkout ${{ github.ref }}
-          git tag -f latest ${{ steps.tag_version.outputs.new_tag }}
+          git tag -f latest ${{ steps.get_version.outputs.new_tag }}
           git push origin latest --force
 
       # Publish
       - name: Create a GitHub release
         uses: ncipollo/release-action@2c591bcc8ecdcd2db72b97d6147f871fcd833ba5 # v1
         with:
-          tag: ${{ steps.tag_version.outputs.new_tag }}
-          name: Release ${{ steps.tag_version.outputs.new_tag }}
-          body: ${{ steps.tag_version.outputs.changelog }}
+          tag: ${{ steps.get_version.outputs.new_tag }}
+          name: Release ${{ steps.get_version.outputs.new_tag }}
+          body: ${{ steps.get_version.outputs.changelog }}
           generateReleaseNotes: true
           allowUpdates: true
           makeLatest: true

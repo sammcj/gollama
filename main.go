@@ -35,7 +35,7 @@ type AppModel struct {
 }
 
 func main() {
-	var version = "1.0.6"
+	version := Version()
 
 	// Load config
 	cfg, err := config.LoadConfig()
@@ -59,7 +59,14 @@ func main() {
 	lmStudioDirFlag := flag.String("lm-dir", cfg.LMStudioFilePaths, "Custom LM Studio models directory")
 	noCleanupFlag := flag.Bool("no-cleanup", false, "Don't cleanup broken symlinks")
 	cleanupFlag := flag.Bool("cleanup", false, "Remove all symlinked models and empty directories and exit")
+	versionFlag := flag.Bool("v", false, "Print the version and exit")
+
 	flag.Parse()
+
+	if *versionFlag {
+		fmt.Println(version)
+		os.Exit(0)
+	}
 
 	client, err := api.ClientFromEnvironment()
 	if err != nil {
