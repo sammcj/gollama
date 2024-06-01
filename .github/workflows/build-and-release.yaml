@@ -49,9 +49,7 @@ jobs:
         with:
           name: gollama
           path: |
-            dist/macos/gollama
-            dist/linux_amd64/gollama
-            dist/linux_arm64/gollama
+            dist/*
 
       # Bump version
       - name: Bump version and push tag
@@ -74,8 +72,6 @@ jobs:
           prerelease: ${{ startsWith(github.ref, 'refs/heads/dev') }}
           draft: ${{ startsWith(github.ref, 'refs/heads/dev') }}
           artifacts: |
-            dist/macos/gollama
-            dist/linux_amd64/gollama
-            dist/linux_arm64/gollama
+            dist/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
