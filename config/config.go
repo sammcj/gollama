@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/sammcj/gollama/logging"
 )
@@ -27,15 +26,20 @@ var defaultConfig = Config{
 	DefaultSort:       "Size",
 	Columns:           []string{"Name", "Size", "Quant", "Family", "Modified", "ID"},
 	OllamaAPIKey:      "",
-	OllamaAPIURL:      os.Getenv("OLLAMA_HOST"),
+	OllamaAPIURL:      "http://localhost:11434",
 	LMStudioFilePaths: "",
-	LogLevel:          "warning",
+	LogLevel:          "info",
 	LogFilePath:       os.Getenv("HOME") + "/.config/gollama/gollama.log",
 	SortOrder:         "modified", // Default sort order
 	StripString:       "",
 }
 
 func LoadConfig() (Config, error) {
+	// Initialize loggers with desired parameters.
+	if err := logging.Init("debug", "gollama.log"); err != nil {
+		fmt.Println("Failed to initialize loggers:", err)
+		os.Exit(1)
+	}
 	configPath := getConfigPath()
 	fmt.Println("Loading config from:", configPath)
 
@@ -56,11 +60,15 @@ func LoadConfig() (Config, error) {
 				logging.ErrorLogger.Printf("Failed to save default config: %v\n", err)
 				return Config{}, fmt.Errorf("failed to save default config: %w", err)
 			}
-
-			return defaultConfig, nil
+			// now continue to open the file
+			file, err = os.Open(configPath)
+			if err != nil {
+				return Config{}, fmt.Errorf("failed to open config file: %w", err)
+			}
+		} else {
+			logging.ErrorLogger.Printf("Failed to open config file: %v\n", err)
+			return Config{}, fmt.Errorf("failed to open config file: %w", err)
 		}
-		logging.ErrorLogger.Printf("Failed to open config file: %v\n", err)
-		return Config{}, fmt.Errorf("failed to open config file: %w", err)
 	}
 	defer file.Close()
 
@@ -72,10 +80,6 @@ func LoadConfig() (Config, error) {
 
 	// Set OLLAMA_HOST if OllamaAPIURL is set and valid
 	if config.OllamaAPIURL != "" {
-		// check if the OllamaAPIURL is valid (http(s)://)
-		if !strings.HasPrefix(config.OllamaAPIURL, "http://") && !strings.HasPrefix(config.OllamaAPIURL, "https://") {
-			return Config{}, fmt.Errorf("invalid Ollama API URL: %s", config.OllamaAPIURL)
-		}
 		os.Setenv("OLLAMA_HOST", config.OllamaAPIURL)
 	}
 
