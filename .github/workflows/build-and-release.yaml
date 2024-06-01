@@ -58,21 +58,14 @@ jobs:
           release_branches: main
           pre_release_branches: dev
 
-      # Delete latest tag
-      - name: Delete latest tag
-        if: github.ref == 'refs/heads/main'
+      # Make a new latest tag and force push it
+      - name: Make a new latest tag and force push it
+        if: ${{ steps.tag_version.outputs.new_tag != 'false' }}
         run: |
-          git push origin :refs/tags/latest
-
-      # Bump latest version
-      - name: Bump latest version
-        id: tag_latest
-        if: github.ref == 'refs/heads/main'
-        uses: mathieudutour/github-tag-action@a22cf08638b34d5badda920f9daf6e72c477b07b # v6.2
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          release_branches: main
-          custom_tag: latest
+          git fetch --tags
+          git checkout ${{ github.ref }}
+          git tag -f latest ${{ steps.tag_version.outputs.new_tag }}
+          git push origin latest --force
 
       # Publish
       - name: Create a GitHub release
