@@ -32,6 +32,8 @@ type AppModel struct {
 	noCleanup           bool
 	cfg                 *config.Config
 	message             string
+	inspecting          bool
+	inspectedModel      Model
 }
 
 var Version = "development"
