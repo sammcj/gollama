@@ -6,30 +6,20 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/table"
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/sammcj/gollama/logging"
-
+	"github.com/charmbracelet/lipgloss"
 	"github.com/ollama/ollama/api"
-	"golang.org/x/term"
+	"github.com/sammcj/gollama/logging"
 )
 
 func runModel(modelName string) {
-	// Save the current terminal state
-	oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
-	if err != nil {
-		logging.ErrorLogger.Printf("Error saving terminal state: %v\n", err)
-		return
-	}
-	defer term.Restore(int(os.Stdin.Fd()), oldState)
-
-	if err := tea.ClearScreen(); err != nil {
-		logging.ErrorLogger.Printf("Error clearing screen: %v\n", err)
-	}
-
-	// Run the Ollama model
 	cmd := exec.Command("ollama", "run", modelName)
+
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
@@ -40,12 +30,8 @@ func runModel(modelName string) {
 		logging.InfoLogger.Printf("Successfully ran model: %s\n", modelName)
 	}
 
-	// Restore the terminal state
-	if err := term.Restore(int(os.Stdin.Fd()), oldState); err != nil {
-		logging.ErrorLogger.Printf("Error restoring terminal state: %v\n", err)
-	}
-
-	// redraw the screen
+	// Exit the application
+	os.Exit(0)
 }
 
 func deleteModel(client *api.Client, name string) error {
@@ -278,32 +264,171 @@ func cleanupSymlinkedModels(lmStudioModelsDir string) {
 	}
 }
 
+func copyModel(client *api.Client, oldName, newName string) {
+	ctx := context.Background()
+	req := &api.CopyRequest{
+		Source:      oldName,
+		Destination: newName,
+	}
+	err := client.Copy(ctx, req)
+	if err != nil {
+		logging.ErrorLogger.Printf("Error copying model: %v\n", err)
+	} else {
+		logging.InfoLogger.Printf("Successfully copied model: %s to %s\n", oldName, newName)
+	}
+}
+
+func pushModel(client *api.Client, modelName string) {
+	ctx := context.Background()
+	req := &api.PushRequest{
+		Name: modelName,
+	}
+	err := client.Push(ctx, req, nil) // Passing nil for the api.PushProgressFunc
+	if err != nil {
+		logging.ErrorLogger.Printf("Error pushing model: %v\n", err)
+	} else {
+		logging.InfoLogger.Printf("Successfully pushed model: %s\n", modelName)
+	}
+}
+
+func promptForNewName(oldName string, model Model) string {
+	ti := textinput.New()
+	ti.Placeholder = "Enter new name"
+	ti.Focus()
+	ti.Prompt = "New name for model: "
+	ti.CharLimit = 156
+	ti.Width = 20
+
+	// Create a model to manage the text input
+	m := textInputModel{
+		textInput: ti,
+		oldName:   oldName,
+		model:     model,
+	}
+
+	// Run the Bubble Tea program
+	p := tea.NewProgram(m)
+	if err := func() error {
+		_, err := p.Run()
+		return err
+	}(); err != nil {
+		logging.ErrorLogger.Printf("Error starting text input program: %v\n", err)
+	}
+
+	return m.model.Name
+}
+
+// textInputModel is a simple model for managing text input
+type textInputModel struct {
+	textInput textinput.Model
+	oldName   string
+	model     Model
+}
+
+// Init implements the tea.Model interface
+func (m textInputModel) Init() tea.Cmd {
+	return textinput.Blink
+}
+
+// Update implements the tea.Model interface
+func (m textInputModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "enter":
+			m.model.Name = m.textInput.Value()
+			return m, tea.Quit
+		case "ctrl+c":
+			return m, tea.Quit
+		}
+	}
+
+	var cmd tea.Cmd
+	m.textInput, cmd = m.textInput.Update(msg)
+	return m, cmd
+}
+
+// View implements the tea.Model interface
+func (m textInputModel) View() string {
+	return fmt.Sprintf(
+		"Old name: %s\n%s\n\n%s",
+		m.oldName,
+		m.textInput.View(),
+		"(ctrl+c to cancel)",
+	)
+}
+
 // Added a new function to get detailed information about a model using Ollama API and local GGUF metadata
 func inspectModel(client *api.Client, model Model) (string, error) {
-	// ctx := context.Background()
-	// req := &api.ShowRequest{Name: model.Name}
-	// // resp, err := client.Show(ctx, req)
-	// if err != nil {
-	// 	return "", fmt.Errorf("error fetching model details from API: %v", err)
-	// }
 
 	var info strings.Builder
 	info.WriteString(fmt.Sprintf("Name: %s\nID: %s\nSize: %.2f GB\nQuantization Level: %s\nModified: %s\nFamily: %s\n",
 		model.Name, model.ID, model.Size, model.QuantizationLevel, model.Modified.Format("2006-01-02"), model.Family))
 
-	// // If the model is on the local machine, inspect GGUF metadata and append to info
-	// modelPath := filepath.Join(os.Getenv("HOME"), ".ollama", "models", resp.Modelfile)
-	// if _, err := os.Stat(modelPath); !os.IsNotExist(err) {
-	// 	metadata, err := gguf.ReadMetadataFromFile(modelPath)
-	// 	if err != nil {
-	// 		return "", fmt.Errorf("error reading GGUF metadata: %v", err)
-	// 	}
-	// 	metadataJSON, _ := json.MarshalIndent(metadata, "", "  ")
-	// 	info.WriteString("\nGGUF Metadata:\n")
-	// 	info.Write(metadataJSON)
-	// } else {
-	// 	info.WriteString("\nNote: Model is not on the local machine, GGUF metadata cannot be inspected.\n")
-	// }
-
 	return info.String(), nil
+}
+
+// Adding a new function get use client to get the running models
+func showRunningModels(client *api.Client) (string, error) {
+	ctx := context.Background()
+	resp, err := client.ListRunning(ctx)
+	if err != nil {
+		return "", fmt.Errorf("error fetching running models: %v", err)
+	}
+
+	var runningModels strings.Builder
+	type RunningModel struct {
+		Name  string
+		Size  string
+		VRAM  string
+		Until string
+	}
+
+	rows := []table.Row{
+		{"Name", "Size", "VRAM", "Until"},
+	}
+
+	columns := []table.Column{
+		{Title: "Name", Width: 40},
+		{Title: "Size", Width: 40},
+		{Title: "VRAM", Width: 40},
+		{Title: "Until", Width: 60},
+	}
+
+	for index, model := range resp.Models {
+		name := model.Name
+		size := model.Size / 1024 / 1024 / 1024
+		vram := model.SizeVRAM / 1024 / 1024 / 1024
+		until := resp.Models[index].ExpiresAt.Format("2006-01-02 15:04:05")
+
+		// create the object
+		runningModel := RunningModel{
+			Name:  lipgloss.NewStyle().Foreground(lipgloss.Color("#8b4fff")).Render(name),
+			Size:  strconv.Itoa(int(size)) + " GB",
+			VRAM:  strconv.Itoa(int(vram)) + " GB",
+			Until: lipgloss.NewStyle().Foreground(lipgloss.Color("#8b4fff")).Render(until),
+		}
+
+		// add the object to the rows
+		rows = append(rows, table.Row{runningModel.Name, runningModel.Size, runningModel.VRAM, runningModel.Until})
+
+	}
+	// Create the table with the columns and rows
+	t := table.New(
+		table.WithColumns(columns),
+		table.WithRows(rows),
+		table.WithFocused(true),
+		table.WithHeight(len(rows)+1),
+	)
+
+	// Set the table styles
+	s := table.DefaultStyles()
+	s.Header = s.Header.BorderStyle(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color("240"))
+	s.Selected = s.Selected.Foreground(lipgloss.Color("229")).Background(lipgloss.Color("57"))
+	t.SetStyles(s)
+
+	// Render the table view
+	runningModels.WriteString("\n" + t.View() + "\n")
+
+	return runningModels.String(), nil
 }

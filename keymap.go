@@ -18,6 +18,9 @@ type KeyMap struct {
 	ClearScreen    key.Binding
 	InspectModel   key.Binding
 	Quit           key.Binding
+	CopyModel      key.Binding
+	PushModel      key.Binding
+	Top            key.Binding
 	SortOrder      string
 }
 
@@ -26,10 +29,11 @@ func NewKeyMap() *KeyMap {
 		Space:          key.NewBinding(key.WithKeys("space"), key.WithHelp("space", "select")),
 		Delete:         key.NewBinding(key.WithKeys("d"), key.WithHelp("d", "delete selected")),
 		InspectModel:   key.NewBinding(key.WithKeys("i"), key.WithHelp("i", "inspect")),
+		Top:            key.NewBinding(key.WithKeys("t"), key.WithHelp("t", "top")),
 		SortByName:     key.NewBinding(key.WithKeys("n"), key.WithHelp("n", "s name")),
 		SortBySize:     key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "s size")),
 		SortByModified: key.NewBinding(key.WithKeys("m"), key.WithHelp("m", "s modified")),
-		SortByQuant:    key.NewBinding(key.WithKeys("t"), key.WithHelp("t", "s quant")),
+		SortByQuant:    key.NewBinding(key.WithKeys("S"), key.WithHelp("S", "s quant size")),
 		SortByFamily:   key.NewBinding(key.WithKeys("f"), key.WithHelp("f", "s family")),
 		RunModel:       key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "run")),
 		ConfirmYes:     key.NewBinding(key.WithKeys("y")),
@@ -38,6 +42,8 @@ func NewKeyMap() *KeyMap {
 		LinkAllModels:  key.NewBinding(key.WithKeys("L"), key.WithHelp("L", "link all")),
 		ClearScreen:    key.NewBinding(key.WithKeys("c")),
 		Quit:           key.NewBinding(key.WithKeys("q")),
+		CopyModel:      key.NewBinding(key.WithKeys("C"), key.WithHelp("C", "copy model")),
+		PushModel:      key.NewBinding(key.WithKeys("P"), key.WithHelp("P", "push model")),
 	}
 }
 

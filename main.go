@@ -10,6 +10,8 @@ import (
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
+	"github.com/charmbracelet/bubbles/table"
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/ollama/ollama/api"
 	"golang.org/x/term"
@@ -19,21 +21,29 @@ import (
 )
 
 type AppModel struct {
-	client              *api.Client
-	list                list.Model
-	keys                *KeyMap
-	models              []Model
 	width               int
 	height              int
-	confirmDeletion     bool
-	selectedForDeletion []Model
 	ollamaModelsDir     string
+	cfg                 *config.Config
+	inspectedModel      Model
+	list                list.Model
+	models              []Model
+	selectedForDeletion []Model
+	confirmDeletion     bool
+	inspecting          bool
+	message             string
+	keys                KeyMap
+	client              *api.Client
 	lmStudioModelsDir   string
 	noCleanup           bool
-	cfg                 *config.Config
-	message             string
-	inspecting          bool
-	inspectedModel      Model
+	table               table.Model
+	filterInput         tea.Model
+	showTop             bool
+}
+
+type model struct {
+	textInput textinput.Model
+	err       error
 }
 
 var Version = "development"
@@ -61,6 +71,7 @@ func main() {
 	noCleanupFlag := flag.Bool("no-cleanup", false, "Don't cleanup broken symlinks")
 	cleanupFlag := flag.Bool("cleanup", false, "Remove all symlinked models and empty directories and exit")
 	versionFlag := flag.Bool("v", false, "Print the version and exit")
+	topFlag := flag.Bool("top", false, "Show running models and exit")
 
 	flag.Parse()
 
@@ -124,13 +135,15 @@ func main() {
 	}
 
 	keys := NewKeyMap()
+
 	width, height, err := term.GetSize(int(os.Stdout.Fd()))
 	if err != nil {
 		width, height = 80, 24 // default size if terminal size can't be determined
 	}
+
 	app := AppModel{
 		client:            client,
-		keys:              keys,
+		keys:              *keys,
 		models:            groupedModels,
 		width:             width,
 		height:            height,
@@ -138,6 +151,7 @@ func main() {
 		lmStudioModelsDir: *lmStudioDirFlag,
 		noCleanup:         *noCleanupFlag,
 		cfg:               &cfg,
+		showTop:           *topFlag,
 	}
 
 	if *ollamaDirFlag == "" {
@@ -176,6 +190,9 @@ func main() {
 			keys.ConfirmNo,
 			keys.LinkModel,
 			keys.LinkAllModels,
+			keys.CopyModel,
+			keys.PushModel,
+			keys.Top,
 		}
 	}
 
