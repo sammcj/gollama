@@ -111,7 +111,7 @@ Example configuration:
     "ID"
   ],
   "ollama_api_key": "",
-  "ollama_api_url": "http://localhost:14434",
+  "ollama_api_url": "http://localhost:11434",
   "lm_studio_file_paths": "",
   "log_level": "info",
   "log_file_path": "gollama.log",
