@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/sammcj/gollama/logging"
 
 	"github.com/ollama/ollama/api"
@@ -23,8 +24,9 @@ func runModel(modelName string) {
 	}
 	defer term.Restore(int(os.Stdin.Fd()), oldState)
 
-	// Clear the terminal screen
-	fmt.Print("\033[H\033[2J")
+	if err := tea.ClearScreen(); err != nil {
+		logging.ErrorLogger.Printf("Error clearing screen: %v\n", err)
+	}
 
 	// Run the Ollama model
 	cmd := exec.Command("ollama", "run", modelName)
@@ -43,8 +45,7 @@ func runModel(modelName string) {
 		logging.ErrorLogger.Printf("Error restoring terminal state: %v\n", err)
 	}
 
-	// Clear the terminal screen again to refresh the application view
-	fmt.Print("\033[H\033[2J")
+	// redraw the screen
 }
 
 func deleteModel(client *api.Client, name string) error {
@@ -275,4 +276,34 @@ func cleanupSymlinkedModels(lmStudioModelsDir string) {
 			break
 		}
 	}
+}
+
+// Added a new function to get detailed information about a model using Ollama API and local GGUF metadata
+func inspectModel(client *api.Client, model Model) (string, error) {
+	// ctx := context.Background()
+	// req := &api.ShowRequest{Name: model.Name}
+	// // resp, err := client.Show(ctx, req)
+	// if err != nil {
+	// 	return "", fmt.Errorf("error fetching model details from API: %v", err)
+	// }
+
+	var info strings.Builder
+	info.WriteString(fmt.Sprintf("Name: %s\nID: %s\nSize: %.2f GB\nQuantization Level: %s\nModified: %s\nFamily: %s\n",
+		model.Name, model.ID, model.Size, model.QuantizationLevel, model.Modified.Format("2006-01-02"), model.Family))
+
+	// // If the model is on the local machine, inspect GGUF metadata and append to info
+	// modelPath := filepath.Join(os.Getenv("HOME"), ".ollama", "models", resp.Modelfile)
+	// if _, err := os.Stat(modelPath); !os.IsNotExist(err) {
+	// 	metadata, err := gguf.ReadMetadataFromFile(modelPath)
+	// 	if err != nil {
+	// 		return "", fmt.Errorf("error reading GGUF metadata: %v", err)
+	// 	}
+	// 	metadataJSON, _ := json.MarshalIndent(metadata, "", "  ")
+	// 	info.WriteString("\nGGUF Metadata:\n")
+	// 	info.Write(metadataJSON)
+	// } else {
+	// 	info.WriteString("\nNote: Model is not on the local machine, GGUF metadata cannot be inspected.\n")
+	// }
+
+	return info.String(), nil
 }
