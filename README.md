@@ -1,7 +1,7 @@
 # Gollama
 
-Gollama is a Go-based client for Ollama for managing models.
-It provides a TUI for listing, sorting, selecting and deleting models and can link Ollama models to LM-Studio.
+Gollama is a tool for Ollama for managing models.
+It provides a TUI for listing, filtering, sorting, selecting and deleting models and can link Ollama models to LM-Studio.
 
 The project started off as a rewrite of my [llamalink](https://smcleod.net/2024/03/llamalink-ollama-to-lm-studio-llm-model-linker/) project, but I decided to expand it to include more features and make it more user-friendly.
 
