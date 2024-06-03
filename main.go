@@ -10,8 +10,8 @@ import (
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
+	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/table"
-	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/ollama/ollama/api"
 	"golang.org/x/term"
@@ -39,16 +39,24 @@ type AppModel struct {
 	table               table.Model
 	filterInput         tea.Model
 	showTop             bool
+	progress            progress.Model
+	confirmRun          bool
+	modelToRun          Model
+	termState           *term.State
 }
 
-type model struct {
-	textInput textinput.Model
-	err       error
+type progressMsg struct {
+	modelName string
 }
 
 var Version = "development"
 
 func main() {
+
+	termState, err := term.GetState(int(os.Stdout.Fd()))
+	if err != nil {
+		panic(err)
+	}
 
 	// Load config
 	cfg, err := config.LoadConfig()
@@ -185,6 +193,8 @@ func main() {
 			keys.SortByName,
 			keys.SortBySize,
 			keys.SortByModified,
+			keys.SortByQuant,
+			keys.SortByFamily,
 			keys.RunModel,
 			keys.ConfirmYes,
 			keys.ConfirmNo,
@@ -195,6 +205,14 @@ func main() {
 			keys.Top,
 		}
 	}
+
+	// TODO: fix this
+	// l.FullHelp = func() [][]key.Binding {
+	// 	return [][]key.Binding{
+	// 		{keys.Space, keys.Delete, keys.SortByName, keys.SortBySize, keys.SortByModified, keys.SortByQuant, keys.SortByFamily},
+	// 		{keys.RunModel, keys.ConfirmYes, keys.ConfirmNo, keys.LinkModel, keys.LinkAllModels, keys.CopyModel, keys.PushModel, keys.Top},
+	// 	}
+	// }
 
 	app.list = l
 
@@ -211,4 +229,8 @@ func main() {
 	if err := config.SaveConfig(cfg); err != nil {
 		panic(err)
 	}
+
+	// reset the terminal before exiting
+	_ = term.Restore(int(os.Stdout.Fd()), termState)
+
 }

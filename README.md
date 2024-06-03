@@ -1,11 +1,12 @@
 # Gollama
 
-Gollama is a tool for Ollama for managing models.
-It provides a TUI for listing, filtering, sorting, selecting and deleting models and can link Ollama models to LM-Studio.
+Gollama is a tool for managing Ollama models.
 
-The project started off as a rewrite of my [llamalink](https://smcleod.net/2024/03/llamalink-ollama-to-lm-studio-llm-model-linker/) project, but I decided to expand it to include more features and make it more user-friendly.
+It provides a TUI (Text User Interface) for listing, inspecting, deleting, copying, and pushing Ollama models as well as optionally linking them to LM Studio.
 
-It's in the early stages of development, so there are plenty of bugs and missing features, but I'm already finding it useful for managing my models, especially for cleaning up old models.
+The application allows users to interactively select models, sort them by various criteria, and perform actions on them using hotkeys.
+
+![](screenshots/gollama-v1.0.0.jpg)
 
 ## Table of Contents
 
@@ -14,31 +15,39 @@ It's in the early stages of development, so there are plenty of bugs and missing
   - [Features](#features)
   - [Installation](#installation)
   - [Usage](#usage)
-    - [Simple model listing](#simple-model-listing)
+    - [Key Bindings](#key-bindings)
+      - [Command-line Options](#command-line-options)
   - [Configuration](#configuration)
   - [Logging](#logging)
   - [Contributing](#contributing)
   - [License](#license)
-  - [Architecture](#architecture)
-    - [Component Diagram](#component-diagram)
-    - [Class Diagram](#class-diagram)
+  - [Acknowledgements](#acknowledgements)
+  - [Diagrams](#diagrams)
+    - [Workflow](#workflow)
+    - [Components](#components)
 
 ## Features
 
-- Interactive TUI with sorting and filtering capabilities.
-- List available models and display basic metadata such as size, quantization level, model family, and modified date.
-- Run models.
-- Select and delete models.
-- Link models to LM-Studio.
+The project started off as a rewrite of my [llamalink](https://smcleod.net/2024/03/llamalink-ollama-to-lm-studio-llm-model-linker/) project, but I decided to expand it to include more features and make it more user-friendly.
 
-![](screenshots/gollama-v1.0.0.jpg)
+It's in the early stages of development, so there are plenty of bugs and missing features, but I'm already finding it useful for managing my models, especially for cleaning up old models.
+
+- List all available Ollama models
+- Sort models by name, size, modification date, quantization level, and family
+- Select and delete models
+- Inspect model details
+- Link models to LM Studio
+- Copy models with a new name
+- Push models to the Ollama API with a progress bar
+- Show running models
+- Interactive menu with dynamic target selection using `fzf`
 
 ## Installation
 
 ```shell
 go install github.com/sammcj/gollama@latest
 # or
-go install github.com/sammcj/gollama@v1.1.2 # or any other specific version
+go install github.com/sammcj/gollama@v1.3.2 # or any other specific version
 ```
 
 Or from source:
@@ -59,15 +68,44 @@ Or from source:
 
 ## Usage
 
-1. Run the application:
+To run the `gollama` application, use the following command:
 
-    ```shell
-    gollama # (or ./goallama if you built from source)
-    ```
+```sh
+gollama # (or ./goallama if you built from source)
+```
 
-2. Use the interactive TUI to list, select, delete, and link models.
+### Key Bindings
 
-### Simple model listing
+- `space`: Select/Deselect a model
+- `d`: Delete selected models
+- `i`: Inspect a model
+- `t`: Show running models
+- `n`: Sort by name
+- `s`: Sort by size
+- `m`: Sort by modification date
+- `S`: Sort by quantization level
+- `f`: Sort by family
+- `enter`: Run a model
+- `y`: Confirm deletion
+- `n`: Cancel deletion
+- `l`: Link a model to LM Studio
+- `L`: Link all models to LM Studio
+- `C`: Copy a model with a new name
+- `P`: Push a model to the Ollama API
+- `q`: Quit the application
+- `esc`: Return to the main view from the inspect screen
+
+#### Command-line Options
+
+- `-l`: List all available Ollama models and exit
+- `-ollama-dir`: Custom Ollama models directory
+- `-lm-dir`: Custom LM Studio models directory
+- `-no-cleanup`: Don't cleanup broken symlinks
+- `-cleanup`: Remove all symlinked models and empty directories and exit
+- `-v`: Print the version and exit
+- `-top`: Show running models and exit
+
+##### Simple model listing
 
 Gollama can also be called with `-l` to list models without the TUI.
 
@@ -76,22 +114,6 @@ gollama -l
 ```
 
 ![](screenshots/cli-list.jpg)
-
-Other cli arguments can be listed with `--help`:
-
-```shell
-Loading config from: /Users/samm/.config/gollama/config.json
-Usage of ./gollama:
--cleanup
-    Remove all symlinked models and empty directories and exit
--l  List all available Ollama models and exit
--lm-dir string
-    Custom LM Studio models directory
--no-cleanup
-    Don't cleanup broken symlinks
--ollama-dir string
-    Custom Ollama models directory
-```
 
 ## Configuration
 
@@ -114,7 +136,7 @@ Example configuration:
   "ollama_api_url": "http://localhost:11434",
   "lm_studio_file_paths": "",
   "log_level": "info",
-  "log_file_path": "gollama.log",
+  "log_file_path": "/Users/username/.config/gollama/gollama.log",
   "sort_order": "Size",
   "strip_string": "my-private-registry.internal/"
 }
@@ -139,107 +161,63 @@ Copyright © 2024 Sam McLeod
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
-## Architecture
+## Acknowledgements
 
-### Component Diagram
+- [Ollama](https://ollama.com/) for the API and model management tools.
+- [Charmbracelet](https://charm.sh/) for the Bubble Tea framework and other packages used in this application.
+
+## Diagrams
+
+### Workflow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant AppModel
+    participant TextInputModel
+    participant API
+
+    User ->> AppModel: Select "Copy Model"
+    AppModel ->> TextInputModel: Prompt for new name
+    TextInputModel ->> User: Display text input
+    User ->> TextInputModel: Enter new name
+    TextInputModel ->> AppModel: Return new name
+    AppModel ->> API: Copy model with new name
+    API ->> AppModel: Confirm copy success
+    AppModel ->> API: Push new model
+    API ->> AppModel: Display progress bar
+    API ->> AppModel: Confirm push success
+    AppModel ->> User: Display success message
+```
+
+### Components
 
 ```mermaid
 graph TD
-    A[Main Application] --> B[API Client]
-    A --> C[Configuration]
-    A --> D[Logging]
-    A --> E[User Interface]
-    E --> F[Model List]
-    E --> G[Key Bindings]
-    E --> H[Item Delegate]
-```
+    A[Project Structure] --> B[main.go]
+    A --> C[app_model.go]
+    A --> D[config/config.go]
+    A --> E[helpers.go]
+    A --> F[item_delegate.go]
+    A --> G[keymap.go]
+    A --> H[logging/logging.go]
+    A --> I[model.go]
+    A --> J[operations.go]
+    A --> K[styles.go]
+    A --> L[Makefile]
+    A --> M[README.md]
 
-### Class Diagram
-
-```mermaid
-classDiagram
-    class AppModel {
-        +client : *api.Client
-        +list : list.Model
-        +keys : *KeyMap
-        +models : []Model
-        +width : int
-        +height : int
-        +confirmDeletion : bool
-        +selectedForDeletion : []Model
-        +ollamaModelsDir : string
-        +lmStudioModelsDir : string
-        +noCleanup : bool
-        +cfg : *config.Config
-        +message : string
-        +Init() tea.Cmd
-        +Update(msg tea.Msg) (tea.Model, tea.Cmd)
-        +View() string
-        +refreshList()
-        +clearScreen() tea.Model
-    }
-
-    class Model {
-        +Name : string
-        +ID : string
-        +Size : float64
-        +QuantizationLevel : string
-        +Modified : time.Time
-        +Selected : bool
-        +Family : string
-        +IDStr() string
-        +SizeStr() string
-        +FamilyStr() string
-        +ModifiedStr() string
-        +QuantStr() string
-        +SelectedStr() string
-        +NameStr() string
-        +Title() string
-        +Description() string
-        +FilterValue() string
-    }
-
-    class Config {
-        +DefaultSort : string
-        +Columns : []string
-        +OllamaAPIKey : string
-        +LMStudioFilePaths : string
-        +LogLevel : string
-        +LogFilePath : string
-        +SortOrder : string
-        +LastSortSelection : string
-        +StripString : string
-        +LoadConfig() (Config, error)
-        +SaveConfig(config Config) error
-        +getConfigPath() string
-    }
-
-    class KeyMap {
-        +Space : key.Binding
-        +Delete : key.Binding
-        +SortByName : key.Binding
-        +SortBySize : key.Binding
-        +SortByModified : key.Binding
-        +SortByQuant : key.Binding
-        +SortByFamily : key.Binding
-        +RunModel : key.Binding
-        +ConfirmYes : key.Binding
-        +ConfirmNo : key.Binding
-        +LinkModel : key.Binding
-        +LinkAllModels : key.Binding
-        +ClearScreen : key.Binding
-        +GetSortOrder() string
-    }
-
-    class Logging {
-        +DebugLogger : *log.Logger
-        +InfoLogger : *log.Logger
-        +ErrorLogger : *log.Logger
-        +Init(logLevel, logFilePath string) error
-    }
-
-    AppModel --> Model
-    AppModel --> KeyMap
-    AppModel --> Config
-    AppModel --> Logging
+    B --> |Initializes| C
+    B --> |Loads| D
+    B --> |Uses| G
+    B --> |Uses| H
+    B --> |Uses| J
+    C --> |Manages| F
+    C --> |Calls| E
+    C --> |Uses| G
+    C --> |Logs with| H
+    C --> |Displays| I
+    C --> |Applies| K
+    J --> |Interacts with| D
+    J --> |Logs with| H
 ```

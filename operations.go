@@ -8,16 +8,20 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/ollama/ollama/api"
 	"github.com/sammcj/gollama/logging"
+	"golang.org/x/term"
 )
 
-func runModel(modelName string) {
+func runModel(modelName string, termState *term.State) {
+
 	cmd := exec.Command("ollama", "run", modelName)
 
 	cmd.Stdout = os.Stdout
@@ -31,6 +35,7 @@ func runModel(modelName string) {
 	}
 
 	// Exit the application
+	term.Restore(int(os.Stdout.Fd()), termState)
 	os.Exit(0)
 }
 
@@ -39,20 +44,23 @@ func deleteModel(client *api.Client, name string) error {
 	req := &api.DeleteRequest{Name: name}
 	logging.DebugLogger.Printf("Attempting to delete model: %s\n", name)
 
-	// Log the request details
-	logging.DebugLogger.Printf("Delete request: %+v\n", req)
-
 	err := client.Delete(ctx, req)
 	if err != nil {
-		// Print a detailed error message to the console
 		logging.ErrorLogger.Printf("Error deleting model %s: %v\n", name, err)
-		// Return an error so that it can be handled by the calling function
 		return fmt.Errorf("error deleting model %s: %v", name, err)
 	}
 
-	// If we reach this point, the model was deleted successfully
 	logging.InfoLogger.Printf("Successfully deleted model: %s\n", name)
 	return nil
+}
+
+func (m *AppModel) startPushModel(modelName string) (tea.Model, tea.Cmd) {
+	progressModel := progress.New(progress.WithDefaultGradient())
+	m.progress = progressModel
+
+	return m, tea.Tick(time.Millisecond*100, func(t time.Time) tea.Msg {
+		return progressMsg{modelName: modelName}
+	})
 }
 
 func linkModel(modelName, lmStudioModelsDir string, noCleanup bool) (string, error) {
@@ -264,7 +272,7 @@ func cleanupSymlinkedModels(lmStudioModelsDir string) {
 	}
 }
 
-func copyModel(client *api.Client, oldName, newName string) {
+func copyModel(client *api.Client, oldName string, newName string) {
 	ctx := context.Background()
 	req := &api.CopyRequest{
 		Source:      oldName,
@@ -275,6 +283,9 @@ func copyModel(client *api.Client, oldName, newName string) {
 		logging.ErrorLogger.Printf("Error copying model: %v\n", err)
 	} else {
 		logging.InfoLogger.Printf("Successfully copied model: %s to %s\n", oldName, newName)
+
+		// Push the new model to the Ollama API
+		pushModel(client, newName)
 	}
 }
 
@@ -290,8 +301,7 @@ func pushModel(client *api.Client, modelName string) {
 		logging.InfoLogger.Printf("Successfully pushed model: %s\n", modelName)
 	}
 }
-
-func promptForNewName(oldName string, model Model) string {
+func promptForNewName(oldName string) string {
 	ti := textinput.New()
 	ti.Placeholder = "Enter new name"
 	ti.Focus()
@@ -303,26 +313,30 @@ func promptForNewName(oldName string, model Model) string {
 	m := textInputModel{
 		textInput: ti,
 		oldName:   oldName,
-		model:     model,
 	}
 
 	// Run the Bubble Tea program
-	p := tea.NewProgram(m)
-	if err := func() error {
-		_, err := p.Run()
-		return err
-	}(); err != nil {
+	p := tea.NewProgram(&m)
+	if err := p.Start(); err != nil {
 		logging.ErrorLogger.Printf("Error starting text input program: %v\n", err)
 	}
 
-	return m.model.Name
+	newName := m.textInput.Value()
+
+	// Validate the new name, if it is empty show an error message to the user
+	if newName == "" {
+		fmt.Println("Error: New name cannot be empty")
+		return oldName
+	}
+
+	return newName
 }
 
 // textInputModel is a simple model for managing text input
 type textInputModel struct {
 	textInput textinput.Model
 	oldName   string
-	model     Model
+	quitting  bool
 }
 
 // Init implements the tea.Model interface
@@ -331,14 +345,15 @@ func (m textInputModel) Init() tea.Cmd {
 }
 
 // Update implements the tea.Model interface
-func (m textInputModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *textInputModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "enter":
-			m.model.Name = m.textInput.Value()
-			return m, tea.Quit
 		case "ctrl+c":
+			m.quitting = true
+			return m, tea.Quit
+		case "enter":
+			// return to the list view
 			return m, tea.Quit
 		}
 	}
@@ -350,22 +365,15 @@ func (m textInputModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // View implements the tea.Model interface
 func (m textInputModel) View() string {
+	if m.quitting {
+		return ""
+	}
 	return fmt.Sprintf(
 		"Old name: %s\n%s\n\n%s",
 		m.oldName,
 		m.textInput.View(),
 		"(ctrl+c to cancel)",
 	)
-}
-
-// Added a new function to get detailed information about a model using Ollama API and local GGUF metadata
-func inspectModel(client *api.Client, model Model) (string, error) {
-
-	var info strings.Builder
-	info.WriteString(fmt.Sprintf("Name: %s\nID: %s\nSize: %.2f GB\nQuantization Level: %s\nModified: %s\nFamily: %s\n",
-		model.Name, model.ID, model.Size, model.QuantizationLevel, model.Modified.Format("2006-01-02"), model.Family))
-
-	return info.String(), nil
 }
 
 // Adding a new function get use client to get the running models

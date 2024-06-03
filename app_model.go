@@ -1,12 +1,14 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"sort"
 	"strings"
 	"time"
 
+	"github.com/ollama/ollama/api"
 	"github.com/sammcj/gollama/logging"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -28,21 +30,23 @@ var topRunning = false
 
 func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
-
 	case tea.WindowSizeMsg:
 		h, v := docStyle.GetFrameSize()
 		m.width, m.height = msg.Width, msg.Height
-		m.list.SetSize(m.width, m.height-5)
-		listHeight := msg.Height - v
+		listHeight := m.height - v - 5 // Adjust for potential additional UI elements
 		if topRunning {
 			listHeight -= 5 // Adjust height when top is running
 		}
-		m.list.SetSize(msg.Width-h, listHeight)
+		m.list.SetSize(m.width-h, listHeight)
 		logging.DebugLogger.Printf("AppModel received key: %s\n", fmt.Sprintf("%+v", msg)) // Convert the message to a string for logging
 	case tea.KeyMsg:
+		if m.list.FilterState() == list.Filtering {
+			// If filtering, do not process other keybindings
+			break
+		}
 
 		switch {
-		case key.Matches(msg, m.keys.Space) && m.inputAllowed():
+		case key.Matches(msg, m.keys.Space):
 			if item, ok := m.list.SelectedItem().(Model); ok {
 				logging.DebugLogger.Printf("Toggling selection for model: %s (before: %v)\n", item.Name, item.Selected)
 				item.Selected = !item.Selected
@@ -50,7 +54,7 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.list.SetItem(m.list.Index(), item)
 				logging.DebugLogger.Printf("Toggled selection for model: %s (after: %v)\n", item.Name, item.Selected)
 			}
-		case key.Matches(msg, m.keys.Delete) && m.inputAllowed():
+		case key.Matches(msg, m.keys.Delete):
 			logging.InfoLogger.Println("Delete key pressed")
 			m.selectedForDeletion = getSelectedModels(m.models)
 			logging.InfoLogger.Printf("Selected models for deletion: %+v\n", m.selectedForDeletion)
@@ -59,19 +63,11 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			} else {
 				m.confirmDeletion = true
 			}
-
-		case key.Matches(msg, m.keys.Top) && m.inputAllowed():
-			if m.showTop {
-				return m, tea.Tick(2*time.Second, func(t time.Time) tea.Msg {
-					running, err := showRunningModels(m.client)
-					if err != nil {
-						return fmt.Sprintf("Error showing running models: %v", err)
-					}
-					return running
-				})
-			}
-
-		case key.Matches(msg, m.keys.ConfirmYes) && m.inputAllowed():
+		case key.Matches(msg, m.keys.Top):
+			var cmd tea.Cmd
+			m, cmd = m.ToggleTop()
+			return m, cmd
+		case key.Matches(msg, m.keys.ConfirmYes):
 			if m.confirmDeletion {
 				for _, selectedModel := range m.selectedForDeletion {
 					logging.InfoLogger.Printf("Attempting to delete model: %s\n", selectedModel.Name)
@@ -85,47 +81,53 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.confirmDeletion = false
 				m.selectedForDeletion = nil
 			}
-		case key.Matches(msg, m.keys.ConfirmNo) && m.inputAllowed():
+		case key.Matches(msg, m.keys.ConfirmNo):
 			if m.confirmDeletion {
 				logging.InfoLogger.Println("Deletion cancelled by user")
 				m.confirmDeletion = false
 				m.selectedForDeletion = nil
 			}
-		case key.Matches(msg, m.keys.SortByName) && m.inputAllowed():
+		case key.Matches(msg, m.keys.SortByName):
 			sort.Slice(m.models, func(i, j int) bool {
 				return m.models[i].Name < m.models[j].Name
 			})
 			m.refreshList()
-		case key.Matches(msg, m.keys.SortBySize) && m.inputAllowed():
+		case key.Matches(msg, m.keys.SortBySize):
 			sort.Slice(m.models, func(i, j int) bool {
 				return m.models[i].Size > m.models[j].Size
 			})
 			m.refreshList()
-		case key.Matches(msg, m.keys.SortByModified) && m.inputAllowed():
+		case key.Matches(msg, m.keys.SortByModified):
 			sort.Slice(m.models, func(i, j int) bool {
 				return m.models[i].Modified.After(m.models[j].Modified)
 			})
 			m.refreshList()
-		case key.Matches(msg, m.keys.SortByQuant) && m.inputAllowed():
+		case key.Matches(msg, m.keys.SortByQuant):
 			sort.Slice(m.models, func(i, j int) bool {
 				return m.models[i].QuantizationLevel < m.models[j].QuantizationLevel
 			})
 			m.refreshList()
-		case key.Matches(msg, m.keys.SortByFamily) && m.inputAllowed():
+		case key.Matches(msg, m.keys.SortByFamily):
 			sort.Slice(m.models, func(i, j int) bool {
 				return m.models[i].Family < m.models[j].Family
 			})
 			m.refreshList()
-		case key.Matches(msg, m.keys.RunModel) && m.inputAllowed():
-			if item, ok := m.list.SelectedItem().(Model); ok {
-				runModel(item.Name)
+		case key.Matches(msg, m.keys.RunModel):
+			if m.confirmRun {
+				runModel(m.modelToRun.Name, m.termState)
 				os.Exit(0) // Exit the application after running the model
+			} else {
+				if item, ok := m.list.SelectedItem().(Model); ok {
+					m.confirmRun = true
+					m.modelToRun = item
+					m.message = fmt.Sprintf("Press enter again to run the model: %s", item.Name)
+				}
 			}
-		case key.Matches(msg, m.keys.ClearScreen) && m.inputAllowed():
+		case key.Matches(msg, m.keys.ClearScreen):
 			if m.inspecting {
 				return m.clearScreen(), tea.ClearScreen
 			}
-		case key.Matches(msg, m.keys.LinkModel) && m.inputAllowed():
+		case key.Matches(msg, m.keys.LinkModel):
 			if item, ok := m.list.SelectedItem().(Model); ok {
 				message, err := linkModel(item.Name, m.lmStudioModelsDir, m.noCleanup)
 				if err != nil {
@@ -136,11 +138,10 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.message = fmt.Sprintf("Model %s linked successfully", item.Name)
 				}
 			}
-		case key.Matches(msg, m.keys.LinkAllModels) && m.inputAllowed():
+		case key.Matches(msg, m.keys.LinkAllModels):
 			var messages []string
 			for _, model := range m.models {
 				message, err := linkModel(model.Name, m.lmStudioModelsDir, m.noCleanup)
-				// if the message is empty, don't add it to the list
 				if err != nil {
 					messages = append(messages, fmt.Sprintf("Error linking model %s: %v", model.Name, err))
 				} else if message != "" {
@@ -149,29 +150,23 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					messages = append(messages, fmt.Sprintf("Model %s linked successfully", model.Name))
 				}
 			}
-			// remove any empty messages or duplicates
-			for i := 0; i < len(messages); i++ {
-				for j := i + 1; j < len(messages); j++ {
-					if messages[i] == messages[j] {
-						messages = append(messages[:j], messages[j+1:]...)
-					}
-				}
-			}
 			messages = append(messages, "Linking complete")
 			m.message = strings.Join(messages, "\n")
-		case key.Matches(msg, m.keys.CopyModel) && m.inputAllowed():
+		case key.Matches(msg, m.keys.CopyModel):
 			if item, ok := m.list.SelectedItem().(Model); ok {
-				newName := promptForNewName(item.Name, item) // Pass the selected item as the model
-				copyModel(m.client, item.Name, newName)
-				m.message = fmt.Sprintf("Model %s copied to %s", item.Name, newName)
-			}
-		case key.Matches(msg, m.keys.PushModel) && m.inputAllowed():
-			if item, ok := m.list.SelectedItem().(Model); ok {
-				pushModel(m.client, item.Name)
-				m.message = fmt.Sprintf("Model %s pushed successfully", item.Name)
-			}
+				newName := promptForNewName(item.Name) // Pass the selected item as the model
 
-		case key.Matches(msg, m.keys.InspectModel) && m.inputAllowed():
+				if newName == "" {
+					m.message = "Error: name can't be empty"
+				} else {
+					m.message = fmt.Sprintf("Model %s copied to %s", item.Name, newName)
+				}
+			}
+		case key.Matches(msg, m.keys.PushModel):
+			if item, ok := m.list.SelectedItem().(Model); ok {
+				return m.startPushModel(item.Name)
+			}
+		case key.Matches(msg, m.keys.InspectModel):
 			selectedItem := m.list.SelectedItem()
 			if selectedItem != nil {
 				model, ok := selectedItem.(Model)
@@ -182,14 +177,33 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.inspectedModel = model                                     // Ensure inspectedModel is set correctly
 				logging.DebugLogger.Printf("Inspecting model: %+v\n", model) // Log the inspected model
 			}
+		case key.Matches(msg, key.NewBinding(key.WithKeys("esc"))):
+			if m.inspecting {
+				m.inspecting = false
+				return m, nil
+			}
 		}
+	case progressMsg:
+		modelName := msg.modelName
+		ctx := context.Background()
+		req := &api.PushRequest{Name: modelName}
+		err := m.client.Push(ctx, req, func(resp api.ProgressResponse) error {
+			m.progress.SetPercent(float64(resp.Completed) / float64(resp.Total))
+			return nil
+		})
+		if err != nil {
+			logging.ErrorLogger.Printf("Error pushing model: %v\n", err)
+		} else {
+			m.message = fmt.Sprintf("Successfully pushed model: %s\n", modelName)
+		}
+		return m, nil
 	}
 	var cmd tea.Cmd
 	m.list, cmd = m.list.Update(msg)
 	return m, cmd
 }
 
-func (m *AppModel) ToggleTop() (tea.Model, tea.Cmd) {
+func (m *AppModel) ToggleTop() (*AppModel, tea.Cmd) {
 	if topRunning {
 		m.message = ""
 		topRunning = false
@@ -212,6 +226,7 @@ func (m *AppModel) View() string {
 	if m.confirmDeletion {
 		return m.confirmDeletionView()
 	}
+
 	if m.inspecting {
 		return m.inspectModelView(m.inspectedModel)
 	}
@@ -222,11 +237,10 @@ func (m *AppModel) View() string {
 }
 
 func (m *AppModel) confirmDeletionView() string {
-	return fmt.Sprintf("\nAre you sure you want to delete the selected models?\n\n%s\n\n%s %s\n%s %s",
+	return fmt.Sprintf("\nAre you sure you want to delete the selected models?\n\n%s\n\n%s\n%s",
 		strings.Join(m.selectedModelNames(), "\n"),
-		m.keys.ConfirmYes.Help().Key, "Yes",
-		m.keys.ConfirmNo.Help().Key, "No",
-	)
+		m.keys.ConfirmYes.Help().Key,
+		m.keys.ConfirmNo.Help().Key)
 }
 
 func (m *AppModel) inspectModelView(model Model) string {
@@ -308,12 +322,4 @@ func (m *AppModel) startTopTicker() tea.Cmd {
 		}
 		return running
 	})
-}
-
-// inputAllowed returns true if the user can interact with the application
-func (m *AppModel) inputAllowed() bool {
-	if m.inspecting || m.filtering() || m.list.FilterInput.Value() == "" || m.confirmDeletion {
-		return true
-	}
-	return false
 }
