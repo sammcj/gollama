@@ -308,7 +308,7 @@ func (m *AppModel) inspectModelView(model Model) string {
 	t.SetStyles(s)
 
 	// Render the table view
-	return "\n" + t.View() + "\nPress q/esc to return to the main view."
+	return "\n" + t.View() + "\nPress 'q' or `esc` to return to the main view."
 }
 
 func (m *AppModel) filterView() string {
@@ -379,5 +379,5 @@ func (m *AppModel) topView() string {
 	t.SetStyles(s)
 
 	// Render the table view
-	return "\n" + t.View() + "\nPress 'q' to return to the main view."
+	return "\n" + t.View() + "\nPress 'q' or `esc` to return to the main view."
 }
