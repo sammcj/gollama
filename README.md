@@ -34,15 +34,14 @@ The project started off as a rewrite of my [llamalink](https://smcleod.net/2024/
 
 It's in the early stages of development, so there are plenty of bugs and missing features, but I'm already finding it useful for managing my models, especially for cleaning up old models.
 
-- List all available Ollama models
+- List and filter Ollama models
 - Sort models by name, size, modification date, quantization level, and family
 - Select and delete models
 - Inspect model details
 - Link models to LM Studio
-- Copy models with a new name
-- Push models to the Ollama API with a progress bar
+- Copy models
+- Push models to a registry
 - Show running models
-- Interactive menu with dynamic target selection using `fzf`
 
 ## Installation
 
