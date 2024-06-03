@@ -88,8 +88,8 @@ jobs:
           generateReleaseNotes: true
           allowUpdates: true
           makeLatest: true
-          prerelease: ${{ startsWith(github.ref, 'refs/heads/dev') }}
-          draft: ${{ startsWith(github.ref, 'refs/heads/dev') }}
+          prerelease: ${{ !startsWith(github.ref, 'refs/heads/main') }}
+          draft: ${{ !startsWith(github.ref, 'refs/heads/main') }}
           artifacts: |
             gollama-*.zip
         env:

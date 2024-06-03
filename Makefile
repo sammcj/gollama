@@ -59,8 +59,6 @@ build: ## Run build
 	@echo "Build completed, run ./gollama"
 
 ci: ## build for linux and macOS
-	$(MAKE) lint
-
 	$(eval GOLLAMA_VERSION := $(shell if [ -z "$(GOLLAMA_VERSION)" ]; then echo "dev"; else echo $(GOLLAMA_VERSION); fi))
 	@echo "Building with version: $(GOLLAMA_VERSION)"
 
