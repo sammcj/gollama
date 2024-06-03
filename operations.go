@@ -12,7 +12,6 @@ import (
 
 	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/table"
-	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/ollama/ollama/api"
@@ -318,84 +317,6 @@ func pushModel(client *api.Client, modelName string) error {
 	}
 	logging.InfoLogger.Printf("Successfully pushed model: %s\n", modelName)
 	return nil
-}
-
-func promptForNewName(oldName string) string {
-	ti := textinput.New()
-	ti.Placeholder = "Enter new name"
-	ti.Focus()
-	ti.Prompt = "New name for model: "
-	ti.CharLimit = 156
-	ti.Width = 20
-
-	// Create a model to manage the text input
-	m := textInputModel{
-		textInput: ti,
-		oldName:   oldName,
-	}
-
-	// Run the Bubble Tea program
-	p := tea.NewProgram(&m)
-	if err := func() error {
-		_, err := p.Run()
-		return err
-	}(); err != nil {
-		logging.ErrorLogger.Printf("Error starting text input program: %v\n", err)
-	}
-
-	newName := m.textInput.Value()
-
-	// Validate the new name, if it is empty show an error message to the user
-	if newName == "" {
-		fmt.Println("Error: New name cannot be empty")
-		return oldName
-	}
-
-	return newName
-}
-
-// textInputModel is a simple model for managing text input
-type textInputModel struct {
-	textInput textinput.Model
-	oldName   string
-	quitting  bool
-}
-
-// Init implements the tea.Model interface
-func (m textInputModel) Init() tea.Cmd {
-	return textinput.Blink
-}
-
-// Update implements the tea.Model interface
-func (m *textInputModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "ctrl+c":
-			m.quitting = true
-			return m, tea.Quit
-		case "enter":
-			// return to the list view
-			return m, tea.Quit
-		}
-	}
-
-	var cmd tea.Cmd
-	m.textInput, cmd = m.textInput.Update(msg)
-	return m, cmd
-}
-
-// View implements the tea.Model interface
-func (m textInputModel) View() string {
-	if m.quitting {
-		return ""
-	}
-	return fmt.Sprintf(
-		"Old name: %s\n%s\n\n%s",
-		m.oldName,
-		m.textInput.View(),
-		"(ctrl+c to cancel)",
-	)
 }
 
 // Adding a new function get use client to get the running models
