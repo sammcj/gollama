@@ -71,34 +71,17 @@ jobs:
           path: |
             gollama-*.zip
 
-  publish:
-    needs: build
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    if: ${{ startsWith(github.ref, 'refs/heads/main') && !contains(github.event.head_commit.message, '[skip ci]') }}
-    steps:
-      - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4
-        if: ${{ startsWith(github.ref, 'refs/heads/main') && !contains(github.event.head_commit.message, '[skip ci]') }}
-        with:
-          fetch-depth: 0
-
-      - name: Download artefacts
-        uses: actions/download-artifact@main
-        with:
-          pattern: gollama-*.zip
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-
       # Publish
       - name: Create a GitHub release
         uses: ncipollo/release-action@2c591bcc8ecdcd2db72b97d6147f871fcd833ba5 # v1
         if: ${{ startsWith(github.ref, 'refs/heads/main') && !contains(github.event.head_commit.message, '[skip ci]') }}
         with:
-          tag: ${{ needs.build.outputs.new_tag }}
-          name: Release ${{ needs.build.outputs.new_tag }}
-          body: ${{ needs.build.outputs.changelog }}
+          tag: ${{ steps.get_version.outputs.new_tag }}
+          name: Release ${{ steps.get_version.outputs.new_tag }}
+          body: ${{ steps.get_version.outputs.changelog }}
           generateReleaseNotes: true
           allowUpdates: true
-          makeLatest: true
+          makeLatest: ${{ startsWith(github.ref, 'refs/heads/main') && !contains(github.event.head_commit.message, '[skip ci]') }}
           prerelease: ${{ !startsWith(github.ref, 'refs/heads/main') }}
           draft: ${{ !startsWith(github.ref, 'refs/heads/main') }}
           artifactErrorsFailBuild: true
@@ -111,12 +94,13 @@ jobs:
       - name: Bump version and push tag
         id: tag_version
         uses: mathieudutour/github-tag-action@a22cf08638b34d5badda920f9daf6e72c477b07b # v6.2
+        if: ${{ startsWith(github.ref, 'refs/heads/main') && !contains(github.event.head_commit.message, '[skip ci]') }}
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           release_branches: main
           pre_release_branches: dev
           dry_run: ${{ !startsWith(github.ref, 'refs/heads/main') }}
-          custom_tag: ${{ needs.build.outputs.new_tag }}
+          custom_tag: ${{ steps.get_version.outputs.new_tag }}
 
   # if the workflow is cancelled, don't mark the workflow as failed
   done:
