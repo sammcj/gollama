@@ -42,6 +42,7 @@ type AppModel struct {
 	progress            progress.Model
 	altscreenActive     bool
 	view                View
+	showProgress        bool
 }
 
 type progressMsg struct {
@@ -215,6 +216,11 @@ func main() {
 		logging.ErrorLogger.Printf("Error: %v", err)
 	} else {
 		fmt.Print("\033[H\033[2J")
+	}
+
+	// Throw a warning if the users terminal cannot display colours
+	if !term.IsTerminal(int(os.Stdout.Fd())) {
+		fmt.Println("Warning: Your terminal does not support colours. Please consider using a terminal that does.")
 	}
 
 	cfg.SortOrder = keys.GetSortOrder()

@@ -46,13 +46,13 @@ func deleteModel(client *api.Client, name string) error {
 	return nil
 }
 
-func (m *AppModel) startPushModel(modelName string) (tea.Model, tea.Cmd) {
+func (m *AppModel) startPushModel(modelName string) tea.Cmd {
 	logging.InfoLogger.Printf("Pushing model: %s\n", modelName)
 
 	// Initialize the progress model
 	m.progress = progress.New(progress.WithDefaultGradient())
 
-	return m, tea.Batch(
+	return tea.Batch(
 		tea.Tick(time.Millisecond*100, func(t time.Time) tea.Msg {
 			return progressMsg{modelName: modelName}
 		}),

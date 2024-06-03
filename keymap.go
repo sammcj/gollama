@@ -22,7 +22,8 @@ type KeyMap struct {
 	PushModel      key.Binding
 	Top            key.Binding
 	AltScreen      key.Binding
-	SortOrder      string
+	// Filter         key.Binding
+	SortOrder string
 }
 
 func NewKeyMap() *KeyMap {
@@ -46,6 +47,7 @@ func NewKeyMap() *KeyMap {
 		ClearScreen:    key.NewBinding(key.WithKeys("c")),
 		Quit:           key.NewBinding(key.WithKeys("q")),
 		AltScreen:      key.NewBinding(key.WithKeys("a")),
+		// Filter:         key.NewBinding(key.WithKeys("/")),
 	}
 }
 

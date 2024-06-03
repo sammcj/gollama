@@ -10,6 +10,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
+	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -29,22 +30,25 @@ func (m *AppModel) Init() tea.Cmd {
 	return nil
 }
 
-var docStyle = lipgloss.NewStyle()
+func (m *AppModel) FilterValue() string {
+	return m.filterInput.View()
+}
+
+// var docStyle = lipgloss.NewStyle()
 var topRunning = false
 
 func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	switch msg := msg.(type) {
-	case tea.WindowSizeMsg:
-		h, v := docStyle.GetFrameSize()
-		m.width, m.height = msg.Width, msg.Height
-		listHeight := m.height - v - 5 // Adjust for potential additional UI elements
-		if topRunning {
-			listHeight -= 5 // Adjust height when top is running
-		}
-		m.list.SetSize(m.width-h, listHeight)
-		logging.DebugLogger.Printf("AppModel received key: %s\n", fmt.Sprintf("%+v", msg)) // Convert the message to a string for logging
 	case tea.KeyMsg:
+		// if m.list.FilterState() == list.Filtering {
+		// 	m.filterInput, cmd = m.filterInput.Update(msg)
+		// 	return m, cmd
+		// }
+		if m.list.FilterState() == list.Filtering {
+			m.list, cmd = m.list.Update(msg)
+			return m, cmd
+		}
 		switch msg.String() {
 		case "q", "esc":
 			if m.view == TopView || m.inspecting {
@@ -57,11 +61,6 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		if m.view == TopView {
-			break
-		}
-
-		if m.list.FilterState() == list.Filtering {
-			// If filtering, do not process other keybindings
 			break
 		}
 
@@ -83,6 +82,7 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			} else {
 				m.confirmDeletion = true
 			}
+
 		case key.Matches(msg, m.keys.Top):
 			m.view = TopView
 			return m, nil
@@ -186,7 +186,8 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.keys.PushModel):
 			if item, ok := m.list.SelectedItem().(Model); ok {
 				m.message = lipgloss.NewStyle().Foreground(lipgloss.Color("129")).Render(fmt.Sprintf("Pushing model: %s\n", item.Name))
-				return m.startPushModel(item.Name)
+				m.showProgress = true // Show progress bar
+				return m, m.startPushModel(item.Name)
 			}
 		case key.Matches(msg, m.keys.InspectModel):
 			selectedItem := m.list.SelectedItem()
@@ -215,18 +216,29 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case pushSuccessMsg:
 		m.message = fmt.Sprintf("Successfully pushed model: %s\n", msg.modelName)
+		m.showProgress = false // Hide progress bar
 		return m, nil
 
 	case pushErrorMsg:
 		logging.ErrorLogger.Printf("Error pushing model: %v\n", msg.err)
 		m.message = fmt.Sprintf("Error pushing model: %v\n", msg.err)
+		m.showProgress = false // Hide progress bar
 		return m, nil
+
+	// Handle progress bar updates
+	case progress.FrameMsg:
+		progressModel, cmd := m.progress.Update(msg)
+		m.progress = progressModel.(progress.Model)
+		return m, cmd
+
+	default:
+		m.list, cmd = m.list.Update(msg)
+		return m, cmd
 	}
 
 	m.list, cmd = m.list.Update(msg)
 	return m, cmd
 }
-
 func (m *AppModel) ToggleTop() (*AppModel, tea.Cmd) {
 	if topRunning {
 		m.message = ""
@@ -261,7 +273,14 @@ func (m *AppModel) View() string {
 	if m.filtering() {
 		return m.filterView()
 	}
-	return m.list.View() + "\n" + m.message
+
+	view := m.list.View() + "\n" + m.message
+
+	if m.showProgress {
+		view += "\n" + m.progress.View()
+	}
+
+	return view
 }
 
 func (m *AppModel) confirmDeletionView() string {
@@ -312,7 +331,8 @@ func (m *AppModel) inspectModelView(model Model) string {
 }
 
 func (m *AppModel) filterView() string {
-	return m.filterInput.View()
+	// return m.filterInput.View()
+	return m.list.View()
 }
 
 func (m *AppModel) selectedModelNames() []string {
@@ -338,8 +358,7 @@ func (m *AppModel) clearScreen() tea.Model {
 }
 
 func (m *AppModel) filtering() bool {
-	// Implement the filtering logic for your application
-	return false
+	return m.list.FilterState() == list.Filtering
 }
 
 func (m *AppModel) startTopTicker() tea.Cmd {
