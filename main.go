@@ -10,6 +10,8 @@ import (
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
+	"github.com/charmbracelet/bubbles/progress"
+	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/ollama/ollama/api"
 	"golang.org/x/term"
@@ -19,42 +21,59 @@ import (
 )
 
 type AppModel struct {
-	client              *api.Client
-	list                list.Model
-	keys                *KeyMap
-	models              []Model
 	width               int
 	height              int
-	confirmDeletion     bool
-	selectedForDeletion []Model
 	ollamaModelsDir     string
+	cfg                 *config.Config
+	inspectedModel      Model
+	list                list.Model
+	models              []Model
+	selectedForDeletion []Model
+	confirmDeletion     bool
+	inspecting          bool
+	message             string
+	keys                KeyMap
+	client              *api.Client
 	lmStudioModelsDir   string
 	noCleanup           bool
-	cfg                 *config.Config
-	message             string
-	inspecting          bool
-	inspectedModel      Model
+	table               table.Model
+	filterInput         tea.Model
+	showTop             bool
+	progress            progress.Model
+	altscreenActive     bool
+	view                View
+	showProgress        bool
+}
+
+type progressMsg struct {
+	modelName string
+}
+
+type runFinishedMessage struct{ err error }
+
+type pushSuccessMsg struct {
+	modelName string
+}
+
+type pushErrorMsg struct {
+	err error
 }
 
 var Version = "development"
 
 func main() {
-
-	// Load config
 	cfg, err := config.LoadConfig()
 	if err != nil {
 		fmt.Println("Error loading config:", err)
 		os.Exit(1)
 	}
 
-	// Initialize logging
 	err = logging.Init(cfg.LogLevel, cfg.LogFilePath)
 	if err != nil {
 		fmt.Println("Error initializing logging:", err)
 		os.Exit(1)
 	}
 
-	// Parse command-line arguments
 	listFlag := flag.Bool("l", false, "List all available Ollama models and exit")
 	ollamaDirFlag := flag.String("ollama-dir", cfg.OllamaAPIKey, "Custom Ollama models directory")
 	lmStudioDirFlag := flag.String("lm-dir", cfg.LMStudioFilePaths, "Custom LM Studio models directory")
@@ -85,20 +104,17 @@ func main() {
 	logging.InfoLogger.Println("Fetched models from API")
 	models := parseAPIResponse(resp)
 
-	// Group models by ID and normalize sizes to GB
 	modelMap := make(map[string][]Model)
 	for _, model := range models {
 		model.Size = normalizeSize(model.Size)
 		modelMap[model.ID] = append(modelMap[model.ID], model)
 	}
 
-	// Flatten the map into a slice
 	groupedModels := make([]Model, 0)
 	for _, group := range modelMap {
 		groupedModels = append(groupedModels, group...)
 	}
 
-	// Apply sorting order from config
 	switch cfg.SortOrder {
 	case "name":
 		sort.Slice(groupedModels, func(i, j int) bool {
@@ -124,13 +140,15 @@ func main() {
 	}
 
 	keys := NewKeyMap()
+
 	width, height, err := term.GetSize(int(os.Stdout.Fd()))
 	if err != nil {
-		width, height = 80, 24 // default size if terminal size can't be determined
+		width, height = 80, 24
 	}
+
 	app := AppModel{
 		client:            client,
-		keys:              keys,
+		keys:              *keys,
 		models:            groupedModels,
 		width:             width,
 		height:            height,
@@ -138,6 +156,7 @@ func main() {
 		lmStudioModelsDir: *lmStudioDirFlag,
 		noCleanup:         *noCleanupFlag,
 		cfg:               &cfg,
+		progress:          progress.New(progress.WithDefaultGradient()),
 	}
 
 	if *ollamaDirFlag == "" {
@@ -158,11 +177,9 @@ func main() {
 	}
 
 	l := list.New(items, NewItemDelegate(&app), width, height-5)
-
 	l.Title = "Ollama Models"
-	l.InfiniteScrolling = true
-	l.SetShowTitle(false)
-	l.SetShowStatusBar(false)
+	l.Help.Styles.ShortDesc.Bold(true)
+	l.Help.Styles.ShortDesc.UnsetFaint()
 
 	l.AdditionalShortHelpKeys = func() []key.Binding {
 		return []key.Binding{
@@ -171,11 +188,16 @@ func main() {
 			keys.SortByName,
 			keys.SortBySize,
 			keys.SortByModified,
+			keys.SortByQuant,
+			keys.SortByFamily,
 			keys.RunModel,
 			keys.ConfirmYes,
 			keys.ConfirmNo,
 			keys.LinkModel,
 			keys.LinkAllModels,
+			keys.CopyModel,
+			keys.PushModel,
+			keys.Top,
 		}
 	}
 
@@ -185,13 +207,18 @@ func main() {
 	if _, err := p.Run(); err != nil {
 		logging.ErrorLogger.Printf("Error: %v", err)
 	} else {
-		// Clear the terminal screen again to refresh the application view
 		fmt.Print("\033[H\033[2J")
 	}
 
-	// Save the updated configuration
+	// Throw a warning if the users terminal cannot display colours
+	if !term.IsTerminal(int(os.Stdout.Fd())) {
+		fmt.Println("Warning: Your terminal does not support colours. Please consider using a terminal that does.")
+	}
+
 	cfg.SortOrder = keys.GetSortOrder()
 	if err := config.SaveConfig(cfg); err != nil {
 		panic(err)
 	}
+
+	p.ReleaseTerminal()
 }

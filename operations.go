@@ -7,45 +7,28 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
+	"github.com/charmbracelet/bubbles/progress"
+	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/sammcj/gollama/logging"
-
 	"github.com/ollama/ollama/api"
-	"golang.org/x/term"
+	"github.com/sammcj/gollama/logging"
 )
 
-func runModel(modelName string) {
-	// Save the current terminal state
-	oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
+func runModel(model string) tea.Cmd {
+	ollamaPath, err := exec.LookPath("ollama")
 	if err != nil {
-		logging.ErrorLogger.Printf("Error saving terminal state: %v\n", err)
-		return
+		logging.ErrorLogger.Printf("Error finding ollama binary: %v\n", err)
+		return nil
 	}
-	defer term.Restore(int(os.Stdin.Fd()), oldState)
-
-	if err := tea.ClearScreen(); err != nil {
-		logging.ErrorLogger.Printf("Error clearing screen: %v\n", err)
-	}
-
-	// Run the Ollama model
-	cmd := exec.Command("ollama", "run", modelName)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Stdin = os.Stdin
-
-	if err := cmd.Run(); err != nil {
-		logging.ErrorLogger.Printf("Error running model: %v\n", err)
-	} else {
-		logging.InfoLogger.Printf("Successfully ran model: %s\n", modelName)
-	}
-
-	// Restore the terminal state
-	if err := term.Restore(int(os.Stdin.Fd()), oldState); err != nil {
-		logging.ErrorLogger.Printf("Error restoring terminal state: %v\n", err)
-	}
-
-	// redraw the screen
+	c := exec.Command(ollamaPath, "run", model)
+	return tea.ExecProcess(c, func(err error) tea.Msg {
+		if err != nil {
+			logging.ErrorLogger.Printf("Error running model: %v\n", err)
+		}
+		return runFinishedMessage{err}
+	})
 }
 
 func deleteModel(client *api.Client, name string) error {
@@ -53,20 +36,43 @@ func deleteModel(client *api.Client, name string) error {
 	req := &api.DeleteRequest{Name: name}
 	logging.DebugLogger.Printf("Attempting to delete model: %s\n", name)
 
-	// Log the request details
-	logging.DebugLogger.Printf("Delete request: %+v\n", req)
-
 	err := client.Delete(ctx, req)
 	if err != nil {
-		// Print a detailed error message to the console
 		logging.ErrorLogger.Printf("Error deleting model %s: %v\n", name, err)
-		// Return an error so that it can be handled by the calling function
 		return fmt.Errorf("error deleting model %s: %v", name, err)
 	}
 
-	// If we reach this point, the model was deleted successfully
 	logging.InfoLogger.Printf("Successfully deleted model: %s\n", name)
 	return nil
+}
+
+func (m *AppModel) startPushModel(modelName string) tea.Cmd {
+	logging.InfoLogger.Printf("Pushing model: %s\n", modelName)
+
+	// Initialize the progress model
+	m.progress = progress.New(progress.WithDefaultGradient())
+
+	return tea.Batch(
+		tea.Tick(time.Millisecond*100, func(t time.Time) tea.Msg {
+			return progressMsg{modelName: modelName}
+		}),
+		m.pushModelCmd(modelName),
+	)
+}
+
+func (m *AppModel) pushModelCmd(modelName string) tea.Cmd {
+	return func() tea.Msg {
+		ctx := context.Background()
+		req := &api.PushRequest{Name: modelName}
+		err := m.client.Push(ctx, req, func(resp api.ProgressResponse) error {
+			m.progress.SetPercent(float64(resp.Completed) / float64(resp.Total))
+			return nil
+		})
+		if err != nil {
+			return pushErrorMsg{err}
+		}
+		return pushSuccessMsg{modelName}
+	}
 }
 
 func linkModel(modelName, lmStudioModelsDir string, noCleanup bool) (string, error) {
@@ -278,32 +284,56 @@ func cleanupSymlinkedModels(lmStudioModelsDir string) {
 	}
 }
 
-// Added a new function to get detailed information about a model using Ollama API and local GGUF metadata
-func inspectModel(client *api.Client, model Model) (string, error) {
-	// ctx := context.Background()
-	// req := &api.ShowRequest{Name: model.Name}
-	// // resp, err := client.Show(ctx, req)
-	// if err != nil {
-	// 	return "", fmt.Errorf("error fetching model details from API: %v", err)
-	// }
+func copyModel(client *api.Client, oldName string, newName string) {
+	ctx := context.Background()
+	req := &api.CopyRequest{
+		Source:      oldName,
+		Destination: newName,
+	}
+	err := client.Copy(ctx, req)
+	if err != nil {
+		logging.ErrorLogger.Printf("Error copying model: %v\n", err)
+		return
+	}
+	logging.InfoLogger.Printf("Successfully copied model: %s to %s\n", oldName, newName)
 
-	var info strings.Builder
-	info.WriteString(fmt.Sprintf("Name: %s\nID: %s\nSize: %.2f GB\nQuantization Level: %s\nModified: %s\nFamily: %s\n",
-		model.Name, model.ID, model.Size, model.QuantizationLevel, model.Modified.Format("2006-01-02"), model.Family))
+	// Push the new model to the Ollama API
+	err = pushModel(client, newName)
+	if err != nil {
+		logging.ErrorLogger.Printf("Error pushing model: %v\n", err)
+	}
+}
 
-	// // If the model is on the local machine, inspect GGUF metadata and append to info
-	// modelPath := filepath.Join(os.Getenv("HOME"), ".ollama", "models", resp.Modelfile)
-	// if _, err := os.Stat(modelPath); !os.IsNotExist(err) {
-	// 	metadata, err := gguf.ReadMetadataFromFile(modelPath)
-	// 	if err != nil {
-	// 		return "", fmt.Errorf("error reading GGUF metadata: %v", err)
-	// 	}
-	// 	metadataJSON, _ := json.MarshalIndent(metadata, "", "  ")
-	// 	info.WriteString("\nGGUF Metadata:\n")
-	// 	info.Write(metadataJSON)
-	// } else {
-	// 	info.WriteString("\nNote: Model is not on the local machine, GGUF metadata cannot be inspected.\n")
-	// }
+func pushModel(client *api.Client, modelName string) error {
+	ctx := context.Background()
+	req := &api.PushRequest{Name: modelName}
+	err := client.Push(ctx, req, func(resp api.ProgressResponse) error {
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("error pushing model: %w", err)
+	}
+	logging.InfoLogger.Printf("Successfully pushed model: %s\n", modelName)
+	return nil
+}
 
-	return info.String(), nil
+// Adding a new function get use client to get the running models
+func showRunningModels(client *api.Client) ([]table.Row, error) {
+	ctx := context.Background()
+	resp, err := client.ListRunning(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching running models: %v", err)
+	}
+
+	var runningModels []table.Row
+	for _, model := range resp.Models {
+		name := model.Name
+		size := float64(model.Size) / 1024 / 1024 / 1024
+		vram := float64(model.SizeVRAM) / 1024 / 1024 / 1024
+		until := model.ExpiresAt.Format("2006-01-02 15:04:05")
+
+		runningModels = append(runningModels, table.Row{name, fmt.Sprintf("%.2f GB", size), fmt.Sprintf("%.2f GB", vram), until})
+	}
+
+	return runningModels, nil
 }
