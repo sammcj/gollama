@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - dev
       - ".github/workflows/build-and-release.yml"
   pull_request:
     branches:
@@ -22,6 +21,9 @@ concurrency:
 
 jobs:
   build-and-release:
+    outputs:
+      new_tag: ${{ steps.tag_version.outputs.new_tag }}
+      changelog: ${{ steps.tag_version.outputs.changelog }}
     timeout-minutes: 15
     runs-on: ubuntu-latest
     steps:
@@ -63,23 +65,19 @@ jobs:
           path: |
             gollama-*.zip
 
-      # Bump version
-      - name: Bump version and push tag
-        id: tag_version
-        uses: mathieudutour/github-tag-action@a22cf08638b34d5badda920f9daf6e72c477b07b # v6.2
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          release_branches: main
-          pre_release_branches: dev
-          custom_tag: ${{ steps.get_version.outputs.new_tag }}
-
+  publish:
+    needs: build-and-release
+    runs-on: ubuntu-latest
+    # Linter complains about this line but it's fine
+    if: "! contains(toJSON(github.event.commits.*.msg), '[skip-ci]')"
+    steps:
       # Publish
       - name: Create a GitHub release
         uses: ncipollo/release-action@2c591bcc8ecdcd2db72b97d6147f871fcd833ba5 # v1
         with:
-          tag: ${{ steps.get_version.outputs.new_tag }}
-          name: Release ${{ steps.get_version.outputs.new_tag }}
-          body: ${{ steps.get_version.outputs.changelog }}
+          tag: ${{ needs.build-and-release.outputs.new_tag }}
+          name: Release ${{ needs.build-and-release.outputs.new_tag }}
+          body: ${{ needs.build-and-release.outputs.changelog }}
           generateReleaseNotes: true
           allowUpdates: true
           makeLatest: true
@@ -89,6 +87,17 @@ jobs:
             gollama-*.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Bump version
+      - name: Bump version and push tag
+        id: tag_version
+        # only run if the commit doesn't have '[skip ci]' in the message
+        uses: mathieudutour/github-tag-action@a22cf08638b34d5badda920f9daf6e72c477b07b # v6.2
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          release_branches: main
+          pre_release_branches: dev
+          custom_tag: ${{ needs.build-and-release.outputs.new_tag }}
 
   # if the workflow is cancelled, don't mark the workflow as failed
   done:
