@@ -14,6 +14,7 @@ type textInputModel struct {
 	quitting  bool
 }
 
+// text_input.go (modified)
 func promptForNewName(oldName string) string {
 	ti := textinput.New()
 	ti.Placeholder = "Enter new name"
@@ -42,11 +43,8 @@ func promptForNewName(oldName string) string {
 	return newName
 }
 
-func (m textInputModel) Init() tea.Cmd {
-	return textinput.Blink
-}
-
 func (m *textInputModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -56,9 +54,11 @@ func (m *textInputModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
-	var cmd tea.Cmd
 	m.textInput, cmd = m.textInput.Update(msg)
 	return m, cmd
+}
+func (m textInputModel) Init() tea.Cmd {
+	return textinput.Blink
 }
 
 func (m textInputModel) View() string {

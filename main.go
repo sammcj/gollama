@@ -41,6 +41,7 @@ type AppModel struct {
 	showTop             bool
 	progress            progress.Model
 	altscreenActive     bool
+	view                View
 }
 
 type progressMsg struct {
@@ -173,6 +174,15 @@ func main() {
 
 	if *cleanupFlag {
 		cleanupSymlinkedModels(app.lmStudioModelsDir)
+		os.Exit(0)
+	}
+
+	if *topFlag {
+		topModel := NewTopModel(client)
+		p := tea.NewProgram(topModel, tea.WithAltScreen())
+		if _, err := p.Run(); err != nil {
+			logging.ErrorLogger.Printf("Error: %v", err)
+		}
 		os.Exit(0)
 	}
 

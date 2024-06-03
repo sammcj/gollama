@@ -6,14 +6,12 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/ollama/ollama/api"
 	"github.com/sammcj/gollama/logging"
 )
@@ -98,6 +96,7 @@ func linkModel(modelName, lmStudioModelsDir string, noCleanup bool) (string, err
 		return "", fmt.Errorf("invalid model path for %s: %s", modelName, modelPath)
 	}
 
+	// Check if the symlink already exists and is valid
 	// Check if the symlink already exists and is valid
 	lmStudioModelPath := filepath.Join(lmStudioModelDir, filepath.Base(lmStudioModelName)+".gguf")
 	if _, err := os.Lstat(lmStudioModelPath); err == nil {
@@ -320,66 +319,22 @@ func pushModel(client *api.Client, modelName string) error {
 }
 
 // Adding a new function get use client to get the running models
-func showRunningModels(client *api.Client) (string, error) {
+func showRunningModels(client *api.Client) ([]table.Row, error) {
 	ctx := context.Background()
 	resp, err := client.ListRunning(ctx)
 	if err != nil {
-		return "", fmt.Errorf("error fetching running models: %v", err)
+		return nil, fmt.Errorf("error fetching running models: %v", err)
 	}
 
-	var runningModels strings.Builder
-	type RunningModel struct {
-		Name  string
-		Size  string
-		VRAM  string
-		Until string
-	}
-
-	rows := []table.Row{
-		{"Name", "Size", "VRAM", "Until"},
-	}
-
-	columns := []table.Column{
-		{Title: "Name", Width: 40},
-		{Title: "Size", Width: 40},
-		{Title: "VRAM", Width: 40},
-		{Title: "Until", Width: 60},
-	}
-
-	for index, model := range resp.Models {
+	var runningModels []table.Row
+	for _, model := range resp.Models {
 		name := model.Name
-		size := model.Size / 1024 / 1024 / 1024
-		vram := model.SizeVRAM / 1024 / 1024 / 1024
-		until := resp.Models[index].ExpiresAt.Format("2006-01-02 15:04:05")
+		size := float64(model.Size) / 1024 / 1024 / 1024
+		vram := float64(model.SizeVRAM) / 1024 / 1024 / 1024
+		until := model.ExpiresAt.Format("2006-01-02 15:04:05")
 
-		// create the object
-		runningModel := RunningModel{
-			Name:  lipgloss.NewStyle().Foreground(lipgloss.Color("#8b4fff")).Render(name),
-			Size:  strconv.Itoa(int(size)) + " GB",
-			VRAM:  strconv.Itoa(int(vram)) + " GB",
-			Until: lipgloss.NewStyle().Foreground(lipgloss.Color("#8b4fff")).Render(until),
-		}
-
-		// add the object to the rows
-		rows = append(rows, table.Row{runningModel.Name, runningModel.Size, runningModel.VRAM, runningModel.Until})
-
+		runningModels = append(runningModels, table.Row{name, fmt.Sprintf("%.2f GB", size), fmt.Sprintf("%.2f GB", vram), until})
 	}
-	// Create the table with the columns and rows
-	t := table.New(
-		table.WithColumns(columns),
-		table.WithRows(rows),
-		table.WithFocused(true),
-		table.WithHeight(len(rows)+1),
-	)
 
-	// Set the table styles
-	s := table.DefaultStyles()
-	s.Header = s.Header.BorderStyle(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color("240"))
-	s.Selected = s.Selected.Foreground(lipgloss.Color("229")).Background(lipgloss.Color("57"))
-	t.SetStyles(s)
-
-	// Render the table view
-	runningModels.WriteString("\n" + t.View() + "\n")
-
-	return runningModels.String(), nil
+	return runningModels, nil
 }

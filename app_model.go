@@ -15,6 +15,13 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+type View int
+
+const (
+	MainView View = iota
+	TopView
+)
+
 func (m *AppModel) Init() tea.Cmd {
 	if m.showTop {
 		return m.startTopTicker()
@@ -26,7 +33,7 @@ var docStyle = lipgloss.NewStyle()
 var topRunning = false
 
 func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-
+	var cmd tea.Cmd
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		h, v := docStyle.GetFrameSize()
@@ -38,6 +45,15 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.list.SetSize(m.width-h, listHeight)
 		logging.DebugLogger.Printf("AppModel received key: %s\n", fmt.Sprintf("%+v", msg)) // Convert the message to a string for logging
 	case tea.KeyMsg:
+		if m.view == TopView {
+			switch msg.String() {
+			case "q":
+				m.view = MainView
+				return m, nil
+			}
+			break
+		}
+
 		if m.list.FilterState() == list.Filtering {
 			// If filtering, do not process other keybindings
 			break
@@ -62,9 +78,8 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.confirmDeletion = true
 			}
 		case key.Matches(msg, m.keys.Top):
-			var cmd tea.Cmd
-			m, cmd = m.ToggleTop()
-			return m, cmd
+			m.view = TopView
+			return m, nil
 		case key.Matches(msg, m.keys.ConfirmYes):
 			if m.confirmDeletion {
 				for _, selectedModel := range m.selectedForDeletion {
@@ -207,7 +222,6 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	var cmd tea.Cmd
 	m.list, cmd = m.list.Update(msg)
 	return m, cmd
 }
@@ -232,6 +246,10 @@ func (m *AppModel) ToggleTop() (*AppModel, tea.Cmd) {
 }
 
 func (m *AppModel) View() string {
+	if m.view == TopView {
+		return m.topView()
+	}
+
 	if m.confirmDeletion {
 		return m.confirmDeletionView()
 	}
@@ -289,7 +307,7 @@ func (m *AppModel) inspectModelView(model Model) string {
 	t.SetStyles(s)
 
 	// Render the table view
-	return "\n" + t.View() + "\nPress escape to return to the main view."
+	return "\n" + t.View() + "\nPress q/esc to return to the main view."
 }
 
 func (m *AppModel) filterView() string {
@@ -331,4 +349,34 @@ func (m *AppModel) startTopTicker() tea.Cmd {
 		}
 		return running
 	})
+}
+
+func (m *AppModel) topView() string {
+	runningModels, err := showRunningModels(m.client)
+	if err != nil {
+		return fmt.Sprintf("Error showing running models: %v", err)
+	}
+
+	columns := []table.Column{
+		{Title: "Name", Width: 40},
+		{Title: "Size (GB)", Width: 10},
+		{Title: "VRAM (GB)", Width: 10},
+		{Title: "Until", Width: 20},
+	}
+
+	t := table.New(
+		table.WithColumns(columns),
+		table.WithRows(runningModels),
+		table.WithFocused(true),
+		table.WithHeight(len(runningModels)+1),
+	)
+
+	// Set the table styles
+	s := table.DefaultStyles()
+	s.Header = s.Header.BorderStyle(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color("240"))
+	s.Selected = s.Selected.Foreground(lipgloss.Color("229")).Background(lipgloss.Color("57"))
+	t.SetStyles(s)
+
+	// Render the table view
+	return "\n" + t.View() + "\nPress 'q' to return to the main view."
 }
