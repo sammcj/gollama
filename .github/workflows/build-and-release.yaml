@@ -77,24 +77,11 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    # Linter gives a false positive here
-    if: ${{ !contains(github.event.head_commit.message, 'skip ci') && github.ref == 'refs/heads/main' }}
+    if: ${{ !contains(github.event.head_commit.message, '[skip ci]') && github.ref == 'refs/heads/main' }}
     steps:
       - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4
         with:
           fetch-depth: 0
-
-      - name: Download artefacts
-        uses: actions/download-artifact@main
-        with:
-          name: gollama
-          pattern: gollama-*
-      - run: |
-          # If there are no gollama-*.zip files, skip the rest of the steps
-          if [ ! -f gollama-*.zip ]; then
-            echo "No gollama-*.zip artefacts found, skipping the rest of the steps" >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
 
       # Publish
       - name: Create a GitHub release
@@ -108,6 +95,7 @@ jobs:
           makeLatest: true
           prerelease: ${{ !startsWith(github.ref, 'refs/heads/main') }}
           draft: ${{ !startsWith(github.ref, 'refs/heads/main') }}
+          artifactErrorsFailBuild: true
           artifacts: |
             gollama-*.zip
         env:
