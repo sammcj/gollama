@@ -17,7 +17,7 @@ endef
 
 TARGETS := $(call extract_targets)
 
-.PHONY: $(TARGETS) menu all
+.PHONY: $(TARGETS) menu all clean test
 
 menu: ## Makefile Interactive Menu
 	@# Check if fzf is installed
@@ -44,10 +44,12 @@ all: menu
 help: ## This help function
 	@egrep '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
+clean: ## Clean
+	rm -rf ./dist
+
 # Targets (example targets listed below)
 lint: ## Run lint
-	gofmt -w .
-	find . -type f -name "*.go" -exec sed -i '' 's/\t/  /g' {} +
+	gofmt -w -s .
 
 test: ## Run test
 	go test -v ./...

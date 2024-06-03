@@ -9,3 +9,7 @@ dist/
 **/*.zip
 **/*.dmg
 **/*.tar.gz
+vendor/
+node_modules/
+.idea/
+.vscode/
