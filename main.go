@@ -40,13 +40,21 @@ type AppModel struct {
 	filterInput         tea.Model
 	showTop             bool
 	progress            progress.Model
-	confirmRun          bool
-	modelToRun          Model
-	termState           *term.State
+	altscreenActive     bool
 }
 
 type progressMsg struct {
 	modelName string
+}
+
+type runFinishedMessage struct{ err error }
+
+type pushSuccessMsg struct {
+	modelName string
+}
+
+type pushErrorMsg struct {
+	err error
 }
 
 var Version = "development"
@@ -160,6 +168,7 @@ func main() {
 		noCleanup:         *noCleanupFlag,
 		cfg:               &cfg,
 		showTop:           *topFlag,
+		progress:          progress.New(progress.WithDefaultGradient()), // Initialize progress
 	}
 
 	if *ollamaDirFlag == "" {
@@ -180,11 +189,6 @@ func main() {
 	}
 
 	l := list.New(items, NewItemDelegate(&app), width, height-5)
-
-	l.Title = "Ollama Models"
-	l.InfiniteScrolling = true
-	l.SetShowTitle(false)
-	l.SetShowStatusBar(false)
 
 	l.AdditionalShortHelpKeys = func() []key.Binding {
 		return []key.Binding{
@@ -232,5 +236,6 @@ func main() {
 
 	// reset the terminal before exiting
 	_ = term.Restore(int(os.Stdout.Fd()), termState)
+	p.ReleaseTerminal()
 
 }

@@ -1,14 +1,11 @@
 package main
 
 import (
-	"context"
 	"fmt"
-	"os"
 	"sort"
 	"strings"
 	"time"
 
-	"github.com/ollama/ollama/api"
 	"github.com/sammcj/gollama/logging"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -29,6 +26,7 @@ var docStyle = lipgloss.NewStyle()
 var topRunning = false
 
 func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		h, v := docStyle.GetFrameSize()
@@ -113,16 +111,18 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			})
 			m.refreshList()
 		case key.Matches(msg, m.keys.RunModel):
-			if m.confirmRun {
-				runModel(m.modelToRun.Name, m.termState)
-				os.Exit(0) // Exit the application after running the model
-			} else {
-				if item, ok := m.list.SelectedItem().(Model); ok {
-					m.confirmRun = true
-					m.modelToRun = item
-					m.message = fmt.Sprintf("Press enter again to run the model: %s", item.Name)
-				}
+			if item, ok := m.list.SelectedItem().(Model); ok {
+				runModel(item.Name)
+				// show a message to the user that this is not yet implemented
+				m.message = "Run model not yet implemented"
 			}
+		case key.Matches(msg, m.keys.AltScreen):
+			m.altscreenActive = !m.altscreenActive
+			cmd := tea.EnterAltScreen
+			if !m.altscreenActive {
+				cmd = tea.ExitAltScreen
+			}
+			return m, cmd
 		case key.Matches(msg, m.keys.ClearScreen):
 			if m.inspecting {
 				return m.clearScreen(), tea.ClearScreen
@@ -159,11 +159,13 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if newName == "" {
 					m.message = "Error: name can't be empty"
 				} else {
+					copyModel(m.client, item.Name, newName)
 					m.message = fmt.Sprintf("Model %s copied to %s", item.Name, newName)
 				}
 			}
 		case key.Matches(msg, m.keys.PushModel):
 			if item, ok := m.list.SelectedItem().(Model); ok {
+				m.message = lipgloss.NewStyle().Foreground(lipgloss.Color("129")).Render(fmt.Sprintf("Pushing model: %s\n", item.Name))
 				return m.startPushModel(item.Name)
 			}
 		case key.Matches(msg, m.keys.InspectModel):
@@ -183,21 +185,29 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 		}
-	case progressMsg:
-		modelName := msg.modelName
-		ctx := context.Background()
-		req := &api.PushRequest{Name: modelName}
-		err := m.client.Push(ctx, req, func(resp api.ProgressResponse) error {
-			m.progress.SetPercent(float64(resp.Completed) / float64(resp.Total))
-			return nil
-		})
-		if err != nil {
-			logging.ErrorLogger.Printf("Error pushing model: %v\n", err)
-		} else {
-			m.message = fmt.Sprintf("Successfully pushed model: %s\n", modelName)
+	case runFinishedMessage:
+		logging.DebugLogger.Printf("Run finished message: %v\n", msg)
+		if msg.err != nil {
+			logging.ErrorLogger.Printf("Error running model: %v\n", msg.err)
+			m.message = fmt.Sprintf("Error running model: %v\n", msg.err)
+			return m, nil
 		}
+	case progressMsg:
+		// Just trigger the next tick for progress updates
+		return m, tea.Tick(time.Millisecond*100, func(t time.Time) tea.Msg {
+			return progressMsg{modelName: msg.modelName}
+		})
+
+	case pushSuccessMsg:
+		m.message = fmt.Sprintf("Successfully pushed model: %s\n", msg.modelName)
+		return m, nil
+
+	case pushErrorMsg:
+		logging.ErrorLogger.Printf("Error pushing model: %v\n", msg.err)
+		m.message = fmt.Sprintf("Error pushing model: %v\n", msg.err)
 		return m, nil
 	}
+
 	var cmd tea.Cmd
 	m.list, cmd = m.list.Update(msg)
 	return m, cmd
@@ -237,7 +247,7 @@ func (m *AppModel) View() string {
 }
 
 func (m *AppModel) confirmDeletionView() string {
-	return fmt.Sprintf("\nAre you sure you want to delete the selected models?\n\n%s\n\n%s\n%s",
+	return fmt.Sprintf("\nAre you sure you want to delete the selected models? (Y/N)\n\n%s\n\n%s\n%s",
 		strings.Join(m.selectedModelNames(), "\n"),
 		m.keys.ConfirmYes.Help().Key,
 		m.keys.ConfirmNo.Help().Key)

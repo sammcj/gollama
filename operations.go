@@ -17,26 +17,19 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/ollama/ollama/api"
 	"github.com/sammcj/gollama/logging"
-	"golang.org/x/term"
 )
 
-func runModel(modelName string, termState *term.State) {
-
-	cmd := exec.Command("ollama", "run", modelName)
-
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Stdin = os.Stdin
-
-	if err := cmd.Run(); err != nil {
-		logging.ErrorLogger.Printf("Error running model: %v\n", err)
-	} else {
-		logging.InfoLogger.Printf("Successfully ran model: %s\n", modelName)
+func runModel(model string) tea.Cmd {
+	// find the ollama binary from the PATH
+	ollamaPath, err := exec.LookPath("ollama")
+	if err != nil {
+		logging.ErrorLogger.Printf("Error finding ollama binary: %v\n", err)
+		return nil
 	}
-
-	// Exit the application
-	term.Restore(int(os.Stdout.Fd()), termState)
-	os.Exit(0)
+	c := exec.Command(ollamaPath, "run", model)
+	return tea.ExecProcess(c, func(err error) tea.Msg {
+		return runFinishedMessage{err}
+	})
 }
 
 func deleteModel(client *api.Client, name string) error {
@@ -55,12 +48,32 @@ func deleteModel(client *api.Client, name string) error {
 }
 
 func (m *AppModel) startPushModel(modelName string) (tea.Model, tea.Cmd) {
-	progressModel := progress.New(progress.WithDefaultGradient())
-	m.progress = progressModel
+	logging.InfoLogger.Printf("Pushing model: %s\n", modelName)
 
-	return m, tea.Tick(time.Millisecond*100, func(t time.Time) tea.Msg {
-		return progressMsg{modelName: modelName}
-	})
+	// Initialize the progress model
+	m.progress = progress.New(progress.WithDefaultGradient())
+
+	return m, tea.Batch(
+		tea.Tick(time.Millisecond*100, func(t time.Time) tea.Msg {
+			return progressMsg{modelName: modelName}
+		}),
+		m.pushModelCmd(modelName),
+	)
+}
+
+func (m *AppModel) pushModelCmd(modelName string) tea.Cmd {
+	return func() tea.Msg {
+		ctx := context.Background()
+		req := &api.PushRequest{Name: modelName}
+		err := m.client.Push(ctx, req, func(resp api.ProgressResponse) error {
+			m.progress.SetPercent(float64(resp.Completed) / float64(resp.Total))
+			return nil
+		})
+		if err != nil {
+			return pushErrorMsg{err}
+		}
+		return pushSuccessMsg{modelName}
+	}
 }
 
 func linkModel(modelName, lmStudioModelsDir string, noCleanup bool) (string, error) {
@@ -290,17 +303,40 @@ func copyModel(client *api.Client, oldName string, newName string) {
 }
 
 func pushModel(client *api.Client, modelName string) {
-	ctx := context.Background()
-	req := &api.PushRequest{
-		Name: modelName,
+	//TODO: fix the progress bar
+
+	// Initialize the progress model
+	p := tea.NewProgram(&AppModel{
+		client:   client,
+		progress: progress.New(progress.WithDefaultGradient()),
+	})
+	if err := func() error {
+		_, err := p.Run()
+		return err
+	}(); err != nil {
+		logging.ErrorLogger.Printf("Error starting push model program: %v\n", err)
 	}
-	err := client.Push(ctx, req, nil) // Passing nil for the api.PushProgressFunc
-	if err != nil {
-		logging.ErrorLogger.Printf("Error pushing model: %v\n", err)
-	} else {
-		logging.InfoLogger.Printf("Successfully pushed model: %s\n", modelName)
+	pushModelCmd := func() tea.Msg {
+		return func() tea.Msg {
+			logging.InfoLogger.Printf("Pushing model: %s\n", modelName)
+			// Push the model to the Ollama API
+			ctx := context.Background()
+			req := &api.PushRequest{Name: modelName}
+			err := client.Push(ctx, req, func(resp api.ProgressResponse) error {
+				return nil
+			})
+			if err != nil {
+				logging.ErrorLogger.Printf("Error pushing model: %v\n", err)
+				return pushErrorMsg{err}
+			}
+			logging.InfoLogger.Printf("Successfully pushed model: %s\n", modelName)
+			return pushSuccessMsg{modelName}
+		}
 	}
+
+	pushModelCmd()
 }
+
 func promptForNewName(oldName string) string {
 	ti := textinput.New()
 	ti.Placeholder = "Enter new name"
@@ -317,7 +353,10 @@ func promptForNewName(oldName string) string {
 
 	// Run the Bubble Tea program
 	p := tea.NewProgram(&m)
-	if err := p.Start(); err != nil {
+	if err := func() error {
+		_, err := p.Run()
+		return err
+	}(); err != nil {
 		logging.ErrorLogger.Printf("Error starting text input program: %v\n", err)
 	}
 
