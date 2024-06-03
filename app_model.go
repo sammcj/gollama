@@ -45,12 +45,18 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.list.SetSize(m.width-h, listHeight)
 		logging.DebugLogger.Printf("AppModel received key: %s\n", fmt.Sprintf("%+v", msg)) // Convert the message to a string for logging
 	case tea.KeyMsg:
-		if m.view == TopView {
-			switch msg.String() {
-			case "q":
+		switch msg.String() {
+		case "q", "esc":
+			if m.view == TopView || m.inspecting {
 				m.view = MainView
+				m.inspecting = false
 				return m, nil
+			} else {
+				return m, tea.Quit
 			}
+		}
+
+		if m.view == TopView {
 			break
 		}
 
@@ -192,11 +198,6 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.inspecting = true
 				m.inspectedModel = model                                     // Ensure inspectedModel is set correctly
 				logging.DebugLogger.Printf("Inspecting model: %+v\n", model) // Log the inspected model
-			}
-		case key.Matches(msg, key.NewBinding(key.WithKeys("esc"))):
-			if m.inspecting {
-				m.inspecting = false
-				return m, nil
 			}
 		}
 	case runFinishedMessage:
