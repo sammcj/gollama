@@ -114,7 +114,7 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if item, ok := m.list.SelectedItem().(Model); ok {
 				runModel(item.Name)
 				// show a message to the user that this is not yet implemented
-				m.message = "Run model not yet implemented"
+				// m.message = "Run model not yet implemented"
 			}
 		case key.Matches(msg, m.keys.AltScreen):
 			m.altscreenActive = !m.altscreenActive

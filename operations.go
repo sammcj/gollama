@@ -20,7 +20,6 @@ import (
 )
 
 func runModel(model string) tea.Cmd {
-	// find the ollama binary from the PATH
 	ollamaPath, err := exec.LookPath("ollama")
 	if err != nil {
 		logging.ErrorLogger.Printf("Error finding ollama binary: %v\n", err)
@@ -28,6 +27,9 @@ func runModel(model string) tea.Cmd {
 	}
 	c := exec.Command(ollamaPath, "run", model)
 	return tea.ExecProcess(c, func(err error) tea.Msg {
+		if err != nil {
+			logging.ErrorLogger.Printf("Error running model: %v\n", err)
+		}
 		return runFinishedMessage{err}
 	})
 }
@@ -294,47 +296,28 @@ func copyModel(client *api.Client, oldName string, newName string) {
 	err := client.Copy(ctx, req)
 	if err != nil {
 		logging.ErrorLogger.Printf("Error copying model: %v\n", err)
-	} else {
-		logging.InfoLogger.Printf("Successfully copied model: %s to %s\n", oldName, newName)
+		return
+	}
+	logging.InfoLogger.Printf("Successfully copied model: %s to %s\n", oldName, newName)
 
-		// Push the new model to the Ollama API
-		pushModel(client, newName)
+	// Push the new model to the Ollama API
+	err = pushModel(client, newName)
+	if err != nil {
+		logging.ErrorLogger.Printf("Error pushing model: %v\n", err)
 	}
 }
 
-func pushModel(client *api.Client, modelName string) {
-	//TODO: fix the progress bar
-
-	// Initialize the progress model
-	p := tea.NewProgram(&AppModel{
-		client:   client,
-		progress: progress.New(progress.WithDefaultGradient()),
+func pushModel(client *api.Client, modelName string) error {
+	ctx := context.Background()
+	req := &api.PushRequest{Name: modelName}
+	err := client.Push(ctx, req, func(resp api.ProgressResponse) error {
+		return nil
 	})
-	if err := func() error {
-		_, err := p.Run()
-		return err
-	}(); err != nil {
-		logging.ErrorLogger.Printf("Error starting push model program: %v\n", err)
+	if err != nil {
+		return fmt.Errorf("error pushing model: %w", err)
 	}
-	pushModelCmd := func() tea.Msg {
-		return func() tea.Msg {
-			logging.InfoLogger.Printf("Pushing model: %s\n", modelName)
-			// Push the model to the Ollama API
-			ctx := context.Background()
-			req := &api.PushRequest{Name: modelName}
-			err := client.Push(ctx, req, func(resp api.ProgressResponse) error {
-				return nil
-			})
-			if err != nil {
-				logging.ErrorLogger.Printf("Error pushing model: %v\n", err)
-				return pushErrorMsg{err}
-			}
-			logging.InfoLogger.Printf("Successfully pushed model: %s\n", modelName)
-			return pushSuccessMsg{modelName}
-		}
-	}
-
-	pushModelCmd()
+	logging.InfoLogger.Printf("Successfully pushed model: %s\n", modelName)
+	return nil
 }
 
 func promptForNewName(oldName string) string {

@@ -60,27 +60,18 @@ type pushErrorMsg struct {
 var Version = "development"
 
 func main() {
-
-	termState, err := term.GetState(int(os.Stdout.Fd()))
-	if err != nil {
-		panic(err)
-	}
-
-	// Load config
 	cfg, err := config.LoadConfig()
 	if err != nil {
 		fmt.Println("Error loading config:", err)
 		os.Exit(1)
 	}
 
-	// Initialize logging
 	err = logging.Init(cfg.LogLevel, cfg.LogFilePath)
 	if err != nil {
 		fmt.Println("Error initializing logging:", err)
 		os.Exit(1)
 	}
 
-	// Parse command-line arguments
 	listFlag := flag.Bool("l", false, "List all available Ollama models and exit")
 	ollamaDirFlag := flag.String("ollama-dir", cfg.OllamaAPIKey, "Custom Ollama models directory")
 	lmStudioDirFlag := flag.String("lm-dir", cfg.LMStudioFilePaths, "Custom LM Studio models directory")
@@ -112,20 +103,17 @@ func main() {
 	logging.InfoLogger.Println("Fetched models from API")
 	models := parseAPIResponse(resp)
 
-	// Group models by ID and normalize sizes to GB
 	modelMap := make(map[string][]Model)
 	for _, model := range models {
 		model.Size = normalizeSize(model.Size)
 		modelMap[model.ID] = append(modelMap[model.ID], model)
 	}
 
-	// Flatten the map into a slice
 	groupedModels := make([]Model, 0)
 	for _, group := range modelMap {
 		groupedModels = append(groupedModels, group...)
 	}
 
-	// Apply sorting order from config
 	switch cfg.SortOrder {
 	case "name":
 		sort.Slice(groupedModels, func(i, j int) bool {
@@ -154,7 +142,7 @@ func main() {
 
 	width, height, err := term.GetSize(int(os.Stdout.Fd()))
 	if err != nil {
-		width, height = 80, 24 // default size if terminal size can't be determined
+		width, height = 80, 24
 	}
 
 	app := AppModel{
@@ -168,7 +156,7 @@ func main() {
 		noCleanup:         *noCleanupFlag,
 		cfg:               &cfg,
 		showTop:           *topFlag,
-		progress:          progress.New(progress.WithDefaultGradient()), // Initialize progress
+		progress:          progress.New(progress.WithDefaultGradient()),
 	}
 
 	if *ollamaDirFlag == "" {
@@ -210,32 +198,19 @@ func main() {
 		}
 	}
 
-	// TODO: fix this
-	// l.FullHelp = func() [][]key.Binding {
-	// 	return [][]key.Binding{
-	// 		{keys.Space, keys.Delete, keys.SortByName, keys.SortBySize, keys.SortByModified, keys.SortByQuant, keys.SortByFamily},
-	// 		{keys.RunModel, keys.ConfirmYes, keys.ConfirmNo, keys.LinkModel, keys.LinkAllModels, keys.CopyModel, keys.PushModel, keys.Top},
-	// 	}
-	// }
-
 	app.list = l
 
 	p := tea.NewProgram(&app, tea.WithAltScreen(), tea.WithMouseCellMotion())
 	if _, err := p.Run(); err != nil {
 		logging.ErrorLogger.Printf("Error: %v", err)
 	} else {
-		// Clear the terminal screen again to refresh the application view
 		fmt.Print("\033[H\033[2J")
 	}
 
-	// Save the updated configuration
 	cfg.SortOrder = keys.GetSortOrder()
 	if err := config.SaveConfig(cfg); err != nil {
 		panic(err)
 	}
 
-	// reset the terminal before exiting
-	_ = term.Restore(int(os.Stdout.Fd()), termState)
 	p.ReleaseTerminal()
-
 }
