@@ -77,15 +77,17 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    if: ${{ !contains(github.event.head_commit.message, '[skip ci]') && github.ref == 'refs/heads/main' }}
+    if: ${{ startsWith(github.ref, 'refs/heads/main') && !contains(github.event.head_commit.message, '[skip ci]') }}
     steps:
       - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4
+        if: ${{ startsWith(github.ref, 'refs/heads/main') && !contains(github.event.head_commit.message, '[skip ci]') }}
         with:
           fetch-depth: 0
 
       # Publish
       - name: Create a GitHub release
         uses: ncipollo/release-action@2c591bcc8ecdcd2db72b97d6147f871fcd833ba5 # v1
+        if: ${{ startsWith(github.ref, 'refs/heads/main') && !contains(github.event.head_commit.message, '[skip ci]') }}
         with:
           tag: ${{ needs.build.outputs.new_tag }}
           name: Release ${{ needs.build.outputs.new_tag }}
@@ -109,7 +111,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           release_branches: main
           pre_release_branches: dev
-          dry_run: ${{ !startsWith(github.ref, 'refs/heads/main') || contains(github.event.head_commit.message, '[skip ci]') }}
+          dry_run: ${{ !startsWith(github.ref, 'refs/heads/main') }}
           custom_tag: ${{ needs.build.outputs.new_tag }}
 
   # if the workflow is cancelled, don't mark the workflow as failed
