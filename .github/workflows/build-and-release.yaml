@@ -68,11 +68,14 @@ jobs:
   publish:
     needs: build-and-release
     runs-on: ubuntu-latest
-    # Linter complains about this line but it's fine
-    if: "! contains(toJSON(github.event.commits.*.msg), '[skip-ci]')"
     steps:
+      - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4
+        with:
+          fetch-depth: 0
       # Publish
       - name: Create a GitHub release
+        # Linter gives a false positive here
+        if: "!contains(github.event.head_commit.message, 'skip ci')"
         uses: ncipollo/release-action@2c591bcc8ecdcd2db72b97d6147f871fcd833ba5 # v1
         with:
           tag: ${{ needs.build-and-release.outputs.new_tag }}
@@ -90,8 +93,9 @@ jobs:
 
       # Bump version
       - name: Bump version and push tag
+        # Linter gives a false positive here
+        if: "!contains(github.event.head_commit.message, 'skip ci')"
         id: tag_version
-        # only run if the commit doesn't have '[skip ci]' in the message
         uses: mathieudutour/github-tag-action@a22cf08638b34d5badda920f9daf6e72c477b07b # v6.2
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
