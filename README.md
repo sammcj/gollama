@@ -20,6 +20,7 @@ The application allows users to interactively select models, sort them by variou
     - [Key Bindings](#key-bindings)
       - [Command-line Options](#command-line-options)
   - [Configuration](#configuration)
+  - [Installation and build from source](#installation-and-build-from-source)
   - [Logging](#logging)
   - [Contributing](#contributing)
   - [License](#license)
@@ -34,45 +35,37 @@ The project started off as a rewrite of my [llamalink](https://smcleod.net/2024/
 
 It's in the early stages of development, so there are plenty of bugs and missing features, but I'm already finding it useful for managing my models, especially for cleaning up old models.
 
-- List and filter Ollama models
-- Sort models by name, size, modification date, quantization level, and family
-- Select and delete models
-- Inspect model details
-- Link models to LM Studio
-- Copy models
-- Push models to a registry
-- Show running models
+- Interactive TUI with sorting and filtering capabilities.
+- List available models and display basic metadata such as size, quantization level, model family, and modified date.
+- Sort models by name, size, modification date, quantization level, and family.
+- Select and delete models.
+- Inspect model for additional details.
+- Link models to LM Studio.
+- Copy models.
+- Push models to a registry.
+- Show running models.
+- Plenty more comings soon if I continue to find the tool useful.
 
 ## Installation
 
+From go:
+
 ```shell
 go install github.com/sammcj/gollama@latest
-# or
-go install github.com/sammcj/gollama@v1.3.2 # or any other specific version
 ```
 
-Or from source:
+From Github:
 
-1. Clone the repository:
+Download the most recent release from the [releases page](https://github.com/sammcj/gollama/releases) and extract the binary to a directory in your PATH.
 
-    ```shell
-    git clone https://github.com/sammcj/gollama.git
-    cd gollama
-    ```
-
-2. Build the project:
-
-    ```shell
-    go get
-    make build
-    ```
+e.g. `zip -d gollama-v1.4.2.zip -d gollama && mv gollama /usr/local/bin`
 
 ## Usage
 
 To run the `gollama` application, use the following command:
 
 ```sh
-gollama # (or ./goallama if you built from source)
+gollama
 ```
 
 ### Key Bindings
@@ -142,6 +135,28 @@ Example configuration:
 
 The strip string option can be used to remove a prefix from model names as they are displayed in the TUI.
 This can be useful if you have a common prefix such as a private registry that you want to remove for display purposes.
+
+## Installation and build from source
+
+1. Clone the repository:
+
+    ```shell
+    git clone https://github.com/sammcj/gollama.git
+    cd gollama
+    ```
+
+2. Build:
+
+    ```shell
+    go get
+    make build
+    ```
+
+3. Run:
+
+    ```shell
+    ./gollama
+    ```
 
 ## Logging
 

@@ -4,11 +4,18 @@ on:
   push:
     branches:
       - main
-      - dev
-      - ".github/workflows/build-and-release.yml"
+      - ".github/workflows/build.yml"
+    paths-ignore:
+      - README.md
+      - screenshots/**
+      - renovate.json
   pull_request:
     branches:
       - main
+    paths-ignore:
+      - README.md
+      - screenshots/**
+      - renovate.json
 
 permissions:
   contents: write
@@ -17,11 +24,14 @@ permissions:
   packages: write
 
 concurrency:
-  group: build-and-release
+  group: build
   cancel-in-progress: true
 
 jobs:
-  build-and-release:
+  build:
+    outputs:
+      new_tag: ${{ steps.get_version.outputs.new_tag }}
+      changelog: ${{ steps.get_version.outputs.changelog }}
     timeout-minutes: 15
     runs-on: ubuntu-latest
     steps:
@@ -30,7 +40,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-go@0c52d547c9bc32b1aa3301fd7a9cb496313a4491 # v5
         with:
-          go-version: 1.22.1
+          go-version: 1.22.3
 
       # Install dependencies
       - name: Install dependencies
@@ -42,8 +52,6 @@ jobs:
         uses: mathieudutour/github-tag-action@a22cf08638b34d5badda920f9daf6e72c477b07b # v6.2
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          release_branches: main
-          pre_release_branches: dev
           dry_run: true
 
       # Build
@@ -63,6 +71,42 @@ jobs:
           path: |
             gollama-*.zip
 
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: ${{ startsWith(github.ref, 'refs/heads/main') && !contains(github.event.head_commit.message, '[skip ci]') }}
+    steps:
+      - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4
+        if: ${{ startsWith(github.ref, 'refs/heads/main') && !contains(github.event.head_commit.message, '[skip ci]') }}
+        with:
+          fetch-depth: 0
+
+      - name: Download artefacts
+        uses: actions/download-artifact@main
+        with:
+          pattern: gollama-*.zip
+          path: .
+
+      # Publish
+      - name: Create a GitHub release
+        uses: ncipollo/release-action@2c591bcc8ecdcd2db72b97d6147f871fcd833ba5 # v1
+        if: ${{ startsWith(github.ref, 'refs/heads/main') && !contains(github.event.head_commit.message, '[skip ci]') }}
+        with:
+          tag: ${{ needs.build.outputs.new_tag }}
+          name: Release ${{ needs.build.outputs.new_tag }}
+          body: ${{ needs.build.outputs.changelog }}
+          generateReleaseNotes: true
+          allowUpdates: true
+          makeLatest: true
+          prerelease: ${{ !startsWith(github.ref, 'refs/heads/main') }}
+          draft: ${{ !startsWith(github.ref, 'refs/heads/main') }}
+          artifactErrorsFailBuild: true
+          artifacts: |
+            gollama-*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       # Bump version
       - name: Bump version and push tag
         id: tag_version
@@ -71,24 +115,8 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           release_branches: main
           pre_release_branches: dev
-          custom_tag: ${{ steps.get_version.outputs.new_tag }}
-
-      # Publish
-      - name: Create a GitHub release
-        uses: ncipollo/release-action@2c591bcc8ecdcd2db72b97d6147f871fcd833ba5 # v1
-        with:
-          tag: ${{ steps.get_version.outputs.new_tag }}
-          name: Release ${{ steps.get_version.outputs.new_tag }}
-          body: ${{ steps.get_version.outputs.changelog }}
-          generateReleaseNotes: true
-          allowUpdates: true
-          makeLatest: true
-          prerelease: ${{ startsWith(github.ref, 'refs/heads/dev') }}
-          draft: ${{ startsWith(github.ref, 'refs/heads/dev') }}
-          artifacts: |
-            gollama-*.zip
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          dry_run: ${{ !startsWith(github.ref, 'refs/heads/main') }}
+          custom_tag: ${{ needs.build.outputs.new_tag }}
 
   # if the workflow is cancelled, don't mark the workflow as failed
   done:
