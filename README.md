@@ -8,6 +8,8 @@ The application allows users to interactively select models, sort them by variou
 
 ![](screenshots/gollama-v1.0.0.jpg)
 
+![](screenshots/gollama-top.jpg)
+
 ## Table of Contents
 
 - [Gollama](#gollama)
