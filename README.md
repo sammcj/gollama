@@ -76,24 +76,22 @@ gollama # (or ./goallama if you built from source)
 
 ### Key Bindings
 
-- `space`: Select/Deselect a model
-- `d`: Delete selected models
-- `i`: Inspect a model
-- `t`: Show running models
+- `Space`: Select
+- `i`: Inspect model
+- `t`: Top (show running models)
+- `r`: Run model (Ollama run)
+- `D`: Delete model
+- `c`: Copy model
+- `P`: Push model
 - `n`: Sort by name
 - `s`: Sort by size
-- `m`: Sort by modification date
-- `S`: Sort by quantization level
+- `m`: Sort by modified
+- `k`: Sort by quantization
 - `f`: Sort by family
-- `enter`: Run a model
-- `y`: Confirm deletion
-- `n`: Cancel deletion
-- `l`: Link a model to LM Studio
+- `l`: Link model to LM Studio
 - `L`: Link all models to LM Studio
-- `C`: Copy a model with a new name
-- `P`: Push a model to the Ollama API
-- `q`: Quit the application
-- `esc`: Return to the main view from the inspect screen
+- `q`: Quit
+- `?`: Help
 
 #### Command-line Options
 
@@ -103,7 +101,6 @@ gollama # (or ./goallama if you built from source)
 - `-no-cleanup`: Don't cleanup broken symlinks
 - `-cleanup`: Remove all symlinked models and empty directories and exit
 - `-v`: Print the version and exit
-- `-top`: Show running models and exit
 
 ##### Simple model listing
 
@@ -205,7 +202,8 @@ graph TD
     A --> J[operations.go]
     A --> K[styles.go]
     A --> L[Makefile]
-    A --> M[README.md]
+    A --> N[top_view.go]
+    A --> O[text_input.go]
 
     B --> |Initializes| C
     B --> |Loads| D

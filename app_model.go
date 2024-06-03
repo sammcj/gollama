@@ -41,10 +41,6 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		// if m.list.FilterState() == list.Filtering {
-		// 	m.filterInput, cmd = m.filterInput.Update(msg)
-		// 	return m, cmd
-		// }
 		if m.list.FilterState() == list.Filtering {
 			m.list, cmd = m.list.Update(msg)
 			return m, cmd
@@ -331,7 +327,6 @@ func (m *AppModel) inspectModelView(model Model) string {
 }
 
 func (m *AppModel) filterView() string {
-	// return m.filterInput.View()
 	return m.list.View()
 }
 

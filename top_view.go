@@ -75,7 +75,7 @@ func (m *TopModel) updateRunningModels() tea.Cmd {
 			logging.ErrorLogger.Printf("Error showing running models: %v", err)
 			return fmt.Sprintf("Error showing running models: %v", err)
 		}
-		m.table.SetRows(running) // Corrected to use the correct type
+		m.table.SetRows(running)
 		return nil
 	})
 }

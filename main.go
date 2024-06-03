@@ -80,7 +80,6 @@ func main() {
 	noCleanupFlag := flag.Bool("no-cleanup", false, "Don't cleanup broken symlinks")
 	cleanupFlag := flag.Bool("cleanup", false, "Remove all symlinked models and empty directories and exit")
 	versionFlag := flag.Bool("v", false, "Print the version and exit")
-	topFlag := flag.Bool("top", false, "Show running models and exit")
 
 	flag.Parse()
 
@@ -157,7 +156,6 @@ func main() {
 		lmStudioModelsDir: *lmStudioDirFlag,
 		noCleanup:         *noCleanupFlag,
 		cfg:               &cfg,
-		showTop:           *topFlag,
 		progress:          progress.New(progress.WithDefaultGradient()),
 	}
 
@@ -178,16 +176,10 @@ func main() {
 		os.Exit(0)
 	}
 
-	if *topFlag {
-		topModel := NewTopModel(client)
-		p := tea.NewProgram(topModel, tea.WithAltScreen())
-		if _, err := p.Run(); err != nil {
-			logging.ErrorLogger.Printf("Error: %v", err)
-		}
-		os.Exit(0)
-	}
-
 	l := list.New(items, NewItemDelegate(&app), width, height-5)
+	l.Title = "Ollama Models"
+	l.Help.Styles.ShortDesc.Bold(true)
+	l.Help.Styles.ShortDesc.UnsetFaint()
 
 	l.AdditionalShortHelpKeys = func() []key.Binding {
 		return []key.Binding{
