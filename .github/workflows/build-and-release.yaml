@@ -22,8 +22,8 @@ concurrency:
 jobs:
   build-and-release:
     outputs:
-      new_tag: ${{ steps.tag_version.outputs.new_tag }}
-      changelog: ${{ steps.tag_version.outputs.changelog }}
+      new_tag: ${{ steps.get_version.outputs.new_tag }}
+      changelog: ${{ steps.get_version.outputs.changelog }}
     timeout-minutes: 15
     runs-on: ubuntu-latest
     steps:
