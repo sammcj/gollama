@@ -89,7 +89,12 @@ jobs:
         with:
           name: gollama
           pattern: gollama-*
-      - run: ls -R gollama-*
+      - run: |
+          # If there are no gollama-*.zip files, skip the rest of the steps
+          if [ ! -f gollama-*.zip ]; then
+            echo "No gollama-*.zip artefacts found, skipping the rest of the steps" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
 
       # Publish
       - name: Create a GitHub release
