@@ -80,6 +80,13 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.confirmDeletion = true
 			}
 
+		// case key.Matches(msg, m.keys.Help):
+		// 	// TODO: fix this
+		// 	help := m.printFullHelp()
+		// 	lipgloss.NewStyle().Foreground(lipgloss.Color("129")).Render(help)
+		// 	m.message = help
+		// 	return m, nil
+
 		case key.Matches(msg, m.keys.Top):
 			m.view = TopView
 			return m, nil
@@ -442,4 +449,25 @@ func (m *AppModel) topView() string {
 
 	// Render the table view
 	return "\n" + t.View() + "\nPress 'q' or `esc` to return to the main view."
+}
+
+// FullHelp returns keybindings for the expanded help view. It's part of the
+// key.Map interface.
+func (k KeyMap) FullHelp() [][]key.Binding {
+	return [][]key.Binding{
+		{k.Space, k.Delete, k.RunModel, k.LinkModel, k.LinkAllModels, k.CopyModel, k.PushModel}, // first column
+		{k.SortByName, k.SortBySize, k.SortByModified, k.SortByQuant, k.SortByFamily},           // second column
+		{k.Top, k.UpdateModel, k.InspectModel, k.Quit},                                          // third column
+	}
+}
+
+// a function that can be called from the man app_model.go file with a hotkey to print the FullHelp as a string
+func (m *AppModel) printFullHelp() string {
+	help := lipgloss.NewStyle().Foreground(lipgloss.Color("129")).Render("Help")
+	for _, column := range m.keys.FullHelp() {
+		for _, key := range column {
+			help += fmt.Sprintf(" %s: %s\n", key.Help().Key, key.Help().Desc)
+		}
+	}
+	return help
 }

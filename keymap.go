@@ -41,16 +41,6 @@ func (k KeyMap) ShortHelp() []key.Binding {
 // 	}
 // }
 
-// FullHelp returns keybindings for the expanded help view. It's part of the
-// key.Map interface.
-func (k KeyMap) FullHelp() [][]key.Binding {
-	return [][]key.Binding{
-		{k.Space, k.Delete, k.RunModel, k.LinkModel, k.LinkAllModels, k.CopyModel, k.PushModel}, // first column
-		{k.SortByName, k.SortBySize, k.SortByModified, k.SortByQuant, k.SortByFamily},           // second column
-		{k.Top, k.UpdateModel, k.InspectModel, k.Quit},                                          // third column
-	}
-}
-
 func NewKeyMap() *KeyMap {
 	return &KeyMap{
 		Space:          key.NewBinding(key.WithKeys("space"), key.WithHelp("space", "select")),
