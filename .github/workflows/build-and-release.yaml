@@ -4,11 +4,11 @@ on:
   push:
     branches:
       - main
-      - ".github/workflows/build.yml"
     paths-ignore:
       - README.md
       - screenshots/**
       - renovate.json
+      - .github/workflows/build-and-release.yaml
   pull_request:
     branches:
       - main
@@ -16,6 +16,7 @@ on:
       - README.md
       - screenshots/**
       - renovate.json
+      - .github/workflows/build-and-release.yaml
 
 permissions:
   contents: write
@@ -83,7 +84,7 @@ jobs:
           allowUpdates: true
           makeLatest: ${{ startsWith(github.ref, 'refs/heads/main') && !contains(github.event.head_commit.message, '[skip ci]') }}
           prerelease: ${{ !startsWith(github.ref, 'refs/heads/main') }}
-          draft: ${{ !startsWith(github.ref, 'refs/heads/main') }}
+          draft: true # I want to manually mark the release as ready
           artifactErrorsFailBuild: true
           artifacts: |
             gollama-*.zip
@@ -103,9 +104,9 @@ jobs:
           custom_tag: ${{ steps.get_version.outputs.new_tag }}
 
   # if the workflow is cancelled, don't mark the workflow as failed
-  done:
+  cleanup:
     runs-on: ubuntu-latest
     if: cancelled()
     steps:
-      - name: Workflow cancelled
+      - id: cleanup-cancelled
         run: echo "Workflow was cancelled"
