@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -19,13 +20,17 @@ type textInputModel struct {
 func promptForNewName(oldName string) string {
 	ti := textinput.New()
 	ti.ShowSuggestions = true
-	ti.PromptStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF00FF"))
-	ti.Placeholder = "Enter new name"
+	ti.CharLimit = 300
+	ti.Width = 60
+	ti.Placeholder = oldName
 	ti.SetSuggestions([]string{oldName})
+	ti.KeyMap.AcceptSuggestion = key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", "accept suggestion"))
 	ti.Focus()
-	ti.Prompt = "New name for model: "
-	ti.CharLimit = 156
-	ti.Width = 20
+	ti.Prompt = "Name for new model: "
+	ti.PromptStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF00FF"))
+	ti.TextStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#AD00FF"))
+	ti.Cursor.Style = lipgloss.NewStyle().Background(lipgloss.Color("#AE00FF"))
+	ti.PlaceholderStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#AD00FF"))
 
 	m := textInputModel{
 		textInput: ti,
@@ -40,7 +45,8 @@ func promptForNewName(oldName string) string {
 	newName := m.textInput.Value()
 
 	if newName == "" {
-		fmt.Println("Error: New name cannot be empty")
+		// error handling
+		logging.ErrorLogger.Println("No new name entered, returning old name")
 		return oldName
 	}
 
@@ -70,8 +76,7 @@ func (m textInputModel) View() string {
 		return ""
 	}
 	return fmt.Sprintf(
-		"Old name: %s\n%s\n\n%s",
-		m.oldName,
+		"\n%s\n\n%s",
 		m.textInput.View(),
 		"(ctrl+c to cancel)",
 	)

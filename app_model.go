@@ -61,6 +61,7 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		switch {
+
 		case key.Matches(msg, m.keys.Space):
 			if item, ok := m.list.SelectedItem().(Model); ok {
 				logging.DebugLogger.Printf("Toggling selection for model: %s (before: %v)\n", item.Name, item.Selected)

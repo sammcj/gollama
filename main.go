@@ -202,6 +202,7 @@ func main() {
 			keys.CopyModel,
 			keys.PushModel,
 			keys.Top,
+			keys.UpdateModel,
 		}
 	}
 
