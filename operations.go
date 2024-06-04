@@ -239,6 +239,7 @@ func isValidSymlink(symlinkPath, targetPath string) bool {
 	// Check if the symlink target is a file (not a directory or another symlink)
 	fileInfo, err := os.Lstat(targetPath)
 	if err != nil || fileInfo.Mode()&os.ModeSymlink != 0 || fileInfo.IsDir() {
+		logging.DebugLogger.Printf("Symlink target is not a file: %s\n", targetPath)
 		return false
 	}
 
@@ -333,7 +334,54 @@ func showRunningModels(client *api.Client) ([]table.Row, error) {
 		until := model.ExpiresAt.Format("2006-01-02 15:04:05")
 
 		runningModels = append(runningModels, table.Row{name, fmt.Sprintf("%.2f GB", size), fmt.Sprintf("%.2f GB", vram), until})
+		logging.DebugLogger.Printf("Running model: %s\n", name)
 	}
 
 	return runningModels, nil
+}
+
+func copyModelfile(modelName, newModelName string) (string, error) {
+	logging.InfoLogger.Printf("Copying modelfile for model: %s\n", modelName)
+	cmd := exec.Command("ollama", "show", "--modelfile", modelName)
+	output, err := cmd.Output()
+	if err != nil {
+		logging.ErrorLogger.Printf("Error copying modelfile for model %s: %v\n", modelName, err)
+		return "", err
+	}
+
+	err = os.MkdirAll(filepath.Join(os.Getenv("HOME"), ".config", "gollama", "modelfiles"), os.ModePerm)
+	if err != nil {
+		logging.ErrorLogger.Printf("Error creating modelfiles directory: %v\n", err)
+		return "", err
+	}
+
+	newModelfilePath := filepath.Join(os.Getenv("HOME"), ".config", "gollama", "modelfiles", newModelName+".modelfile")
+
+	err = os.WriteFile(newModelfilePath, output, 0644)
+	if err != nil {
+		logging.ErrorLogger.Printf("Error writing modelfile for model %s: %v\n", modelName, err)
+		return "", err
+	}
+	logging.InfoLogger.Printf("Copied modelfile to: %s\n", newModelfilePath)
+
+	return newModelfilePath, nil
+}
+
+type editorFinishedMsg struct{ err error }
+
+func openEditor(filePath string) tea.Cmd {
+	logging.DebugLogger.Printf("Opening editor for file: %s\n", filePath)
+	editor := os.Getenv("EDITOR")
+	if editor == "" {
+		editor = "vim"
+	}
+	c := exec.Command(editor, filePath)
+	return tea.ExecProcess(c, func(err error) tea.Msg {
+		return editorFinishedMsg{err}
+	})
+}
+
+func createModelFromModelfile(modelName, modelfilePath string) error {
+	cmd := exec.Command("ollama", "create", "-f", modelfilePath, modelName)
+	return cmd.Run()
 }

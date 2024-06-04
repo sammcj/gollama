@@ -50,12 +50,12 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.view == TopView || m.inspecting {
 				m.view = MainView
 				m.inspecting = false
+				m.editing = false
 				return m, nil
 			} else {
 				return m, tea.Quit
 			}
 		}
-
 		if m.view == TopView {
 			break
 		}
@@ -143,6 +143,23 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.inspecting {
 				return m.clearScreen(), tea.ClearScreen
 			}
+		case key.Matches(msg, m.keys.UpdateModel):
+			if item, ok := m.list.SelectedItem().(Model); ok {
+				newModelName := promptForNewName(item.Name)
+				m.editing = true
+				if newModelName == "" {
+					m.message = "Error: name can't be empty"
+					return m, nil
+				}
+
+				modelfilePath, err := copyModelfile(item.Name, newModelName)
+				if err != nil {
+					m.message = fmt.Sprintf("Error copying modelfile: %v", err)
+					return m, nil
+				}
+
+				return m, openEditor(modelfilePath)
+			}
 		case key.Matches(msg, m.keys.LinkModel):
 			if item, ok := m.list.SelectedItem().(Model); ok {
 				message, err := linkModel(item.Name, m.lmStudioModelsDir, m.noCleanup)
@@ -209,6 +226,34 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Tick(time.Millisecond*100, func(t time.Time) tea.Msg {
 			return progressMsg{modelName: msg.modelName}
 		})
+	case editorFinishedMsg:
+		if msg.err != nil {
+			m.message = fmt.Sprintf("Error editing modelfile: %v", msg.err)
+			return m, nil
+		}
+		if item, ok := m.list.SelectedItem().(Model); ok {
+			newModelName := promptForNewName(item.Name)
+			modelfilePath := fmt.Sprintf("Modelfile-%s", strings.ReplaceAll(newModelName, " ", "_"))
+			err := createModelFromModelfile(newModelName, modelfilePath)
+			if err != nil {
+				m.message = fmt.Sprintf("Error creating model: %v", err)
+				return m, nil
+			}
+			m.message = fmt.Sprintf("Model %s created successfully", newModelName)
+		}
+
+		if item, ok := m.list.SelectedItem().(Model); ok {
+			newModelName := promptForNewName(item.Name)
+			modelfilePath := fmt.Sprintf("Modelfile-%s", strings.ReplaceAll(newModelName, " ", "_"))
+			err := createModelFromModelfile(newModelName, modelfilePath)
+			if err != nil {
+				m.message = fmt.Sprintf("Error creating model: %v", err)
+				return m, nil
+			}
+			m.message = fmt.Sprintf("Model %s created successfully", newModelName)
+		}
+		m.list, cmd = m.list.Update(msg)
+		return m, cmd
 
 	case pushSuccessMsg:
 		m.message = fmt.Sprintf("Successfully pushed model: %s\n", msg.modelName)
@@ -348,6 +393,8 @@ func (m *AppModel) refreshList() {
 
 func (m *AppModel) clearScreen() tea.Model {
 	m.inspecting = false
+	m.editing = false
+	m.showProgress = false
 	m.table = table.New()
 	return m
 }

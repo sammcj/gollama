@@ -22,6 +22,7 @@ type KeyMap struct {
 	PushModel      key.Binding
 	Top            key.Binding
 	AltScreen      key.Binding
+	UpdateModel    key.Binding
 	SortOrder      string
 }
 
@@ -40,6 +41,7 @@ func NewKeyMap() *KeyMap {
 		SortByQuant:    key.NewBinding(key.WithKeys("k"), key.WithHelp("k", "^quant")),
 		SortByFamily:   key.NewBinding(key.WithKeys("f"), key.WithHelp("f", "^family")),
 		LinkModel:      key.NewBinding(key.WithKeys("l"), key.WithHelp("l", "link (L=all)")),
+		UpdateModel:    key.NewBinding(key.WithKeys("u"), key.WithHelp("u", "update model")),
 		LinkAllModels:  key.NewBinding(key.WithKeys("L")),
 		ConfirmYes:     key.NewBinding(key.WithKeys("y")),
 		ConfirmNo:      key.NewBinding(key.WithKeys("n")),

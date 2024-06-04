@@ -5,6 +5,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/sammcj/gollama/logging"
 )
 
@@ -17,7 +18,10 @@ type textInputModel struct {
 // text_input.go (modified)
 func promptForNewName(oldName string) string {
 	ti := textinput.New()
+	ti.ShowSuggestions = true
+	ti.PromptStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF00FF"))
 	ti.Placeholder = "Enter new name"
+	ti.SetSuggestions([]string{oldName})
 	ti.Focus()
 	ti.Prompt = "New name for model: "
 	ti.CharLimit = 156
