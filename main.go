@@ -31,6 +31,7 @@ type AppModel struct {
 	selectedForDeletion []Model
 	confirmDeletion     bool
 	inspecting          bool
+	editing             bool
 	message             string
 	keys                KeyMap
 	client              *api.Client
@@ -87,6 +88,9 @@ func main() {
 		fmt.Println(Version)
 		os.Exit(0)
 	}
+
+	os.Setenv("EDITOR", cfg.Editor)
+	logging.DebugLogger.Println("EDITOR set to", cfg.Editor)
 
 	client, err := api.ClientFromEnvironment()
 	if err != nil {
@@ -198,6 +202,7 @@ func main() {
 			keys.CopyModel,
 			keys.PushModel,
 			keys.Top,
+			keys.UpdateModel,
 		}
 	}
 

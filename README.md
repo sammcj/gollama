@@ -71,11 +71,12 @@ gollama
 ### Key Bindings
 
 - `Space`: Select
+- `Enter`: Run model (Ollama run)
 - `i`: Inspect model
 - `t`: Top (show running models)
-- `r`: Run model (Ollama run)
 - `D`: Delete model
 - `c`: Copy model
+- `u`: Update model
 - `P`: Push model
 - `n`: Sort by name
 - `s`: Sort by size
@@ -85,7 +86,6 @@ gollama
 - `l`: Link model to LM Studio
 - `L`: Link all models to LM Studio
 - `q`: Quit
-- `?`: Help
 
 #### Command-line Options
 

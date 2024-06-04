@@ -1,6 +1,8 @@
 package main
 
-import "github.com/charmbracelet/bubbles/key"
+import (
+	"github.com/charmbracelet/bubbles/key"
+)
 
 type KeyMap struct {
 	Space          key.Binding
@@ -22,15 +24,29 @@ type KeyMap struct {
 	PushModel      key.Binding
 	Top            key.Binding
 	AltScreen      key.Binding
+	UpdateModel    key.Binding
+	Help           key.Binding
 	SortOrder      string
 }
+
+func (k KeyMap) ShortHelp() []key.Binding {
+	return []key.Binding{k.Help, k.Quit}
+}
+
+// func newModel() model {
+// 	return model{
+// 		keys:       *NewKeyMap(),
+// 		help:       help.New(),
+// 		inputStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("#FF75B7")),
+// 	}
+// }
 
 func NewKeyMap() *KeyMap {
 	return &KeyMap{
 		Space:          key.NewBinding(key.WithKeys("space"), key.WithHelp("space", "select")),
 		InspectModel:   key.NewBinding(key.WithKeys("i"), key.WithHelp("i", "inspect")),
 		Top:            key.NewBinding(key.WithKeys("t"), key.WithHelp("t", "top")),
-		RunModel:       key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "run")),
+		RunModel:       key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "run")),
 		Delete:         key.NewBinding(key.WithKeys("D"), key.WithHelp("D", "delete")),
 		CopyModel:      key.NewBinding(key.WithKeys("c"), key.WithHelp("c", "copy")),
 		PushModel:      key.NewBinding(key.WithKeys("P"), key.WithHelp("P", "push")),
@@ -40,12 +56,14 @@ func NewKeyMap() *KeyMap {
 		SortByQuant:    key.NewBinding(key.WithKeys("k"), key.WithHelp("k", "^quant")),
 		SortByFamily:   key.NewBinding(key.WithKeys("f"), key.WithHelp("f", "^family")),
 		LinkModel:      key.NewBinding(key.WithKeys("l"), key.WithHelp("l", "link (L=all)")),
-		LinkAllModels:  key.NewBinding(key.WithKeys("L")),
+		UpdateModel:    key.NewBinding(key.WithKeys("u"), key.WithHelp("u", "update model")),
+		LinkAllModels:  key.NewBinding(key.WithKeys("L"), key.WithHelp("L", "link all")),
 		ConfirmYes:     key.NewBinding(key.WithKeys("y")),
 		ConfirmNo:      key.NewBinding(key.WithKeys("n")),
 		ClearScreen:    key.NewBinding(key.WithKeys("c")),
 		Quit:           key.NewBinding(key.WithKeys("q")),
 		AltScreen:      key.NewBinding(key.WithKeys("a")),
+		Help:           key.NewBinding(key.WithKeys("h"), key.WithHelp("h", "help")),
 	}
 }
 

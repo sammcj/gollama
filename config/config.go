@@ -20,6 +20,7 @@ type Config struct {
 	SortOrder         string   `json:"sort_order"`   // Current sort order
 	LastSortSelection string   `json:"-"`            // Temporary field to hold the last sort selection
 	StripString       string   `json:"strip_string"` // Optional string to strip from model names in the TUI (e.g. a private registry URL)
+	Editor            string   `json:"editor"`
 	// ShowTopOnLaunch   bool     `json:"show_top_on_launch"` // New field to set if 'top' should be shown on launch
 }
 
@@ -33,6 +34,7 @@ var defaultConfig = Config{
 	LogFilePath:       os.Getenv("HOME") + "/.config/gollama/gollama.log",
 	SortOrder:         "modified", // Default sort order
 	StripString:       "",
+	Editor:            "vim",
 	// ShowTopOnLaunch:   false, // Default to not showing 'top' on launch
 }
 
