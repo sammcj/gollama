@@ -176,8 +176,9 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 
 ## Acknowledgements
 
-- [Ollama](https://ollama.com/) for the API and model management tools.
-- [Charmbracelet](https://charm.sh/) for the Bubble Tea framework and other packages used in this application.
+- [Ollama](https://ollama.com/)
+- [Llama.cpp](https://github.com/ggerganov/llama.cpp)
+- [Charmbracelet](https://charm.sh/)
 
 ## Diagrams
 
