@@ -75,8 +75,8 @@ gollama
 - `i`: Inspect model
 - `t`: Top (show running models)
 - `D`: Delete model
-- `c`: Copy model
-- `u`: Update model
+- `c`: Copy model **This function is a work in progress**
+- `u`: Update model (edit Modelfile) **This functionality is a work in progress**
 - `P`: Push model
 - `n`: Sort by name
 - `s`: Sort by size

@@ -70,17 +70,6 @@ func calculateColumnWidths(totalWidth int) (nameWidth, sizeWidth, quantWidth, mo
 	return
 }
 
-func getSelectedModels(models []Model) []Model {
-	selectedModels := make([]Model, 0)
-	for _, model := range models {
-		if model.Selected {
-			logging.DebugLogger.Printf("Model selected for deletion: %s\n", model.Name)
-			selectedModels = append(selectedModels, model)
-		}
-	}
-	return selectedModels
-}
-
 func removeModels(models []Model, selectedModels []Model) []Model {
 	result := make([]Model, 0)
 	for _, model := range models {
