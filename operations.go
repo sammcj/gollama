@@ -296,26 +296,9 @@ func copyModel(client *api.Client, oldName string, newName string) {
 		logging.ErrorLogger.Printf("Error copying model: %v\n", err)
 		return
 	}
+
 	logging.InfoLogger.Printf("Successfully copied model: %s to %s\n", oldName, newName)
 
-	// Push the new model to the Ollama API
-	err = pushModel(client, newName)
-	if err != nil {
-		logging.ErrorLogger.Printf("Error pushing model: %v\n", err)
-	}
-}
-
-func pushModel(client *api.Client, modelName string) error {
-	ctx := context.Background()
-	req := &api.PushRequest{Name: modelName}
-	err := client.Push(ctx, req, func(resp api.ProgressResponse) error {
-		return nil
-	})
-	if err != nil {
-		return fmt.Errorf("error pushing model: %w", err)
-	}
-	logging.InfoLogger.Printf("Successfully pushed model: %s\n", modelName)
-	return nil
 }
 
 // Adding a new function get use client to get the running models
@@ -355,6 +338,10 @@ func copyModelfile(modelName, newModelName string) (string, error) {
 		return "", err
 	}
 
+	// replace any slashes, colons, or underscores with dashes
+	newModelName = strings.ReplaceAll(newModelName, "/", "-")
+	newModelName = strings.ReplaceAll(newModelName, ":", "-")
+
 	newModelfilePath := filepath.Join(os.Getenv("HOME"), ".config", "gollama", "modelfiles", newModelName+".modelfile")
 
 	err = os.WriteFile(newModelfilePath, output, 0644)
@@ -384,4 +371,25 @@ func openEditor(filePath string) tea.Cmd {
 func createModelFromModelfile(modelName, modelfilePath string) error {
 	cmd := exec.Command("ollama", "create", "-f", modelfilePath, modelName)
 	return cmd.Run()
+}
+
+func updateModel(modelName string) tea.Cmd {
+	return func() tea.Msg {
+		newModelName := promptForNewName(modelName)
+		modelfilePath, err := copyModelfile(modelName, newModelName)
+		if err != nil {
+			return editorFinishedMsg{err}
+		}
+
+		return tea.Batch(
+			openEditor(modelfilePath),
+			func() tea.Msg {
+				err := createModelFromModelfile(newModelName, modelfilePath)
+				if err != nil {
+					return editorFinishedMsg{err}
+				}
+				return editorFinishedMsg{nil}
+			},
+		)
+	}
 }

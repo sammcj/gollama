@@ -41,6 +41,7 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
+		logging.DebugLogger.Printf("Received key: %s\n", msg.String())
 		if m.list.FilterState() == list.Filtering {
 			m.list, cmd = m.list.Update(msg)
 			return m, cmd
@@ -56,42 +57,11 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, tea.Quit
 			}
 		}
-		if m.view == TopView {
-			break
-		}
 
-		switch {
-
-		case key.Matches(msg, m.keys.Space):
-			if item, ok := m.list.SelectedItem().(Model); ok {
-				logging.DebugLogger.Printf("Toggling selection for model: %s (before: %v)\n", item.Name, item.Selected)
-				item.Selected = !item.Selected
-				m.models[m.list.Index()] = item
-				m.list.SetItem(m.list.Index(), item)
-				logging.DebugLogger.Printf("Toggled selection for model: %s (after: %v)\n", item.Name, item.Selected)
-			}
-		case key.Matches(msg, m.keys.Delete):
-			logging.InfoLogger.Println("Delete key pressed")
-			m.selectedForDeletion = getSelectedModels(m.models)
-			logging.InfoLogger.Printf("Selected models for deletion: %+v\n", m.selectedForDeletion)
-			if len(m.selectedForDeletion) == 0 {
-				logging.InfoLogger.Println("No models selected for deletion")
-			} else {
-				m.confirmDeletion = true
-			}
-
-		// case key.Matches(msg, m.keys.Help):
-		// 	// TODO: fix this
-		// 	help := m.printFullHelp()
-		// 	lipgloss.NewStyle().Foreground(lipgloss.Color("129")).Render(help)
-		// 	m.message = help
-		// 	return m, nil
-
-		case key.Matches(msg, m.keys.Top):
-			m.view = TopView
-			return m, nil
-		case key.Matches(msg, m.keys.ConfirmYes):
-			if m.confirmDeletion {
+		if m.confirmDeletion {
+			switch {
+			case key.Matches(msg, m.keys.ConfirmYes):
+				logging.DebugLogger.Println("ConfirmYes key matched")
 				for _, selectedModel := range m.selectedForDeletion {
 					logging.InfoLogger.Printf("Attempting to delete model: %s\n", selectedModel.Name)
 					err := deleteModel(m.client, selectedModel.Name)
@@ -103,44 +73,84 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.refreshList()
 				m.confirmDeletion = false
 				m.selectedForDeletion = nil
-			}
-		case key.Matches(msg, m.keys.ConfirmNo):
-			if m.confirmDeletion {
+			case key.Matches(msg, m.keys.ConfirmNo):
+				logging.DebugLogger.Println("ConfirmNo key matched")
 				logging.InfoLogger.Println("Deletion cancelled by user")
 				m.confirmDeletion = false
 				m.selectedForDeletion = nil
 			}
+			return m, nil
+		}
+
+		switch {
+		case key.Matches(msg, m.keys.Space):
+			logging.DebugLogger.Println("Space key matched")
+			if item, ok := m.list.SelectedItem().(Model); ok {
+				logging.DebugLogger.Printf("Toggling selection for model: %s (before: %v)\n", item.Name, item.Selected)
+				item.Selected = !item.Selected
+				m.models[m.list.Index()] = item
+				m.list.SetItem(m.list.Index(), item)
+				logging.DebugLogger.Printf("Toggled selection for model: %s (after: %v)\n", item.Name, item.Selected)
+			}
+		case key.Matches(msg, m.keys.Delete):
+			logging.DebugLogger.Println("Delete key matched")
+			logging.InfoLogger.Println("Delete key pressed")
+
+			// Collect all selected models for deletion
+			var selectedModels []Model
+			for _, item := range m.list.Items() {
+				if model, ok := item.(Model); ok && model.Selected {
+					selectedModels = append(selectedModels, model)
+				}
+			}
+
+			if len(selectedModels) > 0 {
+				m.selectedForDeletion = selectedModels
+				logging.InfoLogger.Printf("Selected models for deletion: %+v\n", m.selectedForDeletion)
+				m.confirmDeletion = true
+			} else if item, ok := m.list.SelectedItem().(Model); ok {
+				m.selectedForDeletion = []Model{item}
+				logging.InfoLogger.Printf("Selected model for deletion: %+v\n", m.selectedForDeletion)
+				m.confirmDeletion = true
+			}
 		case key.Matches(msg, m.keys.SortByName):
+			logging.DebugLogger.Println("SortByName key matched")
 			sort.Slice(m.models, func(i, j int) bool {
 				return m.models[i].Name < m.models[j].Name
 			})
 			m.refreshList()
 		case key.Matches(msg, m.keys.SortBySize):
+			logging.DebugLogger.Println("SortBySize key matched")
 			sort.Slice(m.models, func(i, j int) bool {
 				return m.models[i].Size > m.models[j].Size
 			})
 			m.refreshList()
 		case key.Matches(msg, m.keys.SortByModified):
+			logging.DebugLogger.Println("SortByModified key matched")
 			sort.Slice(m.models, func(i, j int) bool {
 				return m.models[i].Modified.After(m.models[j].Modified)
 			})
 			m.refreshList()
 		case key.Matches(msg, m.keys.SortByQuant):
+			logging.DebugLogger.Println("SortByQuant key matched")
 			sort.Slice(m.models, func(i, j int) bool {
 				return m.models[i].QuantizationLevel < m.models[j].QuantizationLevel
 			})
 			m.refreshList()
 		case key.Matches(msg, m.keys.SortByFamily):
+			logging.DebugLogger.Println("SortByFamily key matched")
 			sort.Slice(m.models, func(i, j int) bool {
 				return m.models[i].Family < m.models[j].Family
 			})
 			m.refreshList()
 		case key.Matches(msg, m.keys.RunModel):
+			logging.DebugLogger.Println("RunModel key matched")
 			if item, ok := m.list.SelectedItem().(Model); ok {
 				logging.InfoLogger.Printf("Running model: %s\n", item.Name)
 				return m, runModel(item.Name)
 			}
 		case key.Matches(msg, m.keys.AltScreen):
+			logging.DebugLogger.Println("AltScreen key matched")
 			m.altscreenActive = !m.altscreenActive
 			cmd := tea.EnterAltScreen
 			if !m.altscreenActive {
@@ -148,27 +158,23 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, cmd
 		case key.Matches(msg, m.keys.ClearScreen):
+			logging.DebugLogger.Println("ClearScreen key matched")
 			if m.inspecting {
 				return m.clearScreen(), tea.ClearScreen
 			}
 		case key.Matches(msg, m.keys.UpdateModel):
+			logging.DebugLogger.Println("UpdateModel key matched")
 			if item, ok := m.list.SelectedItem().(Model); ok {
-				newModelName := promptForNewName(item.Name)
 				m.editing = true
-				if newModelName == "" {
-					m.message = "Error: name can't be empty"
-					return m, nil
-				}
-
-				modelfilePath, err := copyModelfile(item.Name, newModelName)
+				modelfilePath, err := copyModelfile(item.Name, item.Name)
 				if err != nil {
 					m.message = fmt.Sprintf("Error copying modelfile: %v", err)
 					return m, nil
 				}
-
 				return m, openEditor(modelfilePath)
 			}
 		case key.Matches(msg, m.keys.LinkModel):
+			logging.DebugLogger.Println("LinkModel key matched")
 			if item, ok := m.list.SelectedItem().(Model); ok {
 				message, err := linkModel(item.Name, m.lmStudioModelsDir, m.noCleanup)
 				if err != nil {
@@ -180,6 +186,7 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 		case key.Matches(msg, m.keys.LinkAllModels):
+			logging.DebugLogger.Println("LinkAllModels key matched")
 			var messages []string
 			for _, model := range m.models {
 				message, err := linkModel(model.Name, m.lmStudioModelsDir, m.noCleanup)
@@ -194,9 +201,9 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			messages = append(messages, "Linking complete")
 			m.message = strings.Join(messages, "\n")
 		case key.Matches(msg, m.keys.CopyModel):
+			logging.DebugLogger.Println("CopyModel key matched")
 			if item, ok := m.list.SelectedItem().(Model); ok {
 				newName := promptForNewName(item.Name) // Pass the selected item as the model
-
 				if newName == "" {
 					m.message = "Error: name can't be empty"
 				} else {
@@ -205,12 +212,14 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 		case key.Matches(msg, m.keys.PushModel):
+			logging.DebugLogger.Println("PushModel key matched")
 			if item, ok := m.list.SelectedItem().(Model); ok {
 				m.message = lipgloss.NewStyle().Foreground(lipgloss.Color("129")).Render(fmt.Sprintf("Pushing model: %s\n", item.Name))
 				m.showProgress = true // Show progress bar
 				return m, m.startPushModel(item.Name)
 			}
 		case key.Matches(msg, m.keys.InspectModel):
+			logging.DebugLogger.Println("InspectModel key matched")
 			selectedItem := m.list.SelectedItem()
 			if selectedItem != nil {
 				model, ok := selectedItem.(Model)
@@ -333,6 +342,7 @@ func (m *AppModel) View() string {
 }
 
 func (m *AppModel) confirmDeletionView() string {
+	logging.DebugLogger.Println("Confirm deletion function")
 	return fmt.Sprintf("\nAre you sure you want to delete the selected models? (Y/N)\n\n%s\n\n%s\n%s",
 		strings.Join(m.selectedModelNames(), "\n"),
 		m.keys.ConfirmYes.Help().Key,

@@ -22,12 +22,12 @@ func NewItemDelegate(appModel *AppModel) itemDelegate {
 
 func (d itemDelegate) Height() int  { return 1 }
 func (d itemDelegate) Spacing() int { return 0 }
+
 func (d itemDelegate) Update(msg tea.Msg, m *list.Model) tea.Cmd {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		logging.DebugLogger.Printf("itemDelegate received key: %s\n", msg.String()) // Add this line
-		switch msg.String() {
-		case " ": // space key pressed
+		logging.DebugLogger.Printf("itemDelegate received key: %s\n", msg.String())
+		if msg.String() == " " { // space key pressed
 			i, ok := m.SelectedItem().(Model)
 			if ok {
 				logging.DebugLogger.Printf("Delegate toggling selection for model: %s (before: %v)\n", i.Name, i.Selected)
@@ -39,6 +39,7 @@ func (d itemDelegate) Update(msg tea.Msg, m *list.Model) tea.Cmd {
 				d.appModel.models[m.Index()] = i
 				logging.DebugLogger.Printf("Updated main model list for model: %s (after: %v)\n", i.Name, i.Selected)
 			}
+			return nil
 		}
 	}
 	return nil
