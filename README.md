@@ -180,6 +180,10 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 - [Llama.cpp](https://github.com/ggerganov/llama.cpp)
 - [Charmbracelet](https://charm.sh/)
 
+Thank you to folks such as Matt Williams for giving this a shot and providing feedback.
+
+[![Matt Williams - My favorite way to run Ollama: Gollama](https://img.youtube.com/vi/OCXuYm6LKgE/0.jpg)](https://www.youtube.com/watch?v=OCXuYm6LKgE)
+
 ## Diagrams
 
 ### Workflow
