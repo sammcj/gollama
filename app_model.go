@@ -95,21 +95,24 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.keys.Delete):
 			logging.DebugLogger.Println("Delete key matched")
 			logging.InfoLogger.Println("Delete key pressed")
-			if item, ok := m.list.SelectedItem().(Model); ok {
+
+			// Collect all selected models for deletion
+			var selectedModels []Model
+			for _, item := range m.list.Items() {
+				if model, ok := item.(Model); ok && model.Selected {
+					selectedModels = append(selectedModels, model)
+				}
+			}
+
+			if len(selectedModels) > 0 {
+				m.selectedForDeletion = selectedModels
+				logging.InfoLogger.Printf("Selected models for deletion: %+v\n", m.selectedForDeletion)
+				m.confirmDeletion = true
+			} else if item, ok := m.list.SelectedItem().(Model); ok {
 				m.selectedForDeletion = []Model{item}
 				logging.InfoLogger.Printf("Selected model for deletion: %+v\n", m.selectedForDeletion)
 				m.confirmDeletion = true
 			}
-		// case key.Matches(msg, m.keys.Help):
-		// TODO: fix this its a bit borked
-		// 	logging.DebugLogger.Println("Help key matched")
-		// 	help := m.printFullHelp()
-		// 	m.message = help
-		// 	return m, nil
-		case key.Matches(msg, m.keys.Top):
-			logging.DebugLogger.Println("Top key matched")
-			m.view = TopView
-			return m, nil
 		case key.Matches(msg, m.keys.SortByName):
 			logging.DebugLogger.Println("SortByName key matched")
 			sort.Slice(m.models, func(i, j int) bool {
