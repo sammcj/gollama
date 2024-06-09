@@ -34,7 +34,7 @@ func normalizeSize(size float64) float64 {
 	return size // Sizes are already in GB in the API response
 }
 
-func calculateColumnWidths(totalWidth int) (nameWidth, sizeWidth, quantWidth, modifiedWidth, idWidth int, familyWidth int) {
+func calculateColumnWidths(totalWidth int) (nameWidth, sizeWidth, quantWidth, modifiedWidth, idWidth, familyWidth int) {
 	// Calculate column widths
 	nameWidth = int(0.45 * float64(totalWidth))
 	sizeWidth = int(0.05 * float64(totalWidth))
@@ -44,23 +44,23 @@ func calculateColumnWidths(totalWidth int) (nameWidth, sizeWidth, quantWidth, mo
 	idWidth = int(0.02 * float64(totalWidth))
 
 	// Set the absolute minimum width for each column
-	if nameWidth < 20 {
-		nameWidth = 20
+	if nameWidth < minNameWidth {
+		nameWidth = minNameWidth
 	}
-	if sizeWidth < 10 {
-		sizeWidth = 10
+	if sizeWidth < minSizeWidth {
+		sizeWidth = minSizeWidth
 	}
-	if quantWidth < 5 {
-		quantWidth = 5
+	if quantWidth < minQuantWidth {
+		quantWidth = minQuantWidth
 	}
-	if modifiedWidth < 10 {
-		modifiedWidth = 10
+	if modifiedWidth < minModifiedWidth {
+		modifiedWidth = minModifiedWidth
 	}
-	if idWidth < 10 {
-		idWidth = 10
+	if idWidth < minIDWidth {
+		idWidth = minIDWidth
 	}
-	if familyWidth < 14 {
-		familyWidth = 14
+	if familyWidth < minFamilyWidth {
+		familyWidth = minFamilyWidth
 	}
 
 	// If the total width is less than the sum of the minimum column widths, adjust the name column width and make sure all columns are aligned

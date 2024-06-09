@@ -17,7 +17,7 @@ type textInputModel struct {
 	quitting  bool
 }
 
-// text_input.go (modified)
+// promptForNewName displays a text input prompt for renaming a model.
 func promptForNewName(oldName string) string {
 	ti := textinput.New()
 	ti.ShowSuggestions = true

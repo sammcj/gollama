@@ -8,6 +8,16 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+const (
+	// Define minimum column widths
+	minNameWidth     = 20
+	minSizeWidth     = 10
+	minQuantWidth    = 5
+	minModifiedWidth = 10
+	minIDWidth       = 10
+	minFamilyWidth   = 14
+)
+
 var (
 	// Define neon colours for different model families
 	familyColours = map[string]lipgloss.Color{
