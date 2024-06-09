@@ -54,6 +54,12 @@ From go:
 go install github.com/sammcj/gollama@latest
 ```
 
+Or for bleeding edge:
+
+```shell
+go install github.com/sammcj/gollama@main
+```
+
 From Github:
 
 Download the most recent release from the [releases page](https://github.com/sammcj/gollama/releases) and extract the binary to a directory in your PATH.
@@ -72,11 +78,11 @@ gollama
 
 - `Space`: Select
 - `Enter`: Run model (Ollama run)
-- `i`: Inspect model
+- `i`: Inspect model **Work in progress**
 - `t`: Top (show running models)
 - `D`: Delete model
-- `c`: Copy model **This function is a work in progress**
-- `u`: Update model (edit Modelfile) **This functionality is a work in progress**
+- `c`: Copy model
+- `u`: Update model (edit Modelfile) **Work in progress**
 - `P`: Push model
 - `n`: Sort by name
 - `s`: Sort by size

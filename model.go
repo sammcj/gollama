@@ -1,3 +1,4 @@
+// model.go contains the Model struct which is used to represent the data for each item in the list view.
 package main
 
 import (

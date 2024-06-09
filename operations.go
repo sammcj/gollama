@@ -1,3 +1,4 @@
+// operations.go contains the functions that perform the operations on the models.
 package main
 
 import (
@@ -298,7 +299,6 @@ func copyModel(client *api.Client, oldName string, newName string) {
 	}
 
 	logging.InfoLogger.Printf("Successfully copied model: %s to %s\n", oldName, newName)
-
 }
 
 // Adding a new function get use client to get the running models

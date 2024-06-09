@@ -1,3 +1,4 @@
+// styles.go contains the styles used to render the list view.
 package main
 
 import (

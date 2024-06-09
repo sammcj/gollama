@@ -1,3 +1,4 @@
+// app_model.go not to be confused with an Ollama model - the app model is the tea.Model for the application.
 package main
 
 import (

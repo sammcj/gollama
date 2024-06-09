@@ -1,3 +1,4 @@
+// config.go contains the Config struct and functions to load and save the configuration file.
 package config
 
 import (
@@ -21,7 +22,6 @@ type Config struct {
 	LastSortSelection string   `json:"-"`            // Temporary field to hold the last sort selection
 	StripString       string   `json:"strip_string"` // Optional string to strip from model names in the TUI (e.g. a private registry URL)
 	Editor            string   `json:"editor"`
-	// ShowTopOnLaunch   bool     `json:"show_top_on_launch"` // New field to set if 'top' should be shown on launch
 }
 
 var defaultConfig = Config{
@@ -35,7 +35,6 @@ var defaultConfig = Config{
 	SortOrder:         "modified", // Default sort order
 	StripString:       "",
 	Editor:            "vim",
-	// ShowTopOnLaunch:   false, // Default to not showing 'top' on launch
 }
 
 func LoadConfig() (Config, error) {

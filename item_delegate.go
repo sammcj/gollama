@@ -1,3 +1,5 @@
+// item_delegate.go contains the itemDelegate struct which is used to render the individual items in the list view.
+
 package main
 
 import (

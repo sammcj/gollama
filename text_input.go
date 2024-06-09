@@ -1,3 +1,4 @@
+// text_input.go contains the textInputModel struct which is used to render the text input view.
 package main
 
 import (
@@ -67,6 +68,7 @@ func (m *textInputModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.textInput, cmd = m.textInput.Update(msg)
 	return m, cmd
 }
+
 func (m textInputModel) Init() tea.Cmd {
 	return textinput.Blink
 }

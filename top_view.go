@@ -1,4 +1,4 @@
-// top_view.go
+// top_view.go contains the TopModel struct which is used to render the top view of the application.
 package main
 
 import (

@@ -1,3 +1,4 @@
+// helpers.go contains various helper functions used in the main application.
 package main
 
 import (
