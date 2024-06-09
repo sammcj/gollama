@@ -187,6 +187,30 @@ func getModelPath(modelName string) (string, error) {
 	return "", fmt.Errorf(message, modelName)
 }
 
+func getModelParams(modelName string) (map[string][]string, error) {
+	logging.InfoLogger.Printf("Getting parameters for model: %s\n", modelName)
+	cmd := exec.Command("ollama", "show", "--modelfile", modelName)
+	output, err := cmd.Output()
+	if err != nil {
+		logging.ErrorLogger.Printf("Error getting parameters for model %s: %v\n", modelName, err)
+		return nil, err
+	}
+	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	// loop through all lines and for each line containing PARAMETER <key> <value> add the key value pair to the map
+	params := make(map[string][]string)
+	for _, line := range lines {
+		if strings.HasPrefix(line, "PARAMETER") {
+			logging.DebugLogger.Printf("Found parameter line: %s\n", line)
+			parts := strings.Split(line, " ")
+			key := parts[1]
+			value := strings.Join(parts[2:], " ")
+			params[key] = append(params[key], value)
+			logging.DebugLogger.Printf("Added parameter: %s: %s\n", key, value)
+		}
+	}
+	return params, nil
+}
+
 func cleanBrokenSymlinks(lmStudioModelsDir string) {
 	err := filepath.Walk(lmStudioModelsDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {

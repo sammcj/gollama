@@ -510,6 +510,13 @@ func (m *AppModel) inspectModelView(model Model) string {
 		{Title: "Value", Width: 50},
 	}
 
+	// Use getModelParams to get the model parameters and add them to the rows
+	modelParams, err := getModelParams(model.Name)
+	if err != nil {
+		logging.ErrorLogger.Printf("Error getting model parameters: %v\n", err)
+	}
+
+	// similar to above but also includes the model parameters
 	rows := []table.Row{
 		{"Name", model.Name},
 		{"ID", model.ID},
@@ -517,6 +524,14 @@ func (m *AppModel) inspectModelView(model Model) string {
 		{"Quantization Level", model.QuantizationLevel},
 		{"Modified", model.Modified.Format("2006-01-02")},
 		{"Family", model.Family},
+	}
+
+	// getModelParams returns a map of model parameters, so we need to iterate over the map and add the parameters to the rows
+	for key, value := range modelParams {
+		// rows = append(rows, []string{key, value[0]})
+		// this works, but there may be multiple values for a single key, so we need to join them
+		rows = append(rows, []string{key, strings.Join(value, ", ")})
+
 	}
 
 	// Log the rows to ensure they are being populated correctly
