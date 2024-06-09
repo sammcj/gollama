@@ -61,20 +61,56 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m *AppModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	logging.DebugLogger.Printf("Received key: %s\n", msg.String())
 
+	// Log the current filter state
+	logging.DebugLogger.Printf("Current filter state: %v\n", m.list.FilterState())
+
 	// Handle the space key separately to ensure it works even when filtering
 	if key.Matches(msg, m.keys.Space) {
 		return m.handleSpaceKey()
 	}
 
-	// If the list is in filtering state, handle the filtering input
+	// Handle filtering state
 	if m.list.FilterState() == list.Filtering {
 		var cmd tea.Cmd
-		m.list, cmd = m.list.Update(msg)
-		return m, cmd
+		switch msg.String() {
+		case "enter":
+			// Confirm the filter
+			logging.DebugLogger.Println("Confirming filter")
+			m.list, cmd = m.list.Update(msg)
+			return m, cmd
+		case "esc":
+			// Clear the filter
+			logging.DebugLogger.Println("Clearing filter")
+			m.list.ResetFilter()
+			return m, nil
+		default:
+			m.list, cmd = m.list.Update(msg)
+			return m, cmd
+		}
 	}
 
+	// Handle other keys
 	switch msg.String() {
-	case "q", "esc":
+	case "q":
+		if m.list.FilterState() == list.Filtering {
+			logging.DebugLogger.Println("Clearing filter with 'q' key")
+			m.list.ResetFilter()
+			return m, nil
+		}
+		if m.view == TopView || m.inspecting {
+			m.view = MainView
+			m.inspecting = false
+			m.editing = false
+			return m, nil
+		} else {
+			return m, tea.Quit
+		}
+	case "esc":
+		if m.list.FilterState() == list.Filtering {
+			logging.DebugLogger.Println("Clearing filter with 'esc' key")
+			m.list.ResetFilter()
+			return m, nil
+		}
 		if m.view == TopView || m.inspecting {
 			m.view = MainView
 			m.inspecting = false
@@ -88,7 +124,9 @@ func (m *AppModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.editing = false
 			return m, nil
 		}
+		return m, tea.Quit
 	}
+
 	if m.confirmDeletion {
 		switch {
 		case key.Matches(msg, m.keys.ConfirmYes):
@@ -156,8 +194,26 @@ func (m *AppModel) handleSpaceKey() (tea.Model, tea.Cmd) {
 	if item, ok := m.list.SelectedItem().(Model); ok {
 		logging.DebugLogger.Printf("Toggling selection for model: %s (before: %v)\n", item.Name, item.Selected)
 		item.Selected = !item.Selected
-		m.models[m.list.Index()] = item
-		m.list.SetItem(m.list.Index(), item)
+
+		// Update the item in the list's items
+		items := m.list.Items()
+		for i, listItem := range items {
+			if model, ok := listItem.(Model); ok && model.Name == item.Name {
+				items[i] = item
+				break
+			}
+		}
+
+		m.list.SetItems(items)
+
+		// Find the index of the actual item in the full list and update it
+		for i, model := range m.models {
+			if model.Name == item.Name {
+				m.models[i] = item
+				break
+			}
+		}
+
 		logging.DebugLogger.Printf("Toggled selection for model: %s (after: %v)\n", item.Name, item.Selected)
 	}
 	return m, nil
