@@ -6,14 +6,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sammcj/gollama/logging"
-
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+
+	"github.com/sammcj/gollama/logging"
 )
 
 type View int
