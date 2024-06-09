@@ -1,3 +1,4 @@
+// operations.go contains the functions that perform the operations on the models.
 package main
 
 import (
@@ -186,6 +187,30 @@ func getModelPath(modelName string) (string, error) {
 	return "", fmt.Errorf(message, modelName)
 }
 
+func getModelParams(modelName string) (map[string][]string, error) {
+	logging.InfoLogger.Printf("Getting parameters for model: %s\n", modelName)
+	cmd := exec.Command("ollama", "show", "--modelfile", modelName)
+	output, err := cmd.Output()
+	if err != nil {
+		logging.ErrorLogger.Printf("Error getting parameters for model %s: %v\n", modelName, err)
+		return nil, err
+	}
+	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	// loop through all lines and for each line containing PARAMETER <key> <value> add the key value pair to the map
+	params := make(map[string][]string)
+	for _, line := range lines {
+		if strings.HasPrefix(line, "PARAMETER") {
+			logging.DebugLogger.Printf("Found parameter line: %s\n", line)
+			parts := strings.Split(line, " ")
+			key := parts[1]
+			value := strings.Join(parts[2:], " ")
+			params[key] = append(params[key], value)
+			logging.DebugLogger.Printf("Added parameter: %s: %s\n", key, value)
+		}
+	}
+	return params, nil
+}
+
 func cleanBrokenSymlinks(lmStudioModelsDir string) {
 	err := filepath.Walk(lmStudioModelsDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -285,7 +310,7 @@ func cleanupSymlinkedModels(lmStudioModelsDir string) {
 	}
 }
 
-func copyModel(client *api.Client, oldName string, newName string) {
+func copyModel(m *AppModel, client *api.Client, oldName string, newName string) {
 	ctx := context.Background()
 	req := &api.CopyRequest{
 		Source:      oldName,
@@ -299,6 +324,8 @@ func copyModel(client *api.Client, oldName string, newName string) {
 
 	logging.InfoLogger.Printf("Successfully copied model: %s to %s\n", oldName, newName)
 
+	// Refresh the model list
+	m.refreshList()
 }
 
 // Adding a new function get use client to get the running models
@@ -373,7 +400,7 @@ func createModelFromModelfile(modelName, modelfilePath string) error {
 	return cmd.Run()
 }
 
-func updateModel(modelName string) tea.Cmd {
+func updateModel(m *AppModel, modelName string) tea.Cmd {
 	return func() tea.Msg {
 		newModelName := promptForNewName(modelName)
 		modelfilePath, err := copyModelfile(modelName, newModelName)
@@ -388,6 +415,10 @@ func updateModel(modelName string) tea.Cmd {
 				if err != nil {
 					return editorFinishedMsg{err}
 				}
+
+				// Refresh the model list
+				m.refreshList()
+
 				return editorFinishedMsg{nil}
 			},
 		)

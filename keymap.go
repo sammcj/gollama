@@ -1,3 +1,4 @@
+// keymap.go contains the KeyMap struct which is used to define the key bindings for the application.
 package main
 
 import (
@@ -32,14 +33,6 @@ type KeyMap struct {
 func (k KeyMap) ShortHelp() []key.Binding {
 	return []key.Binding{k.Help, k.Quit}
 }
-
-// func newModel() model {
-// 	return model{
-// 		keys:       *NewKeyMap(),
-// 		help:       help.New(),
-// 		inputStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("#FF75B7")),
-// 	}
-// }
 
 func NewKeyMap() *KeyMap {
 	return &KeyMap{

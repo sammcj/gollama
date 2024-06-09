@@ -1,3 +1,4 @@
+// text_input.go contains the textInputModel struct which is used to render the text input view.
 package main
 
 import (
@@ -16,7 +17,7 @@ type textInputModel struct {
 	quitting  bool
 }
 
-// text_input.go (modified)
+// promptForNewName displays a text input prompt for renaming a model.
 func promptForNewName(oldName string) string {
 	ti := textinput.New()
 	ti.ShowSuggestions = true
@@ -67,6 +68,7 @@ func (m *textInputModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.textInput, cmd = m.textInput.Update(msg)
 	return m, cmd
 }
+
 func (m textInputModel) Init() tea.Cmd {
 	return textinput.Blink
 }

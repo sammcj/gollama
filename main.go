@@ -1,3 +1,4 @@
+// main.go
 package main
 
 import (
@@ -13,6 +14,7 @@ import (
 	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/ollama/ollama/api"
 	"golang.org/x/term"
 
@@ -184,6 +186,12 @@ func main() {
 	l.Title = "Ollama Models"
 	l.Help.Styles.ShortDesc.Bold(true)
 	l.Help.Styles.ShortDesc.UnsetFaint()
+	l.Help.Styles.ShortDesc.Foreground(lipgloss.Color("#FF00FF"))
+	l.Help.Styles.ShortDesc.Background(lipgloss.Color("#000000"))
+	l.Help.Styles.ShortDesc.Width(20)
+	l.Help.Styles.ShortDesc.Padding(0, 1)
+	l.Help.Styles.ShortDesc.Margin(0, 1)
+	l.Help.Styles.ShortDesc.Border(lipgloss.Border{Left: " ", Right: " "})
 
 	l.AdditionalShortHelpKeys = func() []key.Binding {
 		return []key.Binding{

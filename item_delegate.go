@@ -1,3 +1,5 @@
+// item_delegate.go contains the itemDelegate struct which is used to render the individual items in the list view.
+
 package main
 
 import (
@@ -70,7 +72,7 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, item list.Ite
 	modifiedStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("254"))
 
 	if index == m.Index() {
-		// set the name boarder to pink
+		// set the name border to pink
 		nameStyle = nameStyle.Bold(true).BorderLeft(true).BorderStyle(lipgloss.InnerHalfBlockBorder()).BorderForeground(lipgloss.Color("125")).PaddingLeft(1)
 		sizeStyle = sizeStyle.Bold(true).BorderLeft(true).PaddingLeft(-2).PaddingRight(-2)
 		quantStyle = quantStyle.Bold(true).BorderLeft(true).PaddingLeft(-2).PaddingRight(-2)

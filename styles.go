@@ -1,3 +1,4 @@
+// styles.go contains the styles used to render the list view.
 package main
 
 import (
@@ -7,23 +8,33 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+const (
+	// Define minimum column widths
+	minNameWidth     = 14
+	minSizeWidth     = 10
+	minQuantWidth    = 10
+	minModifiedWidth = 10
+	minIDWidth       = 10
+	minFamilyWidth   = 14
+)
+
 var (
 	// Define neon colours for different model families
 	familyColours = map[string]lipgloss.Color{
+		"llama":      lipgloss.Color("#FF1493"),
 		"alpaca":     lipgloss.Color("#FF00FF"),
 		"bert":       lipgloss.Color("#FF40CB"),
 		"command-r":  lipgloss.Color("#FF69B4"),
+		"starcoder2": lipgloss.Color("#EE82EE"),
+		"starcoder":  lipgloss.Color("#DDA0DD"),
 		"gemma":      lipgloss.Color("#FFB6C1"),
-		"llama":      lipgloss.Color("#FF1493"),
-		"nomic-bert": lipgloss.Color("#FF8C00"),
+		"qwen2":      lipgloss.Color("#AAE"),
 		"phi2":       lipgloss.Color("#554AAF"),
 		"phi3":       lipgloss.Color("#554FFF"),
-		"qwen":       lipgloss.Color("#7FFF00"),
-		"qwen2":      lipgloss.Color("#AAE"),
-		"starcoder":  lipgloss.Color("#DDA0DD"),
-		"starcoder2": lipgloss.Color("#EE82EE"),
-		"vicuna":     lipgloss.Color("#00CED1"),
 		"granite":    lipgloss.Color("#00BFFF"),
+		"vicuna":     lipgloss.Color("#00CED1"),
+		"nomic-bert": lipgloss.Color("#FF8C00"),
+		"qwen":       lipgloss.Color("#7FFF00"),
 	}
 
 	// Define colour gradients
