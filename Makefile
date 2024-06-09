@@ -47,6 +47,12 @@ help: ## This help function
 clean: ## Clean
 	rm -rf ./dist
 
+debug-server: ## Debug server
+	dlv debug --headless --api-version=2 --listen=127.0.0.1:43000 .
+
+debug-client: ## Debug client
+	dlv connect 127.0.0.1:43000
+
 # Targets (example targets listed below)
 lint: ## Run lint
 	gofmt -w -s .
