@@ -286,7 +286,7 @@ func cleanupSymlinkedModels(lmStudioModelsDir string) {
 	}
 }
 
-func copyModel(client *api.Client, oldName string, newName string) {
+func copyModel(m *AppModel, client *api.Client, oldName string, newName string) {
 	ctx := context.Background()
 	req := &api.CopyRequest{
 		Source:      oldName,
@@ -299,6 +299,9 @@ func copyModel(client *api.Client, oldName string, newName string) {
 	}
 
 	logging.InfoLogger.Printf("Successfully copied model: %s to %s\n", oldName, newName)
+
+	// Refresh the model list
+	m.refreshList()
 }
 
 // Adding a new function get use client to get the running models
@@ -373,7 +376,7 @@ func createModelFromModelfile(modelName, modelfilePath string) error {
 	return cmd.Run()
 }
 
-func updateModel(modelName string) tea.Cmd {
+func updateModel(m *AppModel, modelName string) tea.Cmd {
 	return func() tea.Msg {
 		newModelName := promptForNewName(modelName)
 		modelfilePath, err := copyModelfile(modelName, newModelName)
@@ -388,6 +391,10 @@ func updateModel(modelName string) tea.Cmd {
 				if err != nil {
 					return editorFinishedMsg{err}
 				}
+
+				// Refresh the model list
+				m.refreshList()
+
 				return editorFinishedMsg{nil}
 			},
 		)

@@ -60,11 +60,19 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *AppModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	logging.DebugLogger.Printf("Received key: %s\n", msg.String())
+
+	// Handle the space key separately to ensure it works even when filtering
+	if key.Matches(msg, m.keys.Space) {
+		return m.handleSpaceKey()
+	}
+
+	// If the list is in filtering state, handle the filtering input
 	if m.list.FilterState() == list.Filtering {
 		var cmd tea.Cmd
 		m.list, cmd = m.list.Update(msg)
 		return m, cmd
 	}
+
 	switch msg.String() {
 	case "q", "esc":
 		if m.view == TopView || m.inspecting {
@@ -104,10 +112,9 @@ func (m *AppModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	}
+
 	var cmd tea.Cmd // Define the cmd variable
 	switch {
-	case key.Matches(msg, m.keys.Space):
-		return m.handleSpaceKey()
 	case key.Matches(msg, m.keys.Delete):
 		return m.handleDeleteKey()
 	case key.Matches(msg, m.keys.SortByName):
@@ -142,6 +149,18 @@ func (m *AppModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.list, cmd = m.list.Update(msg)
 		return m, cmd
 	}
+}
+
+func (m *AppModel) handleSpaceKey() (tea.Model, tea.Cmd) {
+	logging.DebugLogger.Println("Space key matched")
+	if item, ok := m.list.SelectedItem().(Model); ok {
+		logging.DebugLogger.Printf("Toggling selection for model: %s (before: %v)\n", item.Name, item.Selected)
+		item.Selected = !item.Selected
+		m.models[m.list.Index()] = item
+		m.list.SetItem(m.list.Index(), item)
+		logging.DebugLogger.Printf("Toggled selection for model: %s (after: %v)\n", item.Name, item.Selected)
+	}
+	return m, nil
 }
 
 func (m *AppModel) handleRunFinishedMessage(msg runFinishedMessage) (tea.Model, tea.Cmd) {
@@ -189,18 +208,6 @@ func (m *AppModel) handlePushErrorMsg(msg pushErrorMsg) (tea.Model, tea.Cmd) {
 	logging.ErrorLogger.Printf("Error pushing model: %v\n", msg.err)
 	m.message = fmt.Sprintf("Error pushing model: %v\n", msg.err)
 	m.showProgress = false // Hide progress bar
-	return m, nil
-}
-
-func (m *AppModel) handleSpaceKey() (tea.Model, tea.Cmd) {
-	logging.DebugLogger.Println("Space key matched")
-	if item, ok := m.list.SelectedItem().(Model); ok {
-		logging.DebugLogger.Printf("Toggling selection for model: %s (before: %v)\n", item.Name, item.Selected)
-		item.Selected = !item.Selected
-		m.models[m.list.Index()] = item
-		m.list.SetItem(m.list.Index(), item)
-		logging.DebugLogger.Printf("Toggled selection for model: %s (after: %v)\n", item.Name, item.Selected)
-	}
 	return m, nil
 }
 
@@ -355,7 +362,7 @@ func (m *AppModel) handleCopyModelKey() (tea.Model, tea.Cmd) {
 		if newName == "" {
 			m.message = "Error: name can't be empty"
 		} else {
-			copyModel(m.client, item.Name, newName)
+			copyModel(m, m.client, item.Name, newName)
 			m.message = fmt.Sprintf("Model %s copied to %s", item.Name, newName)
 		}
 	}
