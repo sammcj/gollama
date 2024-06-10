@@ -21,7 +21,7 @@ import (
 func runModel(model string, cfg *config.Config) tea.Cmd {
 	// if config is set to run in docker container, run the mode using runDocker
 	if cfg.DockerContainer != "" && cfg.DockerContainer != "false" {
-		return runDocker(strings.Split(model, " "), cfg.DockerContainer)
+		return runDocker(cfg.DockerContainer, model)
 	}
 
 	ollamaPath, err := exec.LookPath("ollama")
@@ -38,7 +38,7 @@ func runModel(model string, cfg *config.Config) tea.Cmd {
 	})
 }
 
-func runDocker(params []string, container string) tea.Cmd {
+func runDocker(container string, model string) tea.Cmd {
 	dockerPath, err := exec.LookPath("docker")
 	if err != nil {
 		logging.ErrorLogger.Printf("Error finding docker binary: %v\n", err)
@@ -46,8 +46,7 @@ func runDocker(params []string, container string) tea.Cmd {
 	}
 
 	// parse the params into a list of arguments to supply to docker exec
-	args := []string{"exec", container, "ollama"}
-	args = append(args, params...)
+	args := []string{"exec", "-it", container, "ollama", "run", model}
 
 	c := exec.Command(dockerPath, args...)
 	return tea.ExecProcess(c, func(err error) tea.Msg {
