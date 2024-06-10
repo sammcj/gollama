@@ -57,7 +57,7 @@ go install github.com/sammcj/gollama@latest
 Or for bleeding edge:
 
 ```shell
-go install github.com/sammcj/gollama@main
+go install github.com/sammcj/gollama@HEAD
 ```
 
 From Github:
@@ -78,7 +78,7 @@ gollama
 
 - `Space`: Select
 - `Enter`: Run model (Ollama run)
-- `i`: Inspect model **Work in progress**
+- `i`: Inspect model
 - `t`: Top (show running models)
 - `D`: Delete model
 - `c`: Copy model
@@ -135,12 +135,15 @@ Example configuration:
   "log_level": "info",
   "log_file_path": "/Users/username/.config/gollama/gollama.log",
   "sort_order": "Size",
-  "strip_string": "my-private-registry.internal/"
+  "strip_string": "my-private-registry.internal/",
+  "editor": "",
+  "docker_container": ""
 }
 ```
 
-The strip string option can be used to remove a prefix from model names as they are displayed in the TUI.
-This can be useful if you have a common prefix such as a private registry that you want to remove for display purposes.
+- `strip_string` can be used to remove a prefix from model names as they are displayed in the TUI. This can be useful if you have a common prefix such as a private registry that you want to remove for display purposes.
+- `docker_container` - **experimental** - if set, gollama will attempt to perform any run operations inside the specified container.
+- `editor` - **experimental** - if set, gollama will use this editor to open the Modelfile for editing.
 
 ## Installation and build from source
 
