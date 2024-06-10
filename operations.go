@@ -14,10 +14,16 @@ import (
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/ollama/ollama/api"
+	"github.com/sammcj/gollama/config"
 	"github.com/sammcj/gollama/logging"
 )
 
-func runModel(model string) tea.Cmd {
+func runModel(model string, cfg *config.Config) tea.Cmd {
+	// if config is set to run in docker container, run the mode using runDocker
+	if cfg.DockerContainer != "" && cfg.DockerContainer != "false" {
+		return runDocker(strings.Split(model, " "), cfg.DockerContainer)
+	}
+
 	ollamaPath, err := exec.LookPath("ollama")
 	if err != nil {
 		logging.ErrorLogger.Printf("Error finding ollama binary: %v\n", err)
@@ -27,6 +33,26 @@ func runModel(model string) tea.Cmd {
 	return tea.ExecProcess(c, func(err error) tea.Msg {
 		if err != nil {
 			logging.ErrorLogger.Printf("Error running model: %v\n", err)
+		}
+		return runFinishedMessage{err}
+	})
+}
+
+func runDocker(params []string, container string) tea.Cmd {
+	dockerPath, err := exec.LookPath("docker")
+	if err != nil {
+		logging.ErrorLogger.Printf("Error finding docker binary: %v\n", err)
+		return nil
+	}
+
+	// parse the params into a list of arguments to supply to docker exec
+	args := []string{"exec", container, "ollama"}
+	args = append(args, params...)
+
+	c := exec.Command(dockerPath, args...)
+	return tea.ExecProcess(c, func(err error) tea.Msg {
+		if err != nil {
+			logging.ErrorLogger.Printf("Error running model in docker container: %v\n", err)
 		}
 		return runFinishedMessage{err}
 	})
@@ -76,8 +102,8 @@ func (m *AppModel) pushModelCmd(modelName string) tea.Cmd {
 	}
 }
 
-func linkModel(modelName, lmStudioModelsDir string, noCleanup bool) (string, error) {
-	modelPath, err := getModelPath(modelName)
+func linkModel(modelName, lmStudioModelsDir string, noCleanup bool, client *api.Client) (string, error) {
+	modelPath, err := getModelPath(modelName, client)
 	if err != nil {
 		return "", fmt.Errorf("error getting model path for %s: %v", modelName, err)
 	}
@@ -170,12 +196,16 @@ func linkModel(modelName, lmStudioModelsDir string, noCleanup bool) (string, err
 	return "", nil
 }
 
-func getModelPath(modelName string) (string, error) {
-	cmd := exec.Command("ollama", "show", "--modelfile", modelName)
-	output, err := cmd.Output()
+func getModelPath(modelName string, client *api.Client) (string, error) {
+	ctx := context.Background()
+	req := &api.ShowRequest{Name: modelName}
+	resp, err := client.Show(ctx, req)
 	if err != nil {
 		return "", err
 	}
+
+	output := []byte(resp.Modelfile)
+
 	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
 	for _, line := range lines {
 		if strings.HasPrefix(line, "FROM ") {
@@ -187,14 +217,16 @@ func getModelPath(modelName string) (string, error) {
 	return "", fmt.Errorf(message, modelName)
 }
 
-func getModelParams(modelName string) (map[string][]string, error) {
+func getModelParams(modelName string, client *api.Client) (map[string][]string, error) {
 	logging.InfoLogger.Printf("Getting parameters for model: %s\n", modelName)
-	cmd := exec.Command("ollama", "show", "--modelfile", modelName)
-	output, err := cmd.Output()
+	ctx := context.Background()
+	req := &api.ShowRequest{Name: modelName}
+	resp, err := client.Show(ctx, req)
 	if err != nil {
 		logging.ErrorLogger.Printf("Error getting parameters for model %s: %v\n", modelName, err)
 		return nil, err
 	}
+	output := []byte(resp.Modelfile)
 	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
 	// loop through all lines and for each line containing PARAMETER <key> <value> add the key value pair to the map
 	params := make(map[string][]string)
@@ -350,14 +382,18 @@ func showRunningModels(client *api.Client) ([]table.Row, error) {
 	return runningModels, nil
 }
 
-func copyModelfile(modelName, newModelName string) (string, error) {
+func copyModelfile(modelName, newModelName string, client *api.Client) (string, error) {
 	logging.InfoLogger.Printf("Copying modelfile for model: %s\n", modelName)
-	cmd := exec.Command("ollama", "show", "--modelfile", modelName)
-	output, err := cmd.Output()
+
+	ctx := context.Background()
+	req := &api.ShowRequest{Name: modelName}
+	resp, err := client.Show(ctx, req)
 	if err != nil {
 		logging.ErrorLogger.Printf("Error copying modelfile for model %s: %v\n", modelName, err)
 		return "", err
 	}
+
+	output := []byte(resp.Modelfile)
 
 	err = os.MkdirAll(filepath.Join(os.Getenv("HOME"), ".config", "gollama", "modelfiles"), os.ModePerm)
 	if err != nil {
@@ -395,15 +431,28 @@ func openEditor(filePath string) tea.Cmd {
 	})
 }
 
-func createModelFromModelfile(modelName, modelfilePath string) error {
-	cmd := exec.Command("ollama", "create", "-f", modelfilePath, modelName)
-	return cmd.Run()
+func createModelFromModelfile(modelName, modelfilePath string, client *api.Client) error {
+	// cmd := exec.Command("ollama", "create", "-f", modelfilePath, modelName)
+	// return cmd.Run()
+	ctx := context.Background()
+	req := &api.CreateRequest{
+		Name:      modelName,
+		Modelfile: modelfilePath,
+	}
+	err := client.Create(ctx, req, nil) //TODO: add progress
+	if err != nil {
+		logging.ErrorLogger.Printf("Error creating model from modelfile %s: %v\n", modelfilePath, err)
+		return fmt.Errorf("error creating model from modelfile %s: %v", modelfilePath, err)
+	}
+	logging.InfoLogger.Printf("Successfully created model from modelfile: %s\n", modelfilePath)
+	return nil
+
 }
 
 func updateModel(m *AppModel, modelName string) tea.Cmd {
 	return func() tea.Msg {
 		newModelName := promptForNewName(modelName)
-		modelfilePath, err := copyModelfile(modelName, newModelName)
+		modelfilePath, err := copyModelfile(modelName, newModelName, m.client)
 		if err != nil {
 			return editorFinishedMsg{err}
 		}
@@ -411,7 +460,7 @@ func updateModel(m *AppModel, modelName string) tea.Cmd {
 		return tea.Batch(
 			openEditor(modelfilePath),
 			func() tea.Msg {
-				err := createModelFromModelfile(newModelName, modelfilePath)
+				err := createModelFromModelfile(newModelName, modelfilePath, m.client)
 				if err != nil {
 					return editorFinishedMsg{err}
 				}

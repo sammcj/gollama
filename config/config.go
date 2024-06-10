@@ -22,6 +22,7 @@ type Config struct {
 	LastSortSelection string   `json:"-"`            // Temporary field to hold the last sort selection
 	StripString       string   `json:"strip_string"` // Optional string to strip from model names in the TUI (e.g. a private registry URL)
 	Editor            string   `json:"editor"`
+	DockerContainer   string   `json:"docker_container"` // Optionally specify a docker container to run the ollama commands in
 }
 
 var defaultConfig = Config{
@@ -35,6 +36,7 @@ var defaultConfig = Config{
 	SortOrder:         "modified", // Default sort order
 	StripString:       "",
 	Editor:            "vim",
+	DockerContainer:   "",
 }
 
 func LoadConfig() (Config, error) {

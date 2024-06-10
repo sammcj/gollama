@@ -261,7 +261,7 @@ func (m *AppModel) handleEditorFinishedMsg(msg editorFinishedMsg) (tea.Model, te
 	if item, ok := m.list.SelectedItem().(Model); ok {
 		newModelName := promptForNewName(item.Name)
 		modelfilePath := fmt.Sprintf("Modelfile-%s", strings.ReplaceAll(newModelName, " ", "_"))
-		err := createModelFromModelfile(newModelName, modelfilePath)
+		err := createModelFromModelfile(newModelName, modelfilePath, m.client)
 		if err != nil {
 			m.message = fmt.Sprintf("Error creating model: %v", err)
 			return m, nil
@@ -359,7 +359,7 @@ func (m *AppModel) handleRunModelKey() (tea.Model, tea.Cmd) {
 	logging.DebugLogger.Println("RunModel key matched")
 	if item, ok := m.list.SelectedItem().(Model); ok {
 		logging.InfoLogger.Printf("Running model: %s\n", item.Name)
-		return m, runModel(item.Name)
+		return m, runModel(item.Name, m.cfg)
 	}
 	return m, nil
 }
@@ -394,7 +394,7 @@ func (m *AppModel) handleUpdateModelKey() (tea.Model, tea.Cmd) {
 	logging.DebugLogger.Println("UpdateModel key matched")
 	if item, ok := m.list.SelectedItem().(Model); ok {
 		m.editing = true
-		modelfilePath, err := copyModelfile(item.Name, item.Name)
+		modelfilePath, err := copyModelfile(item.Name, item.Name, m.client)
 		if err != nil {
 			m.message = fmt.Sprintf("Error copying modelfile: %v", err)
 			return m, nil
@@ -407,7 +407,7 @@ func (m *AppModel) handleUpdateModelKey() (tea.Model, tea.Cmd) {
 func (m *AppModel) handleLinkModelKey() (tea.Model, tea.Cmd) {
 	logging.DebugLogger.Println("LinkModel key matched")
 	if item, ok := m.list.SelectedItem().(Model); ok {
-		message, err := linkModel(item.Name, m.lmStudioModelsDir, m.noCleanup)
+		message, err := linkModel(item.Name, m.lmStudioModelsDir, m.noCleanup, m.client)
 		if err != nil {
 			m.message = fmt.Sprintf("Error linking model: %v", err)
 		} else if message != "" {
@@ -423,7 +423,7 @@ func (m *AppModel) handleLinkAllModelsKey() (tea.Model, tea.Cmd) {
 	logging.DebugLogger.Println("LinkAllModels key matched")
 	var messages []string
 	for _, model := range m.models {
-		message, err := linkModel(model.Name, m.lmStudioModelsDir, m.noCleanup)
+		message, err := linkModel(model.Name, m.lmStudioModelsDir, m.noCleanup, m.client)
 		if err != nil {
 			messages = append(messages, fmt.Sprintf("Error linking model %s: %v", model.Name, err))
 		} else if message != "" {
@@ -537,7 +537,7 @@ func (m *AppModel) inspectModelView(model Model) string {
 	}
 
 	// Use getModelParams to get the model parameters and add them to the rows
-	modelParams, err := getModelParams(model.Name)
+	modelParams, err := getModelParams(model.Name, m.client)
 	if err != nil {
 		logging.ErrorLogger.Printf("Error getting model parameters: %v\n", err)
 	}
