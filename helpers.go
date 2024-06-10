@@ -17,14 +17,14 @@ import (
 func parseAPIResponse(resp *api.ListResponse) []Model {
 	models := make([]Model, len(resp.Models))
 	for i, modelResp := range resp.Models {
+		modelName := lipgloss.NewStyle().Foreground(lipgloss.Color("white")).Render(modelResp.Name)
 		models[i] = Model{
-			Name:              lipgloss.NewStyle().Foreground(lipgloss.Color("white")).Render(modelResp.Name),
+			Name:              modelName,
 			ID:                truncate(modelResp.Digest, 7),                  // Truncate the ID
 			Size:              float64(modelResp.Size) / (1024 * 1024 * 1024), // Convert bytes to GB
 			QuantizationLevel: modelResp.Details.QuantizationLevel,
 			Family:            modelResp.Details.Family,
 			Modified:          modelResp.ModifiedAt,
-			Selected:          false,
 		}
 	}
 	return models

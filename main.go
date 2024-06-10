@@ -23,29 +23,29 @@ import (
 )
 
 type AppModel struct {
-	width               int
-	height              int
-	ollamaModelsDir     string
-	cfg                 *config.Config
-	inspectedModel      Model
-	list                list.Model
-	models              []Model
-	selectedForDeletion []Model
-	confirmDeletion     bool
-	inspecting          bool
-	editing             bool
-	message             string
-	keys                KeyMap
-	client              *api.Client
-	lmStudioModelsDir   string
-	noCleanup           bool
-	table               table.Model
-	filterInput         tea.Model
-	showTop             bool
-	progress            progress.Model
-	altscreenActive     bool
-	view                View
-	showProgress        bool
+	width             int
+	height            int
+	ollamaModelsDir   string
+	cfg               *config.Config
+	inspectedModel    Model
+	list              list.Model
+	models            []Model
+	selectedModels    []Model
+	confirmDeletion   bool
+	inspecting        bool
+	editing           bool
+	message           string
+	keys              KeyMap
+	client            *api.Client
+	lmStudioModelsDir string
+	noCleanup         bool
+	table             table.Model
+	filterInput       tea.Model
+	showTop           bool
+	progress          progress.Model
+	altscreenActive   bool
+	view              View
+	showProgress      bool
 }
 
 type progressMsg struct {
@@ -211,6 +211,7 @@ func main() {
 			keys.PushModel,
 			keys.Top,
 			keys.UpdateModel,
+			keys.Help,
 		}
 	}
 
