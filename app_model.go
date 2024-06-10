@@ -21,6 +21,7 @@ type View int
 const (
 	MainView View = iota
 	TopView
+	HelpView
 )
 
 func (m *AppModel) Init() tea.Cmd {
@@ -92,12 +93,12 @@ func (m *AppModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	// Handle other keys
 	switch msg.String() {
 	case "q":
-		if m.list.FilterState() == list.Filtering {
+		if m.list.FilterState() == list.FilterApplied {
 			logging.DebugLogger.Println("Clearing filter with 'q' key")
 			m.list.ResetFilter()
 			return m, nil
 		}
-		if m.view == TopView || m.inspecting {
+		if m.view == TopView || m.inspecting || m.view == HelpView {
 			m.view = MainView
 			m.inspecting = false
 			m.editing = false
@@ -106,18 +107,18 @@ func (m *AppModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 	case "esc":
-		if m.list.FilterState() == list.Filtering {
+		if m.list.FilterState() == list.FilterApplied {
 			logging.DebugLogger.Println("Clearing filter with 'esc' key")
 			m.list.ResetFilter()
 			return m, nil
 		}
-		if m.view == TopView || m.inspecting {
+		if m.view == TopView || m.inspecting || m.view == HelpView {
 			m.view = MainView
 			m.inspecting = false
 			m.editing = false
 			return m, nil
 		} else {
-			return m, tea.Quit
+			return m, nil
 		}
 	case "ctrl+c":
 		if m.editing {
@@ -131,22 +132,22 @@ func (m *AppModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		switch {
 		case key.Matches(msg, m.keys.ConfirmYes):
 			logging.DebugLogger.Println("ConfirmYes key matched")
-			for _, selectedModel := range m.selectedForDeletion {
+			for _, selectedModel := range m.selectedModels {
 				logging.InfoLogger.Printf("Attempting to delete model: %s\n", selectedModel.Name)
 				err := deleteModel(m.client, selectedModel.Name)
 				if err != nil {
 					logging.ErrorLogger.Println("Error deleting model:", err)
 				}
 			}
-			m.models = removeModels(m.models, m.selectedForDeletion)
+			m.models = removeModels(m.models, m.selectedModels)
 			m.refreshList()
 			m.confirmDeletion = false
-			m.selectedForDeletion = nil
+			m.selectedModels = nil
 		case key.Matches(msg, m.keys.ConfirmNo):
 			logging.DebugLogger.Println("ConfirmNo key matched")
 			logging.InfoLogger.Println("Deletion cancelled by user")
 			m.confirmDeletion = false
-			m.selectedForDeletion = nil
+			m.selectedModels = nil
 		}
 		return m, nil
 	}
@@ -183,6 +184,10 @@ func (m *AppModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handlePushModelKey()
 	case key.Matches(msg, m.keys.InspectModel):
 		return m.handleInspectModelKey()
+	case key.Matches(msg, m.keys.Top):
+		return m.handleTopKey()
+	case key.Matches(msg, m.keys.Help):
+		return m.handleHelpKey()
 	default:
 		m.list, cmd = m.list.Update(msg)
 		return m, cmd
@@ -234,6 +239,20 @@ func (m *AppModel) handleProgressMsg(msg progressMsg) (tea.Model, tea.Cmd) {
 	})
 }
 
+func (m *AppModel) handleHelpKey() (tea.Model, tea.Cmd) {
+	logging.DebugLogger.Println("Help key matched")
+	if m.view == HelpView {
+		m.message = ""
+		m.view = MainView
+		m.refreshList()
+		m.clearScreen()
+		return m, nil
+	}
+	m.view = HelpView
+	m.message = m.printFullHelp()
+	return m, nil
+}
+
 func (m *AppModel) handleEditorFinishedMsg(msg editorFinishedMsg) (tea.Model, tea.Cmd) {
 	if msg.err != nil {
 		m.message = fmt.Sprintf("Error editing modelfile: %v", msg.err)
@@ -280,12 +299,12 @@ func (m *AppModel) handleDeleteKey() (tea.Model, tea.Cmd) {
 	}
 
 	if len(selectedModels) > 0 {
-		m.selectedForDeletion = selectedModels
-		logging.InfoLogger.Printf("Selected models for deletion: %+v\n", m.selectedForDeletion)
+		m.selectedModels = selectedModels
+		logging.InfoLogger.Printf("Selected models for deletion: %+v\n", m.selectedModels)
 		m.confirmDeletion = true
 	} else if item, ok := m.list.SelectedItem().(Model); ok {
-		m.selectedForDeletion = []Model{item}
-		logging.InfoLogger.Printf("Selected model for deletion: %+v\n", m.selectedForDeletion)
+		m.selectedModels = []Model{item}
+		logging.InfoLogger.Printf("Selected model for deletion: %+v\n", m.selectedModels)
 		m.confirmDeletion = true
 	}
 	return m, nil
@@ -362,6 +381,13 @@ func (m *AppModel) handleClearScreenKey() (tea.Model, tea.Cmd) {
 		return m.clearScreen(), tea.ClearScreen
 	}
 	return m, nil
+}
+
+// top view handler
+func (m *AppModel) handleTopKey() (tea.Model, tea.Cmd) {
+	logging.DebugLogger.Println("Top key matched")
+	m.view = TopView
+	return m.ToggleTop()
 }
 
 func (m *AppModel) handleUpdateModelKey() (tea.Model, tea.Cmd) {
@@ -563,7 +589,7 @@ func (m *AppModel) filterView() string {
 
 func (m *AppModel) selectedModelNames() []string {
 	var names []string
-	for _, model := range m.selectedForDeletion {
+	for _, model := range m.selectedModels {
 		names = append(names, model.Name)
 	}
 	return names
@@ -641,11 +667,40 @@ func (k KeyMap) FullHelp() [][]key.Binding {
 
 // a function that can be called from the man app_model.go file with a hotkey to print the FullHelp as a string
 func (m *AppModel) printFullHelp() string {
-	help := lipgloss.NewStyle().Foreground(lipgloss.Color("129")).Render("Help")
+	// TODO: this borks up the list formatting after exiting the help view
+	if m.view != HelpView {
+		m.message = ""
+		return m.message
+	}
+
+	// Create a new table and use FullHelp() to populate it
+	columns := []table.Column{
+		{Title: "Key", Width: 10},
+		{Title: "Description", Width: 50},
+	}
+
+	rows := []table.Row{}
 	for _, column := range m.keys.FullHelp() {
 		for _, key := range column {
-			help += fmt.Sprintf(" %s: %s\n", key.Help().Key, key.Help().Desc)
+			rows = append(rows, table.Row{key.Help().Key, key.Help().Desc})
 		}
 	}
-	return help
+
+	t := table.New(
+		table.WithColumns(columns),
+		table.WithRows(rows),
+		table.WithFocused(true),
+		table.WithHeight(len(rows)+1),
+	)
+
+	// Set the table styles
+	s := table.DefaultStyles()
+	s.Header = s.Header.BorderStyle(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color("240"))
+	s.Selected = s.Selected.Foreground(lipgloss.Color("229")).Background(lipgloss.Color("57"))
+
+	t.SetStyles(s)
+
+	// Render the table view
+	return "\n" + t.View() + "\nPress 'q' or `esc` to return to the main view."
+
 }

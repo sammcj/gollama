@@ -35,8 +35,6 @@ func (d itemDelegate) Update(msg tea.Msg, m *list.Model) tea.Cmd {
 				logging.DebugLogger.Printf("Delegate toggling selection for model: %s (before: %v)\n", i.Name, i.Selected)
 				i.Selected = !i.Selected
 				m.SetItem(m.Index(), i)
-				logging.DebugLogger.Printf("Delegate toggled selection for model: %s (after: %v)\n", i.Name, i.Selected)
-
 				// Update the main model list
 				d.appModel.models[m.Index()] = i
 				logging.DebugLogger.Printf("Updated main model list for model: %s (after: %v)\n", i.Name, i.Selected)

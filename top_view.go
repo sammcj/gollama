@@ -50,10 +50,11 @@ func (m *TopModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.quitting = true
 			return m, tea.Quit
 		}
+
 	case tea.WindowSizeMsg:
 		m.table.SetWidth(msg.Width)
 		m.table.SetHeight(msg.Height)
-	case tea.Msg: // Corrected from tea.TickMsg
+	case tea.Msg:
 		return m, m.updateRunningModels()
 	}
 
