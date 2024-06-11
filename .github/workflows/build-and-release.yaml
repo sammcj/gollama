@@ -32,6 +32,8 @@ concurrency:
 
 jobs:
   build:
+    # don't run if the commit message or PR title contains [skip ci]
+    if: (! contains(github.event.head_commit.message, '[skip ci]') && ! contains(github.event.pull_request.title, '[skip ci]'))
     outputs:
       new_tag: ${{ steps.get_version.outputs.new_tag }}
       changelog: ${{ steps.get_version.outputs.changelog }}

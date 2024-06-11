@@ -8,8 +8,6 @@ The application allows users to interactively select models, sort them by variou
 
 ![](screenshots/gollama-v1.0.0.jpg)
 
-![](screenshots/gollama-top.jpg)
-
 ## Table of Contents
 
 - [Gollama](#gollama)
@@ -25,9 +23,6 @@ The application allows users to interactively select models, sort them by variou
   - [Contributing](#contributing)
   - [License](#license)
   - [Acknowledgements](#acknowledgements)
-  - [Diagrams](#diagrams)
-    - [Workflow](#workflow)
-    - [Components](#components)
 
 ## Features
 
@@ -51,12 +46,6 @@ It's in the early stages of development, so there are plenty of bugs and missing
 From go:
 
 ```shell
-go install github.com/sammcj/gollama@latest
-```
-
-Or for bleeding edge:
-
-```shell
 go install github.com/sammcj/gollama@HEAD
 ```
 
@@ -64,7 +53,7 @@ From Github:
 
 Download the most recent release from the [releases page](https://github.com/sammcj/gollama/releases) and extract the binary to a directory in your PATH.
 
-e.g. `zip -d gollama-v1.4.2.zip -d gollama && mv gollama /usr/local/bin`
+e.g. `zip -d gollama*.zip -d gollama && mv gollama /usr/local/bin`
 
 ## Usage
 
@@ -72,6 +61,12 @@ To run the `gollama` application, use the following command:
 
 ```sh
 gollama
+```
+
+_Tip_: I like to alias gollama to `g` for quick access:
+
+```shell
+echo "alias g=gollama" >> ~/.zshrc
 ```
 
 ### Key Bindings
@@ -110,7 +105,21 @@ Gollama can also be called with `-l` to list models without the TUI.
 gollama -l
 ```
 
+List (`gollama -l`):
+
 ![](screenshots/cli-list.jpg)
+
+##### Inspect
+
+Inspect (`i`)
+
+![](screenshots/gollama-inspect.png)
+
+##### Top
+
+Top (`t`)
+
+![](screenshots/gollama-top.jpg)
 
 ## Configuration
 
@@ -192,60 +201,3 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 Thank you to folks such as Matt Williams for giving this a shot and providing feedback.
 
 [![Matt Williams - My favorite way to run Ollama: Gollama](https://img.youtube.com/vi/OCXuYm6LKgE/0.jpg)](https://www.youtube.com/watch?v=OCXuYm6LKgE)
-
-## Diagrams
-
-### Workflow
-
-```mermaid
-sequenceDiagram
-    participant User
-    participant AppModel
-    participant TextInputModel
-    participant API
-
-    User ->> AppModel: Select "Copy Model"
-    AppModel ->> TextInputModel: Prompt for new name
-    TextInputModel ->> User: Display text input
-    User ->> TextInputModel: Enter new name
-    TextInputModel ->> AppModel: Return new name
-    AppModel ->> API: Copy model with new name
-    API ->> AppModel: Confirm copy success
-    AppModel ->> API: Push new model
-    API ->> AppModel: Display progress bar
-    API ->> AppModel: Confirm push success
-    AppModel ->> User: Display success message
-```
-
-### Components
-
-```mermaid
-graph TD
-    A[Project Structure] --> B[main.go]
-    A --> C[app_model.go]
-    A --> D[config/config.go]
-    A --> E[helpers.go]
-    A --> F[item_delegate.go]
-    A --> G[keymap.go]
-    A --> H[logging/logging.go]
-    A --> I[model.go]
-    A --> J[operations.go]
-    A --> K[styles.go]
-    A --> L[Makefile]
-    A --> N[top_view.go]
-    A --> O[text_input.go]
-
-    B --> |Initializes| C
-    B --> |Loads| D
-    B --> |Uses| G
-    B --> |Uses| H
-    B --> |Uses| J
-    C --> |Manages| F
-    C --> |Calls| E
-    C --> |Uses| G
-    C --> |Logs with| H
-    C --> |Displays| I
-    C --> |Applies| K
-    J --> |Interacts with| D
-    J --> |Logs with| H
-```
