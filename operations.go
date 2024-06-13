@@ -355,8 +355,15 @@ func copyModel(m *AppModel, client *api.Client, oldName string, newName string) 
 
 	logging.InfoLogger.Printf("Successfully copied model: %s to %s\n", oldName, newName)
 
-	// Refresh the model list
+	// Although the model has been copied, the model list has not been updated as the API does not return the new model which is annoying
+	resp, err := client.List(ctx)
+	if err != nil {
+		logging.ErrorLogger.Printf("Error fetching models: %v\n", err)
+		return
+	}
+	m.models = parseAPIResponse(resp)
 	m.refreshList()
+
 }
 
 // Adding a new function get use client to get the running models
@@ -438,7 +445,18 @@ func createModelFromModelfile(modelName, modelfilePath string, client *api.Clien
 		Name:      modelName,
 		Modelfile: modelfilePath,
 	}
-	err := client.Create(ctx, req, nil) //TODO: add progress
+	// TODO: complete progress bar
+	// progressResponse := func(resp api.ProgressResponse) error {
+	// 	logging.DebugLogger.Printf("Progress: %d/%d\n", resp.Completed, resp.Total)
+	// 	progress := progress.New(progress.WithDefaultGradient())
+	// 	// update the progress bar
+	// 	progress.SetPercent(float64(resp.Completed) / float64(resp.Total))
+	// 	// render the progress bar
+	// 	fmt.Println(progress.View())
+
+	// 	return nil
+	// }
+	err := client.Create(ctx, req, nil) //TODO: add working progress bar
 	if err != nil {
 		logging.ErrorLogger.Printf("Error creating model from modelfile %s: %v\n", modelfilePath, err)
 		return fmt.Errorf("error creating model from modelfile %s: %v", modelfilePath, err)
@@ -448,27 +466,46 @@ func createModelFromModelfile(modelName, modelfilePath string, client *api.Clien
 
 }
 
-func updateModel(m *AppModel, modelName string) tea.Cmd {
-	return func() tea.Msg {
-		newModelName := promptForNewName(modelName)
-		modelfilePath, err := copyModelfile(modelName, newModelName, m.client)
-		if err != nil {
-			return editorFinishedMsg{err}
+func unloadModels(client *api.Client) (string, error) {
+	// FIXME: This causes a panic after submitting the request
+	// runtime error: invalid memory address or nil pointer dereference
+	// created by github.com/charmbracelet/bubbletea.(*Program).handleCommands.func1 in goroutine 42
+
+	ctx := context.Background()
+
+	if client == nil {
+		return "", fmt.Errorf("client is nil")
+	}
+
+	running, err := client.ListRunning(ctx)
+	if err != nil {
+		return "", fmt.Errorf("error fetching running models: %v", err)
+	}
+
+	if len(running.Models) == 0 {
+		return "", fmt.Errorf("no running running models")
+	}
+
+	for _, model := range running.Models {
+
+		logging.DebugLogger.Printf("Unloading model: %s\n", model.Name)
+
+		if model.Name == "" {
+			return "", fmt.Errorf("model name is empty")
 		}
 
-		return tea.Batch(
-			openEditor(modelfilePath),
-			func() tea.Msg {
-				err := createModelFromModelfile(newModelName, modelfilePath, m.client)
-				if err != nil {
-					return editorFinishedMsg{err}
-				}
+		logging.DebugLogger.Printf("Unloading model: %s\n", model.Name)
+		req := &api.GenerateRequest{
+			Model:     model.Name,
+			KeepAlive: &api.Duration{Duration: 0},
+			Prompt:    "",
+		}
 
-				// Refresh the model list
-				m.refreshList()
-
-				return editorFinishedMsg{nil}
-			},
-		)
+		err := client.Generate(ctx, req, nil)
+		if err != nil {
+			logging.ErrorLogger.Printf("Error unloading model %v\n", err)
+		}
 	}
+
+	return "all models unloaded", nil
 }

@@ -46,6 +46,7 @@ type AppModel struct {
 	altscreenActive   bool
 	view              View
 	showProgress      bool
+	needsRefresh      bool
 }
 
 type progressMsg struct {
@@ -60,6 +61,10 @@ type pushSuccessMsg struct {
 
 type pushErrorMsg struct {
 	err error
+}
+
+type genericMsg struct {
+	message string
 }
 
 var Version = "development"
