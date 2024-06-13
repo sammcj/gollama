@@ -366,6 +366,25 @@ func copyModel(m *AppModel, client *api.Client, oldName string, newName string) 
 
 }
 
+// A renameModel function that takes a selected model, prompts for a new name then calls copyModel, then deleteModel
+func renameModel(m *AppModel, oldName string, newName string) error {
+	if newName == "" {
+		return fmt.Errorf("no new name provided")
+	}
+	copyModel(m, m.client, oldName, newName)
+	deleteModel(m.client, oldName)
+	for i, model := range m.models {
+		if model.Name == oldName {
+			m.models = append(m.models[:i], m.models[i+1:]...)
+			break
+		}
+	}
+
+	message := fmt.Sprintf("Successfully renamed model %s to %s", oldName, newName)
+	logging.InfoLogger.Printf(message)
+	return nil
+}
+
 // Adding a new function get use client to get the running models
 func showRunningModels(client *api.Client) ([]table.Row, error) {
 	ctx := context.Background()

@@ -54,7 +54,7 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, item list.Ite
 	// Alternate colours for model names
 	nameColours := []lipgloss.Color{
 		lipgloss.Color("#FFFFFF"),
-		lipgloss.Color("#818BA9"),
+		lipgloss.Color("#818FA1"),
 	}
 
 	// If StripString is set in the config, strip it from the model name

@@ -56,6 +56,11 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handlePushErrorMsg(msg)
 	case genericMsg:
 		return m.handleGenericMsg(msg)
+	case tea.WindowSizeMsg:
+		m.width = msg.Width
+		m.height = msg.Height
+		m.list.SetSize(m.width, m.height)
+		return m, nil
 
 	default:
 		m.list, cmd = m.list.Update(msg)
@@ -188,6 +193,8 @@ func (m *AppModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleCopyModelKey()
 	case key.Matches(msg, m.keys.PushModel):
 		return m.handlePushModelKey()
+	case key.Matches(msg, m.keys.RenameModel):
+		return m.handleRenameModelKey()
 	case key.Matches(msg, m.keys.InspectModel):
 		return m.handleInspectModelKey()
 	case key.Matches(msg, m.keys.Top):
@@ -519,6 +526,24 @@ func (m *AppModel) handleInspectModelKey() (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m *AppModel) handleRenameModelKey() (tea.Model, tea.Cmd) {
+	logging.DebugLogger.Println("RenameModel key matched")
+	if item, ok := m.list.SelectedItem().(Model); ok {
+		newName := promptForNewName(item.Name)
+		if newName == "" {
+			m.message = lipgloss.NewStyle().Foreground(lipgloss.Color("#8B0000")).Render("Error: name can't be empty")
+		} else {
+			err := renameModel(m, item.Name, newName)
+			if err != nil {
+				m.message = lipgloss.NewStyle().Foreground(lipgloss.Color("#8B0000")).Render(fmt.Sprintf("Error renaming model: %v", err))
+			} else {
+				m.message = lipgloss.NewStyle().Foreground(lipgloss.Color("#EE82EE")).Render(fmt.Sprintf("Model %s renamed to %s", item.Name, newName))
+			}
+		}
+	}
+	return m, nil
+}
+
 func (m *AppModel) ToggleTop() (*AppModel, tea.Cmd) {
 	if topRunning {
 		m.message = ""
@@ -529,7 +554,7 @@ func (m *AppModel) ToggleTop() (*AppModel, tea.Cmd) {
 
 	topRunning = true
 	m.list.SetSize(m.width, m.height-5) // Adjust list size when top is running
-	return m, tea.Tick(2*time.Second, func(t time.Time) tea.Msg {
+	return m, tea.Tick(1*time.Second, func(t time.Time) tea.Msg {
 		running, err := showRunningModels(m.client)
 		if err != nil {
 			return fmt.Sprintf("Error showing running models: %v", err)

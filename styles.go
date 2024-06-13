@@ -40,9 +40,12 @@ var (
 	// Define colour gradients
 	synthGradient = []string{
 		"#DDA0DD", "#DA70D6", "#BA55D3", "#9932CC", "#9400D3", "#8A2BE2",
-		"#9400D3", "#9932CC", "#BA55D3", "#DA70D6", "#DDA0DD", "#EE82EE",
+		"#9400D3", "#9932CC", "#BA48D3", "#DA70D6", "#DDA0DD", "#EE82EE",
 		"#FF00FF", "#FF0000",
 	}
+
+	// lipgloss.Color("#e9f"),
+
 )
 
 func quantColour(quant string) lipgloss.Color {
