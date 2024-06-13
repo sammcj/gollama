@@ -46,7 +46,7 @@ func LoadConfig() (Config, error) {
 		os.Exit(1)
 	}
 	configPath := getConfigPath()
-	fmt.Println("Loading config from:", configPath)
+	logging.InfoLogger.Printf("Loading config from: %s\n", configPath)
 
 	file, err := os.Open(configPath)
 	if err != nil {

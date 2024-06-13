@@ -96,6 +96,7 @@ echo "alias g=gollama" >> ~/.zshrc
 - `-lm-dir`: Custom LM Studio models directory
 - `-no-cleanup`: Don't cleanup broken symlinks
 - `-cleanup`: Remove all symlinked models and empty directories and exit
+- `-u`: Unload all running models
 - `-v`: Print the version and exit
 
 ##### Simple model listing

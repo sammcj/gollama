@@ -87,6 +87,7 @@ func main() {
 	lmStudioDirFlag := flag.String("lm-dir", cfg.LMStudioFilePaths, "Custom LM Studio models directory")
 	noCleanupFlag := flag.Bool("no-cleanup", false, "Don't cleanup broken symlinks")
 	cleanupFlag := flag.Bool("cleanup", false, "Remove all symlinked models and empty directories and exit")
+	unloadModelsFlag := flag.Bool("u", false, "Unload all models and exit")
 	versionFlag := flag.Bool("v", false, "Print the version and exit")
 
 	flag.Parse()
@@ -184,6 +185,37 @@ func main() {
 
 	if *cleanupFlag {
 		cleanupSymlinkedModels(app.lmStudioModelsDir)
+		os.Exit(0)
+	}
+
+	if *unloadModelsFlag {
+		// get any loaded models
+		client := app.client
+
+		ctx := context.Background()
+		loadedModels, err := client.ListRunning(ctx)
+		if err != nil {
+			logging.ErrorLogger.Printf("Error fetching running models: %v", err)
+			os.Exit(1)
+		}
+
+		// unload the models
+		var unloadedModels []string
+		for _, model := range loadedModels.Models {
+			_, err := unloadModel(client, model.Name)
+			if err != nil {
+				logging.ErrorLogger.Printf("Error unloading model %s: %v\n", model.Name, err)
+			} else {
+				unloadedModels = append(unloadedModels, lipgloss.NewStyle().Foreground(lipgloss.Color("#FFB6C1")).Render(model.Name))
+				logging.InfoLogger.Printf("Model %s unloaded\n", model.Name)
+			}
+		}
+		if len(unloadedModels) == 0 {
+			fmt.Println("No models to unload")
+		} else {
+			logging.InfoLogger.Printf("Unloaded models: %v\n", unloadedModels)
+			fmt.Printf("Unloaded models: %v\n", unloadedModels)
+		}
 		os.Exit(0)
 	}
 
