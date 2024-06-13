@@ -28,6 +28,7 @@ type KeyMap struct {
 	UpdateModel    key.Binding
 	UnloadModels   key.Binding
 	Help           key.Binding
+	RenameModel    key.Binding
 	SortOrder      string
 }
 
@@ -43,6 +44,7 @@ func NewKeyMap() *KeyMap {
 		ConfirmNo:      key.NewBinding(key.WithKeys("n")),
 		ConfirmYes:     key.NewBinding(key.WithKeys("y")),
 		CopyModel:      key.NewBinding(key.WithKeys("c"), key.WithHelp("c", "copy")),
+		RenameModel:    key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "rename")),
 		Delete:         key.NewBinding(key.WithKeys("D"), key.WithHelp("D", "delete")),
 		Help:           key.NewBinding(key.WithKeys("h"), key.WithHelp("h", "help")),
 		InspectModel:   key.NewBinding(key.WithKeys("i"), key.WithHelp("i", "inspect")),
