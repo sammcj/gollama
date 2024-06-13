@@ -2,6 +2,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"strings"
@@ -53,6 +54,9 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handlePushSuccessMsg(msg)
 	case pushErrorMsg:
 		return m.handlePushErrorMsg(msg)
+	case genericMsg:
+		return m.handleGenericMsg(msg)
+
 	default:
 		m.list, cmd = m.list.Update(msg)
 		return m, cmd
@@ -174,6 +178,8 @@ func (m *AppModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleClearScreenKey()
 	case key.Matches(msg, m.keys.UpdateModel):
 		return m.handleUpdateModelKey()
+	case key.Matches(msg, m.keys.UnloadModels):
+		return m.handleUnloadModelsKey()
 	case key.Matches(msg, m.keys.LinkModel):
 		return m.handleLinkModelKey()
 	case key.Matches(msg, m.keys.LinkAllModels):
@@ -286,6 +292,13 @@ func (m *AppModel) handlePushErrorMsg(msg pushErrorMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m *AppModel) handleGenericMsg(msg genericMsg) (tea.Model, tea.Cmd) {
+	if msg.message != "" {
+		m.message = msg.message
+	}
+	return m, nil
+}
+
 func (m *AppModel) handleDeleteKey() (tea.Model, tea.Cmd) {
 	logging.DebugLogger.Println("Delete key matched")
 	logging.InfoLogger.Println("Delete key pressed")
@@ -392,6 +405,9 @@ func (m *AppModel) handleTopKey() (tea.Model, tea.Cmd) {
 
 func (m *AppModel) handleUpdateModelKey() (tea.Model, tea.Cmd) {
 	logging.DebugLogger.Println("UpdateModel key matched")
+	defer func() {
+		m.refreshList()
+	}()
 	if item, ok := m.list.SelectedItem().(Model); ok {
 		m.editing = true
 		modelfilePath, err := copyModelfile(item.Name, item.Name, m.client)
@@ -402,6 +418,27 @@ func (m *AppModel) handleUpdateModelKey() (tea.Model, tea.Cmd) {
 		return m, openEditor(modelfilePath)
 	}
 	return m, nil
+}
+
+func (m *AppModel) handleUnloadModelsKey() (tea.Model, tea.Cmd) {
+	return m, func() tea.Msg {
+		// get any loaded models
+		ctx := context.Background()
+		loadedModels, err := m.client.ListRunning(ctx)
+		if err != nil {
+			return genericMsg{message: fmt.Sprintf("Error listing running models: %v", err)}
+		}
+
+		// unload the models
+		for _, model := range loadedModels.Models {
+			_, err := unloadModel(m.client, model.Name)
+			if err != nil {
+				return genericMsg{message: fmt.Sprintf("Error unloading model %s: %v", model.Name, err)}
+			}
+		}
+
+		return genericMsg{message: "Models unloaded successfully"}
+	}
 }
 
 func (m *AppModel) handleLinkModelKey() (tea.Model, tea.Cmd) {
@@ -438,6 +475,9 @@ func (m *AppModel) handleLinkAllModelsKey() (tea.Model, tea.Cmd) {
 }
 
 func (m *AppModel) handleCopyModelKey() (tea.Model, tea.Cmd) {
+	defer func() {
+		m.refreshList()
+	}()
 	logging.DebugLogger.Println("CopyModel key matched")
 	if item, ok := m.list.SelectedItem().(Model); ok {
 		newName := promptForNewName(item.Name) // Pass the selected item as the model
@@ -521,6 +561,9 @@ func (m *AppModel) View() string {
 }
 
 func (m *AppModel) confirmDeletionView() string {
+	defer func() {
+		m.refreshList()
+	}()
 	logging.DebugLogger.Println("Confirm deletion function")
 	return fmt.Sprintf("\nAre you sure you want to delete the selected models? (Y/N)\n\n%s\n\n%s\n%s",
 		strings.Join(m.selectedModelNames(), "\n"),
@@ -595,6 +638,7 @@ func (m *AppModel) selectedModelNames() []string {
 	return names
 }
 
+// refreshList updates the list view with the current models
 func (m *AppModel) refreshList() {
 	items := make([]list.Item, len(m.models))
 	for i, model := range m.models {
@@ -608,6 +652,7 @@ func (m *AppModel) clearScreen() tea.Model {
 	m.editing = false
 	m.showProgress = false
 	m.table = table.New()
+	m.refreshList()
 	return m
 }
 

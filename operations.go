@@ -355,8 +355,15 @@ func copyModel(m *AppModel, client *api.Client, oldName string, newName string) 
 
 	logging.InfoLogger.Printf("Successfully copied model: %s to %s\n", oldName, newName)
 
-	// Refresh the model list
+	// Although the model has been copied, the model list has not been updated as the API does not return the new model which is annoying
+	resp, err := client.List(ctx)
+	if err != nil {
+		logging.ErrorLogger.Printf("Error fetching models: %v\n", err)
+		return
+	}
+	m.models = parseAPIResponse(resp)
 	m.refreshList()
+
 }
 
 // Adding a new function get use client to get the running models
@@ -438,7 +445,18 @@ func createModelFromModelfile(modelName, modelfilePath string, client *api.Clien
 		Name:      modelName,
 		Modelfile: modelfilePath,
 	}
-	err := client.Create(ctx, req, nil) //TODO: add progress
+	// TODO: complete progress bar
+	// progressResponse := func(resp api.ProgressResponse) error {
+	// 	logging.DebugLogger.Printf("Progress: %d/%d\n", resp.Completed, resp.Total)
+	// 	progress := progress.New(progress.WithDefaultGradient())
+	// 	// update the progress bar
+	// 	progress.SetPercent(float64(resp.Completed) / float64(resp.Total))
+	// 	// render the progress bar
+	// 	fmt.Println(progress.View())
+
+	// 	return nil
+	// }
+	err := client.Create(ctx, req, nil) //TODO: add working progress bar
 	if err != nil {
 		logging.ErrorLogger.Printf("Error creating model from modelfile %s: %v\n", modelfilePath, err)
 		return fmt.Errorf("error creating model from modelfile %s: %v", modelfilePath, err)
@@ -448,27 +466,28 @@ func createModelFromModelfile(modelName, modelfilePath string, client *api.Clien
 
 }
 
-func updateModel(m *AppModel, modelName string) tea.Cmd {
-	return func() tea.Msg {
-		newModelName := promptForNewName(modelName)
-		modelfilePath, err := copyModelfile(modelName, newModelName, m.client)
-		if err != nil {
-			return editorFinishedMsg{err}
-		}
-
-		return tea.Batch(
-			openEditor(modelfilePath),
-			func() tea.Msg {
-				err := createModelFromModelfile(newModelName, modelfilePath, m.client)
-				if err != nil {
-					return editorFinishedMsg{err}
-				}
-
-				// Refresh the model list
-				m.refreshList()
-
-				return editorFinishedMsg{nil}
-			},
-		)
+func unloadModel(client *api.Client, modelName string) (string, error) {
+	if client == nil {
+		return "", fmt.Errorf("invalid API client: client is nil")
 	}
+
+	ctx := context.Background()
+	req := &api.GenerateRequest{
+		Model:     modelName,
+		Prompt:    "",
+		KeepAlive: &api.Duration{Duration: 0},
+	}
+	logging.DebugLogger.Printf("Attempting to unload model: %s\n", modelName)
+
+	response := func(resp api.GenerateResponse) error {
+		logging.DebugLogger.Printf("done")
+		return nil
+	}
+	err := client.Generate(ctx, req, response)
+	if err != nil {
+		logging.ErrorLogger.Printf("Failed to unload model: %v\n", err)
+		return "", err
+	}
+
+	return "", nil
 }
