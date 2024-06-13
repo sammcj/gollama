@@ -58,8 +58,7 @@ func NewKeyMap() *KeyMap {
 		SortBySize:     key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "^size")),
 		Top:            key.NewBinding(key.WithKeys("t"), key.WithHelp("t", "top")),
 		UpdateModel:    key.NewBinding(key.WithKeys("u"), key.WithHelp("u", "update model")),
-
-		// UnloadModels: key.NewBinding(key.WithKeys("U"), key.WithHelp("U", "unload all")), // TODO: disabled until I fix the crash
+		UnloadModels:   key.NewBinding(key.WithKeys("U"), key.WithHelp("U", "unload all")),
 	}
 }
 

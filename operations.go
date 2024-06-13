@@ -466,46 +466,28 @@ func createModelFromModelfile(modelName, modelfilePath string, client *api.Clien
 
 }
 
-func unloadModels(client *api.Client) (string, error) {
-	// FIXME: This causes a panic after submitting the request
-	// runtime error: invalid memory address or nil pointer dereference
-	// created by github.com/charmbracelet/bubbletea.(*Program).handleCommands.func1 in goroutine 42
+func unloadModel(client *api.Client, modelName string) (string, error) {
+	if client == nil {
+		return "", fmt.Errorf("invalid API client: client is nil")
+	}
 
 	ctx := context.Background()
-
-	if client == nil {
-		return "", fmt.Errorf("client is nil")
+	req := &api.GenerateRequest{
+		Model:     modelName,
+		Prompt:    "",
+		KeepAlive: &api.Duration{Duration: 0},
 	}
+	logging.DebugLogger.Printf("Attempting to unload model: %s\n", modelName)
 
-	running, err := client.ListRunning(ctx)
+	response := func(resp api.GenerateResponse) error {
+		logging.DebugLogger.Printf("done")
+		return nil
+	}
+	err := client.Generate(ctx, req, response)
 	if err != nil {
-		return "", fmt.Errorf("error fetching running models: %v", err)
+		logging.ErrorLogger.Printf("Failed to unload model: %v\n", err)
+		return "", err
 	}
 
-	if len(running.Models) == 0 {
-		return "", fmt.Errorf("no running running models")
-	}
-
-	for _, model := range running.Models {
-
-		logging.DebugLogger.Printf("Unloading model: %s\n", model.Name)
-
-		if model.Name == "" {
-			return "", fmt.Errorf("model name is empty")
-		}
-
-		logging.DebugLogger.Printf("Unloading model: %s\n", model.Name)
-		req := &api.GenerateRequest{
-			Model:     model.Name,
-			KeepAlive: &api.Duration{Duration: 0},
-			Prompt:    "",
-		}
-
-		err := client.Generate(ctx, req, nil)
-		if err != nil {
-			logging.ErrorLogger.Printf("Error unloading model %v\n", err)
-		}
-	}
-
-	return "all models unloaded", nil
+	return "", nil
 }

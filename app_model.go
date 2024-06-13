@@ -2,6 +2,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"strings"
@@ -421,11 +422,22 @@ func (m *AppModel) handleUpdateModelKey() (tea.Model, tea.Cmd) {
 
 func (m *AppModel) handleUnloadModelsKey() (tea.Model, tea.Cmd) {
 	return m, func() tea.Msg {
-		msg, err := unloadModels(m.client)
+		// get any loaded models
+		ctx := context.Background()
+		loadedModels, err := m.client.ListRunning(ctx)
 		if err != nil {
-			return genericMsg{message: fmt.Sprintf("Error unloading models: %v", err)}
+			return genericMsg{message: fmt.Sprintf("Error listing running models: %v", err)}
 		}
-		return genericMsg{message: msg}
+
+		// unload the models
+		for _, model := range loadedModels.Models {
+			_, err := unloadModel(m.client, model.Name)
+			if err != nil {
+				return genericMsg{message: fmt.Sprintf("Error unloading model %s: %v", model.Name, err)}
+			}
+		}
+
+		return genericMsg{message: "Models unloaded successfully"}
 	}
 }
 
