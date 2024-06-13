@@ -33,6 +33,7 @@ func NewTopModel(client *api.Client) *TopModel {
 
 	t.KeyMap.LineUp.SetKeys("up")
 	t.KeyMap.LineDown.SetKeys("down")
+	t.Focused()
 
 	return &TopModel{
 		client: client,

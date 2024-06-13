@@ -472,22 +472,39 @@ func unloadModel(client *api.Client, modelName string) (string, error) {
 	}
 
 	ctx := context.Background()
-	req := &api.GenerateRequest{
-		Model:     modelName,
-		Prompt:    "",
-		KeepAlive: &api.Duration{Duration: 0},
-	}
-	logging.DebugLogger.Printf("Attempting to unload model: %s\n", modelName)
 
-	response := func(resp api.GenerateResponse) error {
-		logging.DebugLogger.Printf("done")
-		return nil
-	}
-	err := client.Generate(ctx, req, response)
-	if err != nil {
-		logging.ErrorLogger.Printf("Failed to unload model: %v\n", err)
-		return "", err
+	// if the model is an embedding model, we can't call generaterequest on it, we have to call embeddingrequest
+	if strings.Contains(modelName, "embed") {
+		req := &api.EmbeddingRequest{
+			Model:     modelName,
+			KeepAlive: &api.Duration{Duration: 0},
+		}
+		logging.DebugLogger.Printf("Attempting to unload embedding model: %s\n", modelName)
+
+		_, err := client.Embeddings(ctx, req)
+		if err != nil {
+			logging.ErrorLogger.Printf("Failed to unload embedding model: %v\n", err)
+			return modelName, err
+		}
+	} else {
+
+		req := &api.GenerateRequest{
+			Model:     modelName,
+			Prompt:    "",
+			KeepAlive: &api.Duration{Duration: 0},
+		}
+		logging.DebugLogger.Printf("Attempting to unload model: %s\n", modelName)
+
+		response := func(resp api.GenerateResponse) error {
+			logging.DebugLogger.Printf("done")
+			return nil
+		}
+		err := client.Generate(ctx, req, response)
+		if err != nil {
+			logging.ErrorLogger.Printf("Failed to unload model: %v\n", err)
+			return "", err
+		}
 	}
 
-	return "", nil
+	return modelName, nil
 }

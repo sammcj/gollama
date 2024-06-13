@@ -430,14 +430,17 @@ func (m *AppModel) handleUnloadModelsKey() (tea.Model, tea.Cmd) {
 		}
 
 		// unload the models
+		var unloadedModels []string
 		for _, model := range loadedModels.Models {
 			_, err := unloadModel(m.client, model.Name)
 			if err != nil {
-				return genericMsg{message: fmt.Sprintf("Error unloading model %s: %v", model.Name, err)}
+				return genericMsg{message: lipgloss.NewStyle().Foreground(lipgloss.Color("#8B0000")).Render(fmt.Sprintf("Error unloading model %s: %v", model.Name, err))}
+			} else {
+				unloadedModels = append(unloadedModels, lipgloss.NewStyle().Foreground(lipgloss.Color("#FFB6C1")).Render(model.Name))
+				logging.InfoLogger.Printf("Model %s unloaded\n", model.Name)
 			}
 		}
-
-		return genericMsg{message: "Models unloaded successfully"}
+		return genericMsg{message: lipgloss.NewStyle().Foreground(lipgloss.Color("#EE82EE")).Render(fmt.Sprintf("Models unloaded: %v", unloadedModels))}
 	}
 }
 
@@ -597,10 +600,7 @@ func (m *AppModel) inspectModelView(model Model) string {
 
 	// getModelParams returns a map of model parameters, so we need to iterate over the map and add the parameters to the rows
 	for key, value := range modelParams {
-		// rows = append(rows, []string{key, value[0]})
-		// this works, but there may be multiple values for a single key, so we need to join them
 		rows = append(rows, []string{key, strings.Join(value, ", ")})
-
 	}
 
 	// Log the rows to ensure they are being populated correctly
@@ -621,12 +621,14 @@ func (m *AppModel) inspectModelView(model Model) string {
 	s.Header = s.Header.BorderStyle(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color("240"))
 	s.Selected = s.Selected.Foreground(lipgloss.Color("229")).Background(lipgloss.Color("57"))
 	t.SetStyles(s)
+	t.Focus()
 
 	// Render the table view
 	return "\n" + t.View() + "\nPress 'q' or `esc` to return to the main view."
 }
 
 func (m *AppModel) filterView() string {
+	m.list.FilterInput.Focus()
 	return m.list.View()
 }
 
@@ -712,7 +714,7 @@ func (k KeyMap) FullHelp() [][]key.Binding {
 
 // a function that can be called from the man app_model.go file with a hotkey to print the FullHelp as a string
 func (m *AppModel) printFullHelp() string {
-	// TODO: this borks up the list formatting after exiting the help view
+	// FIXME: this borks up the list formatting after exiting the help view, not sure why it's not resetting the list properly
 	if m.view != HelpView {
 		m.message = ""
 		return m.message
@@ -742,7 +744,6 @@ func (m *AppModel) printFullHelp() string {
 	s := table.DefaultStyles()
 	s.Header = s.Header.BorderStyle(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color("240"))
 	s.Selected = s.Selected.Foreground(lipgloss.Color("229")).Background(lipgloss.Color("57"))
-
 	t.SetStyles(s)
 
 	// Render the table view
