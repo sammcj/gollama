@@ -20,7 +20,8 @@ type textInputModel struct {
 // promptForNewName displays a text input prompt for renaming a model.
 func promptForNewName(oldName string) string {
 	ti := textinput.New()
-	ti.Prompt = "Name for new model: "
+	// print 'renaming oldName' to the console with the oldName in purple
+	ti.Prompt = oldName + "\n" + "Name for new model: "
 	ti.Placeholder = oldName
 	ti.Focus()
 
@@ -28,11 +29,11 @@ func promptForNewName(oldName string) string {
 	ti.SetSuggestions([]string{oldName})
 	ti.ShowSuggestions = true
 	ti.CharLimit = 300
-	ti.Width = 60
+	ti.Width = 140
 
 	ti.PromptStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF00FF"))
-	ti.TextStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#AD00FF"))
-	ti.Cursor.Style = lipgloss.NewStyle().Background(lipgloss.Color("#AE00FF"))
+	ti.TextStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF00FF"))
+	ti.Cursor.Style = lipgloss.NewStyle().Background(lipgloss.Color("#4E00FF")).Background(lipgloss.Color("#111111"))
 	ti.PlaceholderStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#AD00FF"))
 
 	m := textInputModel{
