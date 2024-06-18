@@ -1,30 +1,69 @@
-// logging.go
 package logging
 
 import (
-	"io"
-	"log"
 	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/natefinch/lumberjack"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 var (
-	DebugLogger *log.Logger
-	InfoLogger  *log.Logger
-	ErrorLogger *log.Logger
+	DebugLogger zerolog.Logger
+	InfoLogger  zerolog.Logger
+	ErrorLogger zerolog.Logger
 )
 
 func Init(logLevel, logFilePath string) error {
-	f, err := os.OpenFile(logFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
+	// Set default log file path if none is provided
+	if logFilePath == "" {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return err
+		}
+		logFilePath = filepath.Join(homeDir, ".config", "gollama", "gollama.log")
+	}
+
+	// Expand the ~ to the user's home directory
+	if strings.HasPrefix(logFilePath, "~") {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return err
+		}
+		logFilePath = filepath.Join(homeDir, logFilePath[1:])
+	}
+
+	// Create the directory if it doesn't exist
+	if err := os.MkdirAll(filepath.Dir(logFilePath), 0755); err != nil {
 		return err
 	}
 
-	DebugLogger = log.New(io.Discard, "DEBUG: ", log.Ldate|log.Ltime|log.Lshortfile)
-	InfoLogger = log.New(f, "INFO: ", log.Ldate|log.Ltime)
-	ErrorLogger = log.New(f, "ERROR: ", log.Ldate|log.Ltime|log.Lshortfile)
-
-	if logLevel == "debug" {
-		DebugLogger.SetOutput(f)
+	// Configure log rotation with lumberjack
+	rotate := &lumberjack.Logger{
+		Filename:   logFilePath,
+		MaxSize:    10,    // megabytes
+		MaxBackups: 3,     // number of files
+		MaxAge:     28,    // days
+		Compress:   false, // disabled by default
 	}
+
+	// Set the log level
+	level, err := zerolog.ParseLevel(logLevel)
+	if err != nil {
+		return err
+	}
+	zerolog.SetGlobalLevel(level)
+
+	// Create multi-writer to write to file and console
+	multi := zerolog.MultiLevelWriter(rotate, zerolog.ConsoleWriter{Out: os.Stdout})
+
+	// Initialize loggers
+	log.Logger = zerolog.New(multi).With().Timestamp().Logger()
+	DebugLogger = log.Logger.Level(zerolog.DebugLevel)
+	InfoLogger = log.Logger.Level(zerolog.InfoLevel)
+	ErrorLogger = log.Logger.Level(zerolog.ErrorLevel)
+
 	return nil
 }
