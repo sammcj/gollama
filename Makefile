@@ -86,4 +86,4 @@ install: ## Install latest
 	go install github.com/sammcj/gollama@latest
 
 run: ## Run
-	go run *.go
+	go run $(shell find . -type f -depth 1 -name '*.go' -not -name '*_test.go')
