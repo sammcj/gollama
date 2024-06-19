@@ -24,7 +24,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           image_size: 50
-          commit_message: "Updated contributors list"
+          commit_message: "Updated contributors list [skip ci]"
           committer_email: "github+actions@users.noreply.github.com"
           committer_username: "github-actions"
           auto_detect_branch_protection: true

@@ -1,5 +1,4 @@
 name: Build and release
-run-name: "Build ${{ (github.ref == 'refs/heads/main' && !contains(github.event.head_commit.message, '[skip ci]')) && 'and release' }}"
 
 on:
   workflow_dispatch:
