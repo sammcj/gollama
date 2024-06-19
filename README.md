@@ -190,6 +190,26 @@ Contributions are welcome!
 Please fork the repository and create a pull request with your changes.
 
 <!-- readme: contributors -start -->
+<table>
+	<tbody>
+		<tr>
+            <td align="center">
+                <a href="https://github.com/sammcj">
+                    <img src="https://avatars.githubusercontent.com/u/862951?v=4" width="50;" alt="sammcj"/>
+                    <br />
+                    <sub><b>Sam</b></sub>
+                </a>
+            </td>
+            <td align="center">
+                <a href="https://github.com/josekasna">
+                    <img src="https://avatars.githubusercontent.com/u/138180151?v=4" width="50;" alt="josekasna"/>
+                    <br />
+                    <sub><b>Jose Almaraz</b></sub>
+                </a>
+            </td>
+		</tr>
+	<tbody>
+</table>
 <!-- readme: contributors -end -->
 
 ## Acknowledgements
