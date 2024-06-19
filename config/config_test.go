@@ -1,11 +1,48 @@
-// config_test.go
 package config
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
+	"path/filepath"
 	"testing"
+
+	"github.com/sammcj/gollama/logging"
 )
+
+func TestGenerateDefaultConfig(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "config_test")
+	if err != nil {
+		t.Fatalf("Failed to create temporary directory: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	tempConfigPath := filepath.Join(tempDir, "config.json")
+
+	err = generateDefaultConfig(tempConfigPath)
+	if err != nil {
+		t.Fatalf("Failed to generate default config: %v", err)
+	}
+
+	if _, err := os.Stat(tempConfigPath); os.IsNotExist(err) {
+		t.Fatalf("Expected config file to be created at %s", tempConfigPath)
+	}
+
+	file, err := os.Open(tempConfigPath)
+	if err != nil {
+		t.Fatalf("Failed to open generated config file: %v", err)
+	}
+	defer file.Close()
+
+	var config Config
+	if err := json.NewDecoder(file).Decode(&config); err != nil {
+		t.Fatalf("Generated config is not valid JSON: %v", err)
+	}
+
+	if !compareConfigs(config, defaultConfig) {
+		t.Errorf("Generated config does not match default config. Got: %v, Expected: %v", config, defaultConfig)
+	}
+}
 
 func TestLoadConfig(t *testing.T) {
 	tests := []struct {
@@ -27,7 +64,7 @@ func TestLoadConfig(t *testing.T) {
 					LogFilePath:       "/test/path/gollama.log",
 					SortOrder:         "name",
 					StripString:       "strip",
-					Editor:            "nano",
+					Editor:            "vim",
 					DockerContainer:   "testcontainer",
 				}
 				return saveTempConfig(configPath, config)
@@ -42,7 +79,7 @@ func TestLoadConfig(t *testing.T) {
 				LogFilePath:       "/test/path/gollama.log",
 				SortOrder:         "name",
 				StripString:       "strip",
-				Editor:            "nano",
+				Editor:            "vim",
 				DockerContainer:   "testcontainer",
 				LastSortSelection: "name",
 			},
@@ -68,15 +105,20 @@ func TestLoadConfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			configPath := getConfigPath()
-			os.Remove(configPath) // Ensure config file does not exist at start
+			tempDir, err := os.MkdirTemp("", "config_test")
+			if err != nil {
+				t.Fatalf("Failed to create temporary directory: %v", err)
+			}
+			defer os.RemoveAll(tempDir)
+
+			tempConfigPath := filepath.Join(tempDir, "config.json")
 			if tt.prepFunc != nil {
-				if err := tt.prepFunc(configPath); err != nil {
+				if err := tt.prepFunc(tempConfigPath); err != nil {
 					t.Fatalf("prepFunc failed: %v", err)
 				}
 			}
 
-			got, err := LoadConfig()
+			got, err := loadConfigFromPath(tempConfigPath)
 			if (err != nil) != tt.expectedError {
 				t.Errorf("LoadConfig() error = %v, expectedError %v", err, tt.expectedError)
 				return
@@ -106,7 +148,7 @@ func TestSaveConfig(t *testing.T) {
 				LogFilePath:       "/test/path/gollama.log",
 				SortOrder:         "name",
 				StripString:       "strip",
-				Editor:            "nano",
+				Editor:            "vim",
 				DockerContainer:   "testcontainer",
 			},
 			expectedError: false,
@@ -115,10 +157,15 @@ func TestSaveConfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			configPath := getConfigPath()
-			os.Remove(configPath) // Ensure config file does not exist at start
+			tempDir, err := os.MkdirTemp("", "config_test")
+			if err != nil {
+				t.Fatalf("Failed to create temporary directory: %v", err)
+			}
+			defer os.RemoveAll(tempDir)
 
-			err := SaveConfig(tt.input)
+			tempConfigPath := filepath.Join(tempDir, "config.json")
+
+			err = saveConfigToPath(tempConfigPath, tt.input)
 			if (err != nil) != tt.expectedError {
 				t.Errorf("SaveConfig() error = %v, expectedError %v", err, tt.expectedError)
 				return
@@ -126,7 +173,7 @@ func TestSaveConfig(t *testing.T) {
 
 			if !tt.expectedError {
 				var got Config
-				file, err := os.Open(configPath)
+				file, err := os.Open(tempConfigPath)
 				if err != nil {
 					t.Fatalf("Failed to open config file: %v", err)
 				}
@@ -144,8 +191,13 @@ func TestSaveConfig(t *testing.T) {
 	}
 }
 
-func saveTempConfig(configPath string, config Config) error {
-	file, err := os.Create(configPath)
+func saveTempConfig(testConfigPath string, config Config) error {
+	if err := os.MkdirAll(filepath.Dir(testConfigPath), 0755); err != nil {
+		logging.ErrorLogger.Printf("Failed to create config directory: %v\n", err)
+		return fmt.Errorf("failed to create config directory: %w", err)
+	}
+
+	file, err := os.Create(testConfigPath)
 	if err != nil {
 		return err
 	}
@@ -161,4 +213,38 @@ func compareConfigs(a, b Config) bool {
 	aBytes, _ := json.Marshal(a)
 	bBytes, _ := json.Marshal(b)
 	return string(aBytes) == string(bBytes)
+}
+
+func loadConfigFromPath(path string) (Config, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return defaultConfig, nil
+		}
+		return Config{}, err
+	}
+	defer file.Close()
+
+	var config Config
+	if err := json.NewDecoder(file).Decode(&config); err != nil {
+		return Config{}, err
+	}
+	return config, nil
+}
+
+func saveConfigToPath(path string, config Config) error {
+	file, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	encoder := json.NewEncoder(file)
+	encoder.SetIndent("", "  ") // Set indentation for better readability
+
+	return encoder.Encode(config)
+}
+
+func generateDefaultConfig(path string) error {
+	return saveConfigToPath(path, defaultConfig)
 }
