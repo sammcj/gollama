@@ -27,3 +27,4 @@ jobs:
           commit_message: "Updated contributors list"
           committer_email: "github+actions@users.noreply.github.com"
           committer_username: "github-actions"
+          auto_detect_branch_protection: true
