@@ -56,11 +56,11 @@ func Init(logLevel, logFilePath string) error {
 	}
 	zerolog.SetGlobalLevel(level)
 
-	// Create multi-writer to write to file and console
-	multi := zerolog.MultiLevelWriter(rotate, zerolog.ConsoleWriter{Out: os.Stdout})
+	// Use lumberjack for logging to a file
+	fileWriter := zerolog.MultiLevelWriter(rotate)
 
 	// Initialize loggers
-	log.Logger = zerolog.New(multi).With().Timestamp().Logger()
+	log.Logger = zerolog.New(fileWriter).With().Timestamp().Logger()
 	DebugLogger = log.Logger.Level(zerolog.DebugLevel)
 	InfoLogger = log.Logger.Level(zerolog.InfoLevel)
 	ErrorLogger = log.Logger.Level(zerolog.ErrorLevel)
