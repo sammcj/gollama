@@ -1,0 +1,29 @@
+name: Update Contributors
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: contributors
+  cancel-in-progress: true
+
+jobs:
+  update-contributors:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Contribute List
+        uses: akhilmhdh/contributors-readme-action@v2.3.10
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          image_size: 50
+          commit_message: "Updated contributors list"
+          committer_email: "github+actions@users.noreply.github.com"
+          committer_username: "github-actions"

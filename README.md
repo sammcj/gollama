@@ -21,8 +21,8 @@ The application allows users to interactively select models, sort them by variou
   - [Installation and build from source](#installation-and-build-from-source)
   - [Logging](#logging)
   - [Contributing](#contributing)
-  - [License](#license)
   - [Acknowledgements](#acknowledgements)
+  - [License](#license)
 
 ## Features
 
@@ -189,11 +189,8 @@ The log level can be set in the configuration file.
 Contributions are welcome!
 Please fork the repository and create a pull request with your changes.
 
-## License
-
-Copyright © 2024 Sam McLeod
-
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+<!-- readme: contributors -start -->
+<!-- readme: contributors -end -->
 
 ## Acknowledgements
 
@@ -203,4 +200,10 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 
 Thank you to folks such as Matt Williams for giving this a shot and providing feedback.
 
-[![Matt Williams - My favorite way to run Ollama: Gollama](https://img.youtube.com/vi/OCXuYm6LKgE/0.jpg)](https://www.youtube.com/watch?v=OCXuYm6LKgE)
+[![Matt Williams - My favourite way to run Ollama: Gollama](https://img.youtube.com/vi/OCXuYm6LKgE/0.jpg)](https://www.youtube.com/watch?v=OCXuYm6LKgE)
+
+## License
+
+Copyright © 2024 Sam McLeod
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
