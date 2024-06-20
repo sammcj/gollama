@@ -1,7 +1,6 @@
 package logging
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -95,7 +94,7 @@ func TestInit(t *testing.T) {
 				DebugLogger.Debug().Msg("This is a debug message")
 
 				// Check the contents of the log file
-				data, err := ioutil.ReadFile(actualLogFilePath)
+				data, err := os.ReadFile(actualLogFilePath)
 				if err != nil {
 					t.Fatalf("Failed to read log file: %v", err)
 				}

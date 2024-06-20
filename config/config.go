@@ -29,7 +29,7 @@ var defaultConfig = Config{
 	DefaultSort:       "Size",
 	Columns:           []string{"Name", "Size", "Quant", "Family", "Modified", "ID"},
 	OllamaAPIKey:      "",
-	OllamaAPIURL:      "http://localhost:11434",
+	OllamaAPIURL:      os.Getenv("OLLAMA_HOST"),
 	LMStudioFilePaths: "",
 	LogLevel:          "info",
 	LogFilePath:       os.Getenv("HOME") + "/.config/gollama/gollama.log",
@@ -83,19 +83,12 @@ func LoadConfig() (Config, error) {
 		return Config{}, fmt.Errorf("failed to decode config file: %w", err)
 	}
 
-	// Set OLLAMA_HOST if OllamaAPIURL is set and valid
-	if config.OllamaAPIURL != "" {
-		os.Setenv("OLLAMA_HOST", config.OllamaAPIURL)
-	}
-
-	// If ollama_api_url is not set and OLLAMA_HOST is set, use OLLAMA_HOST
-	if config.OllamaAPIURL == "" {
-		config.OllamaAPIURL = os.Getenv("OLLAMA_HOST")
-	}
-
 	// Set the last sort selection to the current sort order
 	config.LastSortSelection = config.SortOrder
 
+	if config.LogLevel == "debug" {
+		logging.DebugLogger.Println("Config loaded:", config)
+	}
 	return config, nil
 }
 

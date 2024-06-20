@@ -14,3 +14,4 @@ node_modules/
 .idea/
 .vscode/
 Modelfile*
+**/*.DS_Store

@@ -15,6 +15,8 @@ import (
 )
 
 func parseAPIResponse(resp *api.ListResponse) []Model {
+	logging.DebugLogger.Println("Fetching models from API")
+
 	models := make([]Model, len(resp.Models))
 	for i, modelResp := range resp.Models {
 		modelName := lipgloss.NewStyle().Foreground(lipgloss.Color("white")).Render(modelResp.Name)
@@ -27,6 +29,7 @@ func parseAPIResponse(resp *api.ListResponse) []Model {
 			Modified:          modelResp.ModifiedAt,
 		}
 	}
+	logging.DebugLogger.Println("Models:", models)
 	return models
 }
 

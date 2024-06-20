@@ -5,6 +5,8 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -98,22 +100,21 @@ func main() {
 	}
 
 	os.Setenv("EDITOR", cfg.Editor)
-	logging.DebugLogger.Println("EDITOR set to", cfg.Editor)
 
-	client, err := api.ClientFromEnvironment()
-	if err != nil {
-		logging.ErrorLogger.Println("Error creating API client:", err)
-		return
-	}
-
+	// Initialize the API client
 	ctx := context.Background()
+	httpClient := &http.Client{}
+	url, err := url.Parse(cfg.OllamaAPIURL)
+	client := api.NewClient(url, httpClient)
+
 	resp, err := client.List(ctx)
 	if err != nil {
-		logging.ErrorLogger.Println("Error fetching models:", err)
-		return
+		message := fmt.Sprintf("Error fetching models:\n- Error: %v\n- Configured API URL: %v", err, cfg.OllamaAPIURL)
+		logging.ErrorLogger.Println(message)
+		fmt.Println(message)
+		os.Exit(1)
 	}
 
-	logging.InfoLogger.Println("Fetched models from API")
 	models := parseAPIResponse(resp)
 
 	modelMap := make(map[string][]Model)

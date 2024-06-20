@@ -43,9 +43,9 @@ func Init(logLevel, logFilePath string) error {
 	// Configure log rotation with lumberjack
 	rotate := &lumberjack.Logger{
 		Filename:   logFilePath,
-		MaxSize:    10,    // megabytes
+		MaxSize:    2,     // megabytes
 		MaxBackups: 3,     // number of files
-		MaxAge:     28,    // days
+		MaxAge:     60,    // days
 		Compress:   false, // disabled by default
 	}
 
@@ -64,6 +64,10 @@ func Init(logLevel, logFilePath string) error {
 	DebugLogger = log.Logger.Level(zerolog.DebugLevel)
 	InfoLogger = log.Logger.Level(zerolog.InfoLevel)
 	ErrorLogger = log.Logger.Level(zerolog.ErrorLevel)
+
+	if logLevel == "debug" {
+		DebugLogger.Printf("Logging to: %s\n", logFilePath)
+	}
 
 	return nil
 }
