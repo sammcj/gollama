@@ -61,9 +61,9 @@ test: ## Run test
 	go test -v ./...
 
 build: ## Run build
-	$(eval GOLLAMA_VERSION := $(shell if [ -z "$(GOLLAMA_VERSION)" ]; then echo "dev"; else echo $(GOLLAMA_VERSION); fi))
+	$(eval GOLLAMA_VERSION := $(shell if [ -z "$(GOLLAMA_VERSION)" ]; then echo "dev"; else echo "$(GOLLAMA_VERSION)"; fi))
 	@echo "Building with version: $(GOLLAMA_VERSION)"
-	go build -v -ldflags="-X 'main.Version=$(GOLLAMA_VERSION)'"
+	go build -v -ldflags "-X 'main.Version=$(GOLLAMA_VERSION)'"
 	@echo "Build completed, run ./gollama"
 
 ci: ## build for linux and macOS
