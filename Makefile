@@ -61,13 +61,13 @@ test: ## Run test
 	go test -v ./...
 
 build: ## Run build
-	$(eval GOLLAMA_VERSION := $(shell if [ -z "$(GOLLAMA_VERSION)" ]; then echo "dev"; else echo "$(GOLLAMA_VERSION)"; fi))
+	$(eval GOLLAMA_VERSION := $(shell if [ -z "$(GOLLAMA_VERSION)" ]; then echo "$(shell git describe --always --dirty)"; else echo "$(GOLLAMA_VERSION)"; fi))
 	@echo "Building with version: $(GOLLAMA_VERSION)"
 	go build -ldflags="-X 'main.Version=$(GOLLAMA_VERSION)'"
 	@echo "Build completed, run ./gollama"
 
 ci: ## build for linux and macOS
-	$(eval GOLLAMA_VERSION := $(shell if [ -z "$(GOLLAMA_VERSION)" ]; then echo "dev"; else echo $(GOLLAMA_VERSION); fi))
+	$(eval GOLLAMA_VERSION := $(shell if [ -z "$(GOLLAMA_VERSION)" ]; then echo "$(shell git describe --always --dirty)"; else echo "$(GOLLAMA_VERSION)"; fi))
 	@echo "Building with version: $(GOLLAMA_VERSION)"
 
 	mkdir -p ./dist/macos ./dist/linux_amd64 ./dist/linux_arm64
