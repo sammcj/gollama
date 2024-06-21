@@ -29,7 +29,7 @@ var defaultConfig = Config{
 	DefaultSort:       "Size",
 	Columns:           []string{"Name", "Size", "Quant", "Family", "Modified", "ID"},
 	OllamaAPIKey:      "",
-	OllamaAPIURL:      "http://localhost:11434",
+	OllamaAPIURL:      getAPIUrl(),
 	LMStudioFilePaths: "",
 	LogLevel:          "info",
 	LogFilePath:       os.Getenv("HOME") + "/.config/gollama/gollama.log",
@@ -37,6 +37,14 @@ var defaultConfig = Config{
 	StripString:       "",
 	Editor:            "vim",
 	DockerContainer:   "",
+}
+
+func getAPIUrl() string {
+	apiUrl := os.Getenv("OLLAMA_API_URL")
+	if apiUrl == "" {
+		apiUrl = "http://localhost:11434"
+	}
+	return apiUrl
 }
 
 func LoadConfig() (Config, error) {
