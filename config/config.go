@@ -35,16 +35,22 @@ var defaultConfig = Config{
 	LogFilePath:       os.Getenv("HOME") + "/.config/gollama/gollama.log",
 	SortOrder:         "modified", // Default sort order
 	StripString:       "",
-	Editor:            "vim",
+	Editor:            "/usr/bin/vim",
 	DockerContainer:   "",
 }
 
 func getAPIUrl() string {
-	apiUrl := os.Getenv("OLLAMA_API_URL")
-	if apiUrl == "" {
-		apiUrl = "http://localhost:11434"
+	// Check OLLAMA_HOST, if it's set make sure it has http:// or https://
+	apiUrl := os.Getenv("OLLAMA_HOST")
+	if apiUrl != "" {
+		if apiUrl[:7] != "http://" && apiUrl[:8] != "https://" {
+			apiUrl = "http://" + apiUrl
+		}
+		return apiUrl
+	} else {
+		// If OLLAMA_HOST isn't set, set it to Ollama's default URL
+		return "http://127.0.0.1:11434"
 	}
-	return apiUrl
 }
 
 func LoadConfig() (Config, error) {
@@ -60,8 +66,15 @@ func LoadConfig() (Config, error) {
 	file, err := os.Open(configPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			logging.DebugLogger.Println("Config file does not exist, creating with default values")
-			fmt.Println("Config file does not exist, creating with default values")
+			// print Gollama in bold bright pink
+			fmt.Println("\033[1;195m[Gollama]\033[0m")
+			fmt.Println()
+			fmt.Println("- No config file found, creating one now...")
+			fmt.Println("- If you need to change these settings, you can edit the file at", configPath)
+			fmt.Println()
+
+			defaultConfigJSON, _ := json.MarshalIndent(defaultConfig, "", "  ")
+			fmt.Println(string(defaultConfigJSON))
 
 			// Create the config directory if it doesn't exist
 			if err := os.MkdirAll(filepath.Dir(configPath), 0755); err != nil {
@@ -74,6 +87,10 @@ func LoadConfig() (Config, error) {
 				logging.ErrorLogger.Printf("Failed to save default config: %v\n", err)
 				return Config{}, fmt.Errorf("failed to save default config: %w", err)
 			}
+			fmt.Println()
+			fmt.Println("Press return to continue...")
+			fmt.Scanln()
+
 			// now continue to open the file
 			file, err = os.Open(configPath)
 			if err != nil {
