@@ -50,17 +50,18 @@ var (
 func quantColour(quant string) lipgloss.Color {
 	quantMap := map[string]int{
 		"IQ1_XXS": 0, "IQ1_XS": 0, "IQ1_S": 0, "IQ1_NL": 0,
-		"Q2_K": 0, "Q2_K_S": 0, "Q2_K_M": 0, "Q2_K_L": 0,
-		"Q3_0": 1, "IQ2_XXS": 2, "Q3_K_S": 2,
-		"IQ2_XS": 3, "IQ2_S": 3, "IQ2_NL": 3,
-		"Q3_K_M": 4, "Q3_K_L": 4,
-		"Q4_0": 5, "IQ3_XXS": 5, "IQ3_XS": 5, "IQ3_NL": 5, "IQ3_S": 6,
+		"IQ1_M": 0, "IQ1_L": 0, "Q2_K": 0,
+		"Q2_K_S": 0, "Q2_K_M": 0, "Q2_0": 0, "Q2_K_L": 1,
+		"Q3_0": 1, "IQ2_XXS": 2, "Q3_K_S": 2, "Q2_L": 1,
+		"IQ2_XS": 3, "IQ2_S": 3, "IQ2_NL": 3, "IQ2_M": 3,
+		"Q3_K_M": 4, "Q3_K_L": 4, "Q4_0": 5,
+		"IQ3_XXS": 5, "IQ3_XS": 5, "IQ3_NL": 5, "IQ3_S": 6,
 		"Q4_K_S": 6, "Q4_1": 6, "IQ4_XXS": 6, "Q4_K_M": 7,
 		"IQ4_XS": 7, "IQ4_S": 8, "IQ4_NL": 7, "Q4_K_L": 8,
 		"Q5_K_S": 8, "Q5_K_M": 9, "Q5_1": 9, "Q5_K_L": 10,
 		"Q6_0": 11, "Q6_1": 11, "Q6_K": 11, "Q6_K_L": 11,
 		"Q8": 12, "Q8_0": 12, "Q8_K": 12, "Q8_K_L": 12,
-		"FP16": 13, "F16": 13, "F32": 14, "FP32": 14,
+		"FP16": 13, "F16": 13, "F32": 15, "FP32": 15,
 	}
 
 	index, exists := quantMap[quant]
