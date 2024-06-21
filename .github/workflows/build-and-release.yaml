@@ -25,6 +25,7 @@ permissions:
   pull-requests: write
   packages: write
   statuses: write
+  issues: write
 
 concurrency:
   group: build
