@@ -207,6 +207,13 @@ Please fork the repository and create a pull request with your changes.
                     <sub><b>Jose Almaraz</b></sub>
                 </a>
             </td>
+            <td align="center">
+                <a href="https://github.com/jralmaraz">
+                    <img src="https://avatars.githubusercontent.com/u/13877691?v=4" width="50;" alt="jralmaraz"/>
+                    <br />
+                    <sub><b>Jose Roberto Almaraz</b></sub>
+                </a>
+            </td>
 		</tr>
 	<tbody>
 </table>
