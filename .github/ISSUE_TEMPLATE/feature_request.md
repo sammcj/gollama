@@ -1,24 +1,22 @@
 ---
 name: Feature request
 about: Suggest an idea for this project
-title: 'Feat:'
+title: '⭐️ Feat:'
 labels: feature
 assignees: ''
 
 ---
 
-**Is your feature request related to a problem? Please describe.**
+## Description
 
-A clear and concise description of what the problem is. Ex. I'm always frustrated when [...]
+<!-- Describe the feature or functionality you'd like -->
 
-**Describe the solution you'd like**
+## Alternatives
 
-A clear and concise description of what you want to happen.
+<!-- Describe alternatives you've considered -->
 
-**Describe alternatives you've considered**
+## Can you contribute?
 
-A clear and concise description of any alternative solutions or features you've considered.
+- [ ] I will attempt to implement this feature
 
-**Additional context**
-
-Add any other context or screenshots about the feature request here or delete this section.
+<!-- It's ok if not, but it's always great to have contributors! -->

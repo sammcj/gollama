@@ -1,37 +1,36 @@
 ---
 name: Bug report
 about: Create a report to help us improve
-title: 'Bug: '
+title: '🐞 Bug: '
 labels: bug
 assignees: sammcj
 
 ---
 
-**Describe the bug**
+<!-- If you're able to contribute a fix, please consider opening a pull request instead of an issue. -->
 
-A clear and concise description of what the bug is.
+## Description
 
-**To Reproduce**
+<!-- A clear and concise description of what the bug is. -->
 
-Steps to reproduce the behaviour:
+## How to reproduce
 
-1. Go to '...'
-2. Click on '....'
-3. Scroll down to '....'
-4. See error
+<!-- A clear and concise description of what you did to reproduce the bug. -->
 
-**Expected behaviour**
+## Screenshots / Logs
 
-A clear and concise description of what you expected to happen.
+<!-- If applicable, add screenshots to help explain your problem. -->
 
-**Screenshots**
+## Environment
 
 If applicable, add screenshots to help explain your problem.
 
-**Desktop (please complete the following information):**
- - OS: [e.g. macOS/Linux]
- - Version [e.g. 1.4.0]
+- OS and version:
+- Install source: (Downloaded from releases / Go get / Built from source)
+- Go version: (Output of `go version`)
 
-**Additional context**
+## Can you contribute?
 
-Add any other context about the problem here or delete this section.
+- [ ] I will attempt to implement a fix for this bug
+
+<!-- It's ok if not, but it's always great to have contributors! -->
