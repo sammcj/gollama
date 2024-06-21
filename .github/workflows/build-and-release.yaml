@@ -34,7 +34,6 @@ concurrency:
 jobs:
   build:
     # don't run if the commit message or PR title contains [skip ci]
-    if: (! contains(github.event.head_commit.message, '[skip ci]') && ! contains(github.event.pull_request.title, '[skip ci]'))
     outputs:
       new_tag: ${{ steps.get_version.outputs.new_tag }}
       changelog: ${{ steps.get_version.outputs.changelog }}
@@ -77,6 +76,7 @@ jobs:
 
       - name: Upload artefacts
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
+        if: ${{ startsWith(github.ref, 'refs/heads/main') && !contains(github.event.head_commit.message, '[skip ci]') && ! contains(github.event.pull_request.title, '[skip ci]') }}
         with:
           name: gollama
           path: |
@@ -85,7 +85,7 @@ jobs:
       # Publish
       - name: Create a GitHub release
         uses: ncipollo/release-action@2c591bcc8ecdcd2db72b97d6147f871fcd833ba5 # v1
-        if: ${{ startsWith(github.ref, 'refs/heads/main') && !contains(github.event.head_commit.message, '[skip ci]') }}
+        if: ${{ startsWith(github.ref, 'refs/heads/main') && !contains(github.event.head_commit.message, '[skip ci]') && ! contains(github.event.pull_request.title, '[skip ci]') }}
         with:
           tag: ${{ steps.get_version.outputs.new_tag }}
           name: Release ${{ steps.get_version.outputs.new_tag }}
@@ -93,7 +93,7 @@ jobs:
           skipIfReleaseExists: true
           generateReleaseNotes: true
           allowUpdates: true
-          makeLatest: ${{ startsWith(github.ref, 'refs/heads/main') && !contains(github.event.head_commit.message, '[skip ci]') }}
+          makeLatest: ${{ startsWith(github.ref, 'refs/heads/main') && !contains(github.event.head_commit.message, '[skip ci]') && ! contains(github.event.pull_request.title, '[skip ci]') }}
           prerelease: ${{ !startsWith(github.ref, 'refs/heads/main') }}
           draft: true # I want to manually mark the release as ready
           artifactErrorsFailBuild: true
@@ -102,19 +102,19 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # # Bump version
-      # - name: Bump version and push tag
-      #   id: tag_version
-      #   uses: mathieudutour/github-tag-action@a22cf08638b34d5badda920f9daf6e72c477b07b # v6.2
-      #   if: ${{ startsWith(github.ref, 'refs/heads/main') && !contains(github.event.head_commit.message, '[skip ci]') }}
-      #   with:
-      #     github_token: ${{ secrets.GITHUB_TOKEN }}
-      #     release_branches: main
-      #     pre_release_branches: dev
-      #     dry_run: ${{ !startsWith(github.ref, 'refs/heads/main') }}
-      #     custom_tag: ${{ steps.get_version.outputs.new_tag }}
-      #     tag_prefix:
-      #       # blank to remove the v prefix
+      # Bump version
+      - name: Bump version and push tag
+        id: tag_version
+        uses: mathieudutour/github-tag-action@a22cf08638b34d5badda920f9daf6e72c477b07b # v6.2
+        if: ${{ startsWith(github.ref, 'refs/heads/main') && !contains(github.event.head_commit.message, '[skip ci]') }}
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          release_branches: main
+          pre_release_branches: dev
+          dry_run: ${{ !startsWith(github.ref, 'refs/heads/main') }}
+          custom_tag: ${{ steps.get_version.outputs.new_tag }}
+          tag_prefix:
+            # blank to remove the v prefix
 
   # if the workflow is cancelled, don't mark the workflow as failed
   cleanup:
