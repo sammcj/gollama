@@ -16,7 +16,7 @@ var (
 	ErrorLogger zerolog.Logger
 )
 
-func Init(logLevel, logFilePath string) error {
+func Init(logLevel string, logFilePath string) error {
 	// Set default log file path if none is provided
 	if logFilePath == "" {
 		homeDir, err := os.UserHomeDir()
