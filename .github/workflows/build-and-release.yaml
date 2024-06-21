@@ -45,11 +45,12 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-go@cdcb36043654635271a94b9a6d1392de5bb323a7 # v5
         with:
-          go-version: 1.22.3
+          go-version-file: "go.mod"
+      - run: go version
 
       # Install dependencies
       - name: Install dependencies
-        run: go mod download
+        run: go get .
 
       # Get the version we're building
       - name: Get version

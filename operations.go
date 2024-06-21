@@ -27,6 +27,7 @@ func runModel(model string, cfg *config.Config) tea.Cmd {
 	ollamaPath, err := exec.LookPath("ollama")
 	if err != nil {
 		logging.ErrorLogger.Printf("Error finding ollama binary: %v\n", err)
+		logging.ErrorLogger.Printf("If you're running Ollama in a container, make sure you updated the config file with the container name\n")
 		return nil
 	}
 	c := exec.Command(ollamaPath, "run", model)

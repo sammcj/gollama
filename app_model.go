@@ -386,9 +386,9 @@ func (m *AppModel) handleRunModelKey() (tea.Model, tea.Cmd) {
 
 func (m *AppModel) handleAltScreenKey() (tea.Model, tea.Cmd) {
 	logging.DebugLogger.Println("AltScreen key matched")
-	m.altscreenActive = !m.altscreenActive
+	m.altScreenActive = !m.altScreenActive
 	cmd := tea.EnterAltScreen
-	if !m.altscreenActive {
+	if !m.altScreenActive {
 		cmd = tea.ExitAltScreen
 	}
 	return m, cmd
