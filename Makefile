@@ -45,7 +45,7 @@ help: ## This help function
 	@egrep '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
 clean: ## Clean
-	rm -rf ./dist
+	rm -rf ./dist gollama*.zip gollama *.log
 
 debug-server: ## Debug server
 	dlv debug --headless --api-version=2 --listen=127.0.0.1:43000 .
@@ -63,7 +63,7 @@ test: ## Run test
 build: ## Run build
 	$(eval GOLLAMA_VERSION := $(shell if [ -z "$(GOLLAMA_VERSION)" ]; then echo "dev"; else echo "$(GOLLAMA_VERSION)"; fi))
 	@echo "Building with version: $(GOLLAMA_VERSION)"
-	go build -v -ldflags "-X 'main.Version=$(GOLLAMA_VERSION)'"
+	go build -ldflags="-X 'main.Version=$(GOLLAMA_VERSION)'"
 	@echo "Build completed, run ./gollama"
 
 ci: ## build for linux and macOS
@@ -71,9 +71,9 @@ ci: ## build for linux and macOS
 	@echo "Building with version: $(GOLLAMA_VERSION)"
 
 	mkdir -p ./dist/macos ./dist/linux_amd64 ./dist/linux_arm64
-	GOOS=darwin GOARCH=arm64 go build -v -ldflags="-X 'main.Version=$(GOLLAMA_VERSION)'" -o ./dist/macos/
-	GOOS=linux GOARCH=amd64 go build -v -ldflags="-X 'main.Version=$(GOLLAMA_VERSION)'" -o ./dist/linux_amd64/
-	GOOS=linux GOARCH=arm64 go build -v -ldflags="-X 'main.Version=$(GOLLAMA_VERSION)'" -o ./dist/linux_arm64/
+	GOOS=darwin GOARCH=arm64 go build -ldflags="-X 'main.Version=$(GOLLAMA_VERSION)'" -o ./dist/macos/
+	GOOS=linux GOARCH=amd64 go build -ldflags="-X 'main.Version=$(GOLLAMA_VERSION)'" -o ./dist/linux_amd64/
+	GOOS=linux GOARCH=arm64 go build -ldflags="-X 'main.Version=$(GOLLAMA_VERSION)'" -o ./dist/linux_arm64/
 
 	# zip up each build
 	zip -r gollama-macos.zip ./dist/macos/gollama

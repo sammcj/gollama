@@ -45,10 +45,9 @@ type AppModel struct {
 	filterInput       tea.Model
 	showTop           bool
 	progress          progress.Model
-	altscreenActive   bool
+	altScreenActive   bool
 	view              View
 	showProgress      bool
-	needsRefresh      bool
 }
 
 type progressMsg struct {
@@ -69,9 +68,7 @@ type genericMsg struct {
 	message string
 }
 
-var (
-	Version string // Version will be set during the build process
-)
+var Version = "development" // Version is set by the build system
 
 func main() {
 	cfg, err := config.LoadConfig()
