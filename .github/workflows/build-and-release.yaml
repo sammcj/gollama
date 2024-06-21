@@ -70,6 +70,11 @@ jobs:
           make ci
           echo "🎉 Builds completed" >> "$GITHUB_STEP_SUMMARY"
 
+      # Test
+      - name: Test
+        shell: bash
+        run: make test
+
       - name: Upload artefacts
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
         with:
