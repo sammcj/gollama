@@ -29,7 +29,7 @@ var defaultConfig = Config{
 	DefaultSort:       "Size",
 	Columns:           []string{"Name", "Size", "Quant", "Family", "Modified", "ID"},
 	OllamaAPIKey:      "",
-	OllamaAPIURL:      os.Getenv("OLLAMA_HOST"),
+	OllamaAPIURL:      getAPIUrl(),
 	LMStudioFilePaths: "",
 	LogLevel:          "info",
 	LogFilePath:       os.Getenv("HOME") + "/.config/gollama/gollama.log",
@@ -39,9 +39,18 @@ var defaultConfig = Config{
 	DockerContainer:   "",
 }
 
+func getAPIUrl() string {
+	apiUrl := os.Getenv("OLLAMA_API_URL")
+	if apiUrl == "" {
+		apiUrl = "http://localhost:11434"
+	}
+	return apiUrl
+}
+
 func LoadConfig() (Config, error) {
 	// Initialize loggers with desired parameters.
-	if err := logging.Init("debug", "gollama.log"); err != nil {
+	logFilePath := os.Getenv("HOME") + "/.config/gollama/gollama.log"
+	if err := logging.Init("debug", logFilePath); err != nil {
 		fmt.Println("Failed to initialize loggers:", err)
 		os.Exit(1)
 	}

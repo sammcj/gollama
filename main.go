@@ -107,6 +107,14 @@ func main() {
 	ctx := context.Background()
 	httpClient := &http.Client{}
 	url, err := url.Parse(cfg.OllamaAPIURL)
+
+	if err != nil {
+		message := fmt.Sprintf("Error parsing API URL: %v", err)
+		logging.ErrorLogger.Println(message)
+		fmt.Println(message)
+		os.Exit(1)
+	}
+
 	client := api.NewClient(url, httpClient)
 
 	resp, err := client.List(ctx)

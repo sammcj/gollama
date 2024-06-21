@@ -20,7 +20,7 @@ import (
 
 func runModel(model string, cfg *config.Config) tea.Cmd {
 	// if config is set to run in docker container, run the mode using runDocker
-	if cfg.DockerContainer != "" && cfg.DockerContainer != "false" {
+	if cfg.DockerContainer != "" && strings.ToLower(cfg.DockerContainer) != "false" {
 		return runDocker(cfg.DockerContainer, model)
 	}
 
