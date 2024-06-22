@@ -83,19 +83,15 @@ func LoadConfig() (Config, error) {
 			// if the config file is borked, recreate it and let the user know
 			if err := CreateDefaultConfig(); err != nil {
 				backupPath := getConfigPath() + ".borked." + time.Now().Format("2006-01-02")
-				// show a warning message
-				fmt.Println("Your config file is borked! A new one has been created with default values, and the old one has been backed up to", backupPath)
-				if err := os.Rename(getConfigPath(), getConfigPath()+".borked."+time.Now().Format("2006-01-02")); err != nil {
+				if err := os.Rename(getConfigPath(), backupPath); err != nil {
 					return Config{}, fmt.Errorf("failed to rename config file: %w", err)
 				}
 				if err := CreateDefaultConfig(); err != nil {
 					return Config{}, fmt.Errorf("failed to recreate default config: %w", err)
 				}
-
-				// wait for the user to press enter
+				fmt.Println("Your config file is borked!\nConfig recreated with default values, your old one has been backed up to", backupPath)
 				fmt.Println("Press enter to continue...")
 				fmt.Scanln()
-
 			}
 		}
 	}
