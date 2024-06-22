@@ -64,14 +64,22 @@ build: ## Run build
 	@$(eval GOLLAMA_VERSION := $(shell if [ -z "$(GOLLAMA_VERSION)" ]; then echo "$(shell git describe --tags --abbrev=0)"; else echo "$(GOLLAMA_VERSION)"; fi))
 	@echo "Bumping version to: $(GOLLAMA_VERSION)"
 	@export GOLLAMA_VERSION=$(GOLLAMA_VERSION)
-	@sed -i '' -e "s/Version = \".*\"/Version = \"$(GOLLAMA_VERSION)\"/g" main.go
+	@if [ "$(shell uname)" == "Darwin" ]; then \
+		sed -i '' -e "s/Version = \".*\"/Version = \"$(GOLLAMA_VERSION)\"/g" main.go ; \
+	else \
+		sed -i -e "s/Version = \".*\"/Version = \"$(GOLLAMA_VERSION)\"/g" main.go ; \
+	fi
 
 	@go build -v -ldflags="-X 'main.Version=$(GOLLAMA_VERSION)'"
 	@echo "Build completed, run ./gollama"
 
 ci: ## build for linux and macOS
 	$(eval GOLLAMA_VERSION := $(shell if [ -z "$(GOLLAMA_VERSION)" ]; then echo "$(shell git describe --tags --abbrev=0)"; else echo "$(GOLLAMA_VERSION)"; fi))
-	@sed -i '' -e "s/Version = \".*\"/Version = \"$(GOLLAMA_VERSION)\"/g" main.go
+	@if [ "$(shell uname)" == "Darwin" ]; then \
+		sed -i '' -e "s/Version = \".*\"/Version = \"$(GOLLAMA_VERSION)\"/g" main.go ; \
+	else \
+		sed -i -e "s/Version = \".*\"/Version = \"$(GOLLAMA_VERSION)\"/g" main.go ; \
+	fi
 	@echo "Building with version: $(GOLLAMA_VERSION)"
 
 	@mkdir -p ./dist/macos ./dist/linux_amd64 ./dist/linux_arm64
