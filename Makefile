@@ -64,26 +64,29 @@ build: ## Run build
 	@$(eval GOLLAMA_VERSION := $(shell if [ -z "$(GOLLAMA_VERSION)" ]; then echo "$(shell git describe --tags --abbrev=0)"; else echo "$(GOLLAMA_VERSION)"; fi))
 	@echo "Bumping version to: $(GOLLAMA_VERSION)"
 	@export GOLLAMA_VERSION=$(GOLLAMA_VERSION)
+	@sed -i '' -e "s/Version = \".*\"/Version = \"$(GOLLAMA_VERSION)\"/g" main.go
 
-	@echo "Building with version: $(GOLLAMA_VERSION)"
 	@go build -v -ldflags="-X 'main.Version=$(GOLLAMA_VERSION)'"
 	@echo "Build completed, run ./gollama"
 
 ci: ## build for linux and macOS
 	$(eval GOLLAMA_VERSION := $(shell if [ -z "$(GOLLAMA_VERSION)" ]; then echo "$(shell git describe --tags --abbrev=0)"; else echo "$(GOLLAMA_VERSION)"; fi))
+	@sed -i '' -e "s/Version = \".*\"/Version = \"$(GOLLAMA_VERSION)\"/g" main.go
 	@echo "Building with version: $(GOLLAMA_VERSION)"
 
-	mkdir -p ./dist/macos ./dist/linux_amd64 ./dist/linux_arm64
+	@mkdir -p ./dist/macos ./dist/linux_amd64 ./dist/linux_arm64
 	GOOS=darwin GOARCH=arm64 go build -v -ldflags="-X 'main.Version=$(GOLLAMA_VERSION)'" -o ./dist/macos/
 	GOOS=linux GOARCH=amd64 go build -v -ldflags="-X 'main.Version=$(GOLLAMA_VERSION)'" -o ./dist/linux_amd64/
 	GOOS=linux GOARCH=arm64 go build -v -ldflags="-X 'main.Version=$(GOLLAMA_VERSION)'" -o ./dist/linux_arm64/
 
-	# zip up each build
-	zip -r gollama-macos.zip ./dist/macos/gollama
-	zip -r gollama-linux-amd64.zip ./dist/linux_amd64/gollama
-	zip -r gollama-linux-arm64.zip ./dist/linux_arm64/gollama
+	@zip -r gollama-macos.zip ./dist/macos/gollama
+	@zip -r gollama-linux-amd64.zip ./dist/linux_amd64/gollama
+	@zip -r gollama-linux-arm64.zip ./dist/linux_arm64/gollama
 
-	echo "Build completed, run ./dist/macos/gollama or ./dist/linux_amd64/gollama or ./dist/linux_arm64/gollama"
+	@echo "Build completed"
+	@echo "macOS: ./dist/macos/gollama"
+	@echo "Linux (amd64): ./dist/linux_amd64/gollama"
+	@echo "Linux (arm64): ./dist/linux_arm64/gollama"
 
 install: ## Install latest
 	go install github.com/sammcj/gollama@latest
