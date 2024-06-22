@@ -69,7 +69,7 @@ jobs:
           GOLLAMA_VERSION: ${{ steps.get_version.outputs.new_tag }}
         run: |
           set -x
-          make ci
+          GOLLAMA_VERSION="$GOLLAMA_VERSION" make ci
           echo "🎉 Builds completed" >> "$GITHUB_STEP_SUMMARY"
 
       # Test
