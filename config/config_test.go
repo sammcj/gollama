@@ -55,7 +55,6 @@ func TestLoadConfig(t *testing.T) {
 			name: "Config file exists and is valid",
 			prepFunc: func(configPath string) error {
 				config := Config{
-					DefaultSort:       "Name",
 					Columns:           []string{"Name", "Size"},
 					OllamaAPIKey:      "testkey",
 					OllamaAPIURL:      "http://testurl",
@@ -70,7 +69,6 @@ func TestLoadConfig(t *testing.T) {
 				return saveTempConfig(configPath, config)
 			},
 			expected: Config{
-				DefaultSort:       "Name",
 				Columns:           []string{"Name", "Size"},
 				OllamaAPIKey:      "testkey",
 				OllamaAPIURL:      "http://testurl",
@@ -81,7 +79,6 @@ func TestLoadConfig(t *testing.T) {
 				StripString:       "strip",
 				Editor:            "vim",
 				DockerContainer:   "testcontainer",
-				LastSortSelection: "name",
 			},
 			expectedError: false,
 		},
@@ -139,7 +136,6 @@ func TestSaveConfig(t *testing.T) {
 		{
 			name: "Valid config save",
 			input: Config{
-				DefaultSort:       "Name",
 				Columns:           []string{"Name", "Size"},
 				OllamaAPIKey:      "testkey",
 				OllamaAPIURL:      "http://testurl",
