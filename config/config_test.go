@@ -56,8 +56,8 @@ func TestLoadConfig(t *testing.T) {
 			prepFunc: func(configPath string) error {
 				config := Config{
 					Columns:           []string{"Name", "Size"},
-					OllamaAPIKey:      "testkey",
-					OllamaAPIURL:      "http://testurl",
+					OllamaAPIKeys:     []string{"testkey"},
+					OllamaAPIURLs:     []string{"http://testurl"},
 					LMStudioFilePaths: "/test/path",
 					LogLevel:          "debug",
 					LogFilePath:       "/test/path/gollama.log",
@@ -70,8 +70,8 @@ func TestLoadConfig(t *testing.T) {
 			},
 			expected: Config{
 				Columns:           []string{"Name", "Size"},
-				OllamaAPIKey:      "testkey",
-				OllamaAPIURL:      "http://testurl",
+				OllamaAPIKeys:     []string{"testkey"},
+				OllamaAPIURLs:     []string{"http://testurl"},
 				LMStudioFilePaths: "/test/path",
 				LogLevel:          "debug",
 				LogFilePath:       "/test/path/gollama.log",
@@ -137,8 +137,8 @@ func TestSaveConfig(t *testing.T) {
 			name: "Valid config save",
 			input: Config{
 				Columns:           []string{"Name", "Size"},
-				OllamaAPIKey:      "testkey",
-				OllamaAPIURL:      "http://testurl",
+				OllamaAPIKeys:     []string{"testkey"},
+				OllamaAPIURLs:     []string{"http://testurl"},
 				LMStudioFilePaths: "/test/path",
 				LogLevel:          "debug",
 				LogFilePath:       "/test/path/gollama.log",

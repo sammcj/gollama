@@ -4,6 +4,8 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"net/url"
 	"sort"
 	"strings"
 	"time"
@@ -13,6 +15,7 @@ import (
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/ollama/ollama/api"
 
 	"github.com/sammcj/gollama/logging"
 )
@@ -77,6 +80,11 @@ func (m *AppModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	// Handle the space key separately to ensure it works even when filtering
 	if key.Matches(msg, m.keys.Space) {
 		return m.handleSpaceKey()
+	}
+
+	// Handle the 'tab' key to switch servers
+	if msg.String() == "tab" {
+		return m, m.switchServer()
 	}
 
 	// Handle filtering state
@@ -779,4 +787,33 @@ func (m *AppModel) printFullHelp() string {
 	// Render the table view
 	return "\n" + t.View() + "\nPress 'q' or `esc` to return to the main view."
 
+}
+
+// Function to switch servers
+func (m *AppModel) switchServer() tea.Cmd {
+	m.currentServer = (m.currentServer + 1) % len(m.cfg.OllamaAPIURLs)
+	m.cfg.CurrentServer = m.currentServer
+
+	// Update the client with the new server URL
+	url, err := url.Parse(m.cfg.OllamaAPIURLs[m.currentServer])
+	if err != nil {
+		message := fmt.Sprintf("Error parsing API URL: %v", err)
+		logging.ErrorLogger.Println(message)
+		return func() tea.Msg { return genericMsg{message: message} }
+	}
+	m.client = api.NewClient(url, &http.Client{})
+
+	// Fetch models from the new server
+	return func() tea.Msg {
+		ctx := context.Background()
+		resp, err := m.client.List(ctx)
+		if err != nil {
+			message := fmt.Sprintf("Error fetching models: %v", err)
+			logging.ErrorLogger.Println(message)
+			return genericMsg{message: message}
+		}
+		m.models = parseAPIResponse(resp)
+		m.refreshList()
+		return nil
+	}
 }

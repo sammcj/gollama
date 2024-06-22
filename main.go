@@ -48,6 +48,7 @@ type AppModel struct {
 	altScreenActive   bool
 	view              View
 	showProgress      bool
+	currentServer     int
 }
 
 type progressMsg struct {
@@ -88,7 +89,7 @@ func main() {
 	}
 
 	listFlag := flag.Bool("l", false, "List all available Ollama models and exit")
-	ollamaDirFlag := flag.String("ollama-dir", cfg.OllamaAPIKey, "Custom Ollama models directory")
+	ollamaDirFlag := flag.String("ollama-dir", cfg.OllamaAPIKeys[cfg.CurrentServer], "Custom Ollama models directory")
 	lmStudioDirFlag := flag.String("lm-dir", cfg.LMStudioFilePaths, "Custom LM Studio models directory")
 	noCleanupFlag := flag.Bool("no-cleanup", false, "Don't cleanup broken symlinks")
 	cleanupFlag := flag.Bool("cleanup", false, "Remove all symlinked models and empty directories and exit")
@@ -103,11 +104,10 @@ func main() {
 	}
 
 	os.Setenv("EDITOR", cfg.Editor)
-
 	// Initialize the API client
 	ctx := context.Background()
 	httpClient := &http.Client{}
-	url, err := url.Parse(cfg.OllamaAPIURL)
+	url, err := url.Parse(cfg.OllamaAPIURLs[cfg.CurrentServer])
 
 	if err != nil {
 		message := fmt.Sprintf("Error parsing API URL: %v", err)
@@ -120,7 +120,7 @@ func main() {
 
 	resp, err := client.List(ctx)
 	if err != nil {
-		message := fmt.Sprintf("Error fetching models:\n- Error: %v\n- Configured API URL: %v", err, cfg.OllamaAPIURL)
+		message := fmt.Sprintf("Error fetching models:\n- Error: %v\n- Configured API URL: %v", err, cfg.OllamaAPIURLs[cfg.CurrentServer])
 		logging.ErrorLogger.Println(message)
 		fmt.Println(message)
 		os.Exit(1)
@@ -181,6 +181,7 @@ func main() {
 		noCleanup:         *noCleanupFlag,
 		cfg:               &cfg,
 		progress:          progress.New(progress.WithDefaultGradient()),
+		currentServer:     cfg.CurrentServer,
 	}
 
 	if *ollamaDirFlag == "" {
