@@ -170,6 +170,8 @@ func listModels(models []Model) {
 	// Print the header
 	fmt.Println(lipgloss.NewStyle().Foreground(lipgloss.Color("12")).Render(header))
 
+	modelList := []string{}
+
 	for index, model := range models {
 		// colourise the model properties
 		nameColours := []lipgloss.Color{lipgloss.Color("#FFFFFF"), lipgloss.Color("#818BA9")}
@@ -181,6 +183,11 @@ func listModels(models []Model) {
 		modified := lipgloss.NewStyle().Foreground(lipgloss.Color("254")).Render(modifieds[index])
 
 		row := fmt.Sprintf("%-*s %-*s %-*s %-*s %-*s %-*s", nameWidth, name, sizeWidth, size, quantWidth, quant, familyWidth, family, modifiedWidth, modified, idWidth, id)
+		modelList = append(modelList, row)
+	}
+
+	// Print the models
+	for _, row := range modelList {
 		fmt.Println(row)
 	}
 }

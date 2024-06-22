@@ -332,6 +332,7 @@ func (m *AppModel) handleDeleteKey() (tea.Model, tea.Cmd) {
 
 func (m *AppModel) handleSortByNameKey() (tea.Model, tea.Cmd) {
 	logging.DebugLogger.Println("SortByName key matched")
+	m.cfg.SortOrder = "name"
 	sort.Slice(m.models, func(i, j int) bool {
 		return m.models[i].Name < m.models[j].Name
 	})
@@ -341,6 +342,7 @@ func (m *AppModel) handleSortByNameKey() (tea.Model, tea.Cmd) {
 
 func (m *AppModel) handleSortBySizeKey() (tea.Model, tea.Cmd) {
 	logging.DebugLogger.Println("SortBySize key matched")
+	m.cfg.SortOrder = "size"
 	sort.Slice(m.models, func(i, j int) bool {
 		return m.models[i].Size > m.models[j].Size
 	})
@@ -350,6 +352,7 @@ func (m *AppModel) handleSortBySizeKey() (tea.Model, tea.Cmd) {
 
 func (m *AppModel) handleSortByModifiedKey() (tea.Model, tea.Cmd) {
 	logging.DebugLogger.Println("SortByModified key matched")
+	m.cfg.SortOrder = "modified"
 	sort.Slice(m.models, func(i, j int) bool {
 		return m.models[i].Modified.After(m.models[j].Modified)
 	})
@@ -359,6 +362,7 @@ func (m *AppModel) handleSortByModifiedKey() (tea.Model, tea.Cmd) {
 
 func (m *AppModel) handleSortByQuantKey() (tea.Model, tea.Cmd) {
 	logging.DebugLogger.Println("SortByQuant key matched")
+	m.cfg.SortOrder = "quant"
 	sort.Slice(m.models, func(i, j int) bool {
 		return m.models[i].QuantizationLevel < m.models[j].QuantizationLevel
 	})
@@ -368,6 +372,7 @@ func (m *AppModel) handleSortByQuantKey() (tea.Model, tea.Cmd) {
 
 func (m *AppModel) handleSortByFamilyKey() (tea.Model, tea.Cmd) {
 	logging.DebugLogger.Println("SortByFamily key matched")
+	m.cfg.SortOrder = "family"
 	sort.Slice(m.models, func(i, j int) bool {
 		return m.models[i].Family < m.models[j].Family
 	})
