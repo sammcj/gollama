@@ -68,7 +68,7 @@ type genericMsg struct {
 	message string
 }
 
-var Version = "development" // Version is set by the build system
+var Version string // Version is set by the build system
 
 func main() {
 	cfg, err := config.LoadConfig()
