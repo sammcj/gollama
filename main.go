@@ -278,9 +278,5 @@ func main() {
 		fmt.Println("Warning: Your terminal does not support colours. Please consider using a terminal that does.")
 	}
 
-	if err := config.SaveConfig(cfg); err != nil {
-		panic(err)
-	}
-
 	p.ReleaseTerminal()
 }

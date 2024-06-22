@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
+	"github.com/fsnotify/fsnotify"
 	"github.com/sammcj/gollama/logging"
 	"github.com/spf13/viper"
 )
@@ -20,6 +22,7 @@ type Config struct {
 	StripString       string   `mapstructure:"strip_string"` // Optional string to strip from model names in the TUI (e.g. a private registry URL)
 	Editor            string   `mapstructure:"editor"`
 	DockerContainer   string   `mapstructure:"docker_container"` // Optionally specify a docker container to run the ollama commands in
+	modified          bool     // Internal flag to track if the config has been modified
 }
 
 var defaultConfig = Config{
@@ -28,7 +31,6 @@ var defaultConfig = Config{
 	OllamaAPIURL:      getAPIUrl(),
 	LMStudioFilePaths: "",
 	LogLevel:          "info",
-	LogFilePath:       getDefaultLogPath(),
 	SortOrder:         "modified",
 	StripString:       "",
 	Editor:            "/usr/bin/vim",
@@ -49,20 +51,7 @@ func getAPIUrl() string {
 	return "http://127.0.0.1:11434"
 }
 
-// getDefaultLogPath returns the default log file path based on the home directory.
-func getDefaultLogPath() string {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		logging.ErrorLogger.Printf("Failed to get user home directory: %v\n", err)
-	}
-	return filepath.Join(homeDir, ".config", "gollama", "gollama.log")
-}
-
-func LoadConfig() (Config, error) {
-	viper.SetConfigName("config")
-	viper.SetConfigType("json")
-	viper.AddConfigPath(getConfigPath())
-
+func CreateDefaultConfig() error {
 	// Set default values
 	viper.SetDefault("columns", defaultConfig.Columns)
 	viper.SetDefault("ollama_api_key", defaultConfig.OllamaAPIKey)
@@ -75,55 +64,80 @@ func LoadConfig() (Config, error) {
 	viper.SetDefault("editor", defaultConfig.Editor)
 	viper.SetDefault("docker_container", defaultConfig.DockerContainer)
 
+	return SaveConfig(defaultConfig)
+}
+
+func LoadConfig() (Config, error) {
+	viper.SetConfigName("config")
+	viper.SetConfigType("json")
+	viper.AddConfigPath(filepath.Join(os.Getenv("HOME"), ".config", "gollama"))
+
 	// Read the config file
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
-			// Config file not found, create it with default values
-			if err := SaveConfig(defaultConfig); err != nil {
-				return Config{}, fmt.Errorf("failed to save default config: %w", err)
+			// Config file not found; create it
+			if err := CreateDefaultConfig(); err != nil {
+				return Config{}, fmt.Errorf("failed to create default config: %w", err)
 			}
 		} else {
-			return Config{}, fmt.Errorf("failed to read config file: %w", err)
+			// if the config file is borked, recreate it and let the user know
+			if err := CreateDefaultConfig(); err != nil {
+				backupPath := getConfigPath() + ".borked." + time.Now().Format("2006-01-02")
+				// show a warning message
+				fmt.Println("Your config file is borked! A new one has been created with default values, and the old one has been backed up to", backupPath)
+				if err := os.Rename(getConfigPath(), getConfigPath()+".borked."+time.Now().Format("2006-01-02")); err != nil {
+					return Config{}, fmt.Errorf("failed to rename config file: %w", err)
+				}
+				if err := CreateDefaultConfig(); err != nil {
+					return Config{}, fmt.Errorf("failed to recreate default config: %w", err)
+				}
+
+				// wait for the user to press enter
+				fmt.Println("Press enter to continue...")
+				fmt.Scanln()
+
+			}
 		}
 	}
 
 	var config Config
-	if err := viper.Unmarshal(&config); err != nil {
-		return Config{}, fmt.Errorf("failed to unmarshal config: %w", err)
-	}
+	config.OllamaAPIURL = viper.GetString("ollama_api_url")
+	config.LogLevel = viper.GetString("log_level")
 
-	config.OllamaAPIURL = getAPIUrl() // Ensure the API URL is set correctly from environment variables or defaults
-
-	if config.LogLevel == "debug" {
-		logging.DebugLogger.Println("Config loaded:", config)
-	}
+	viper.OnConfigChange(func(e fsnotify.Event) {
+		fmt.Println("Config file changed:", e.Name)
+	})
+	viper.WatchConfig()
 
 	return config, nil
 }
 
 func SaveConfig(config Config) error {
-	viper.Set("columns", config.Columns)
-	viper.Set("ollama_api_key", config.OllamaAPIKey)
-	viper.Set("ollama_api_url", config.OllamaAPIURL)
-	viper.Set("lm_studio_file_paths", config.LMStudioFilePaths)
-	viper.Set("log_level", config.LogLevel)
-	viper.Set("log_file_path", config.LogFilePath)
-	viper.Set("sort_order", config.SortOrder)
-	viper.Set("strip_string", config.StripString)
-	viper.Set("editor", config.Editor)
-	viper.Set("docker_container", config.DockerContainer)
+	if config.modified {
+		viper.Set("sort_order", config.SortOrder)
+	}
 
 	configPath := getConfigPath()
 	if err := os.MkdirAll(filepath.Dir(configPath), 0755); err != nil {
 		return fmt.Errorf("failed to create config directory: %w", err)
 	}
 
-	viper.SetConfigFile(configPath)
-	if err := viper.WriteConfig(); err != nil {
+	if err := viper.SafeWriteConfigAs(configPath); err != nil {
 		return fmt.Errorf("failed to write config file: %w", err)
 	}
 
 	return nil
+}
+
+func (c *Config) SaveIfModified() error {
+	if c.modified {
+		return SaveConfig(*c)
+	}
+	return nil
+}
+
+func (c *Config) SetModified() {
+	c.modified = true
 }
 
 // getConfigPath returns the path to the configuration JSON file.
