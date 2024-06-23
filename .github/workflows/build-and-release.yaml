@@ -73,7 +73,7 @@ jobs:
           echo "🎉 Builds completed" >> "$GITHUB_STEP_SUMMARY"
 
       # Test
-      - uses: robherley/go-test-action@v0
+      - uses: robherley/go-test-action@a612d1675dda7397d3bced585f8a2a3a8545455f # v0
 
       - name: Upload artefacts
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
