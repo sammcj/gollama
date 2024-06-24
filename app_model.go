@@ -23,6 +23,7 @@ const (
 	MainView View = iota
 	TopView
 	HelpView
+	EditView
 )
 
 func (m *AppModel) Init() tea.Cmd {
@@ -107,7 +108,7 @@ func (m *AppModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.list.ResetFilter()
 			return m, nil
 		}
-		if m.view == TopView || m.inspecting || m.view == HelpView {
+		if m.view == TopView || m.view == EditView || m.inspecting || m.view == HelpView {
 			m.view = MainView
 			m.inspecting = false
 			m.editing = false
@@ -121,7 +122,7 @@ func (m *AppModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.list.ResetFilter()
 			return m, nil
 		}
-		if m.view == TopView || m.inspecting || m.view == HelpView {
+		if m.view == TopView || m.view == EditView || m.inspecting || m.view == HelpView {
 			m.view = MainView
 			m.inspecting = false
 			m.editing = false
@@ -181,8 +182,8 @@ func (m *AppModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleAltScreenKey()
 	case key.Matches(msg, m.keys.ClearScreen):
 		return m.handleClearScreenKey()
-	case key.Matches(msg, m.keys.UpdateModel):
-		return m.handleUpdateModelKey()
+	case key.Matches(msg, m.keys.EditModel):
+		return m.handleEditModelKey()
 	case key.Matches(msg, m.keys.UnloadModels):
 		return m.handleUnloadModelsKey()
 	case key.Matches(msg, m.keys.LinkModel):
@@ -415,19 +416,13 @@ func (m *AppModel) handleTopKey() (tea.Model, tea.Cmd) {
 	return m.ToggleTop()
 }
 
-func (m *AppModel) handleUpdateModelKey() (tea.Model, tea.Cmd) {
+func (m *AppModel) handleEditModelKey() (tea.Model, tea.Cmd) {
 	logging.DebugLogger.Println("UpdateModel key matched")
-	defer func() {
-		m.refreshList()
-	}()
 	if item, ok := m.list.SelectedItem().(Model); ok {
+		logging.DebugLogger.Printf("Editing model: %s\n", item.Name)
 		m.editing = true
-		modelfilePath, err := copyModelfile(item.Name, item.Name, m.client)
-		if err != nil {
-			m.message = fmt.Sprintf("Error copying modelfile: %v", err)
-			return m, nil
-		}
-		return m, openEditor(modelfilePath)
+		m.view = EditView
+		return m, nil
 	}
 	return m, nil
 }
@@ -549,6 +544,8 @@ func (m *AppModel) handleRenameModelKey() (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// handle model editor key
+
 func (m *AppModel) ToggleTop() (*AppModel, tea.Cmd) {
 	if topRunning {
 		m.message = ""
@@ -571,6 +568,10 @@ func (m *AppModel) ToggleTop() (*AppModel, tea.Cmd) {
 func (m *AppModel) View() string {
 	if m.view == TopView {
 		return m.topView()
+	}
+
+	if m.view == EditView {
+		return m.editView()
 	}
 
 	if m.confirmDeletion {
@@ -738,8 +739,19 @@ func (k KeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Space, k.Delete, k.RunModel, k.LinkModel, k.LinkAllModels, k.CopyModel, k.PushModel}, // first column
 		{k.SortByName, k.SortBySize, k.SortByModified, k.SortByQuant, k.SortByFamily},           // second column
-		{k.Top, k.UpdateModel, k.InspectModel, k.Quit},                                          // third column
+		{k.Top, k.EditModel, k.InspectModel, k.Quit},                                            // third column
 	}
+}
+
+// the edit view
+func (m *AppModel) editView() string {
+	logging.DebugLogger.Println("Edit view")
+	if m.view != EditView {
+		return ""
+	}
+  m.editing = true
+	// the edit view
+  return "TODO: return edit view"
 }
 
 // a function that can be called from the man app_model.go file with a hotkey to print the FullHelp as a string

@@ -483,7 +483,6 @@ func createModelFromModelfile(modelName, modelfilePath string, client *api.Clien
 	}
 	logging.InfoLogger.Printf("Successfully created model from modelfile: %s\n", modelfilePath)
 	return nil
-
 }
 
 func unloadModel(client *api.Client, modelName string) (string, error) {

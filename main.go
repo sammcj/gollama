@@ -48,6 +48,25 @@ type AppModel struct {
 	altScreenActive   bool
 	view              View
 	showProgress      bool
+  modelFiles    []ModelFileInfo
+  state           appState
+}
+
+
+type appState int
+
+const (
+	stateModelList appState = iota
+	stateEditTemplate
+	stateEditParams
+	stateConfirmation
+)
+
+type ModelFileInfo struct {
+	Name           string
+	ManifestPath   string
+	ParametersPath string
+	TemplatePath   string
 }
 
 type progressMsg struct {
@@ -181,6 +200,7 @@ func main() {
 		noCleanup:         *noCleanupFlag,
 		cfg:               &cfg,
 		progress:          progress.New(progress.WithDefaultGradient()),
+    state:             stateModelList,
 	}
 
 	if *ollamaDirFlag == "" {
@@ -259,7 +279,7 @@ func main() {
 			keys.CopyModel,
 			keys.PushModel,
 			keys.Top,
-			keys.UpdateModel,
+			keys.EditModel,
 			keys.Help,
 		}
 	}
