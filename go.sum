@@ -8,6 +8,8 @@ github.com/charmbracelet/bubbles v0.18.0 h1:PYv1A036luoBGroX6VWjQIE9Syf2Wby2oOl/
 github.com/charmbracelet/bubbles v0.18.0/go.mod h1:08qhZhtIwzgrtBjAcJnij1t1H0ZRjwHyGsy6AL11PSw=
 github.com/charmbracelet/bubbletea v0.26.5 h1:90pqTPElAReb/qQUgSMUresTkfwVr0Wx+zczeHHOgxk=
 github.com/charmbracelet/bubbletea v0.26.5/go.mod h1:dz8CWPlfCCGLFbBlTY4N7bjLiyOGDJEnd2Muu7pOWhk=
+github.com/charmbracelet/bubbletea v0.26.6 h1:zTCWSuST+3yZYZnVSvbXwKOPRSNZceVeqpzOLN2zq1s=
+github.com/charmbracelet/bubbletea v0.26.6/go.mod h1:dz8CWPlfCCGLFbBlTY4N7bjLiyOGDJEnd2Muu7pOWhk=
 github.com/charmbracelet/harmonica v0.2.0 h1:8NxJWRWg/bzKqqEaaeFNipOu77YR5t8aSwG4pgaUBiQ=
 github.com/charmbracelet/harmonica v0.2.0/go.mod h1:KSri/1RMQOZLbw7AHqgcBycp8pgJnQMYYT8QZRqZ1Ao=
 github.com/charmbracelet/lipgloss v0.11.0 h1:UoAcbQ6Qml8hDwSWs0Y1cB5TEQuZkDPH/ZqwWWYTG4g=
@@ -73,6 +75,8 @@ github.com/ollama/ollama v0.1.45 h1:kwXM83GKToTnueX5zJHqRvwLy1/zzYw8C0sO60wOKqA=
 github.com/ollama/ollama v0.1.45/go.mod h1:TvVa25PEZI6M0bosiW1sa2XJGq3Xw/OPlpUAkMEntTU=
 github.com/ollama/ollama v0.1.46 h1:C6zs4QUXC/7a9/Kb6MEioIxJWlZCStHghtslIuGbExg=
 github.com/ollama/ollama v0.1.46/go.mod h1:TvVa25PEZI6M0bosiW1sa2XJGq3Xw/OPlpUAkMEntTU=
+github.com/ollama/ollama v0.1.48 h1:6j9ziyqyAJD3NuTLYJlzZl/b/Q9PDvvYg02FGmREUmE=
+github.com/ollama/ollama v0.1.48/go.mod h1:TvVa25PEZI6M0bosiW1sa2XJGq3Xw/OPlpUAkMEntTU=
 github.com/pelletier/go-toml/v2 v2.2.2 h1:aYUidT7k73Pcl9nb2gScu7NSrKCSHIDE89b3+6Wq+LM=
 github.com/pelletier/go-toml/v2 v2.2.2/go.mod h1:1t835xjRzz80PqgE6HHgN2JOsmgYu/h4qDAS4n929Rs=
 github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=

@@ -4,11 +4,11 @@ go 1.22.4
 
 require (
 	github.com/charmbracelet/bubbles v0.18.0
-	github.com/charmbracelet/bubbletea v0.26.5
+	github.com/charmbracelet/bubbletea v0.26.6
 	github.com/charmbracelet/lipgloss v0.11.0
 	github.com/fsnotify/fsnotify v1.7.0
 	github.com/natefinch/lumberjack v2.0.0+incompatible
-	github.com/ollama/ollama v0.1.46
+	github.com/ollama/ollama v0.1.48
 	github.com/rs/zerolog v1.33.0
 	github.com/spf13/viper v1.19.0
 	golang.org/x/term v0.21.0
