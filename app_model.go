@@ -237,6 +237,15 @@ func (m *AppModel) handleSpaceKey() (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// A function that returns a tea message stating "function not available on remote hosts" if remoteHost == true
+func (m *AppModel) isRemoteHost() string {
+	if !strings.Contains(m.cfg.OllamaAPIURL, "localhost") && !strings.Contains(m.cfg.OllamaAPIURL, "127.0.0.1") {
+		return "Function not available on remote hosts"
+	}
+	msg := ""
+	return msg
+}
+
 func (m *AppModel) handleRunFinishedMessage(msg runFinishedMessage) (tea.Model, tea.Cmd) {
 	logging.DebugLogger.Printf("Run finished message: %v\n", msg)
 	if msg.err != nil {
@@ -458,6 +467,11 @@ func (m *AppModel) handleUnloadModelsKey() (tea.Model, tea.Cmd) {
 
 func (m *AppModel) handleLinkModelKey() (tea.Model, tea.Cmd) {
 	logging.DebugLogger.Println("LinkModel key matched")
+	// Function not available on remote Ollama servers
+	if msg := m.isRemoteHost(); msg != "" {
+		m.message = msg
+		return m, nil
+	}
 	if item, ok := m.list.SelectedItem().(Model); ok {
 		message, err := linkModel(item.Name, m.lmStudioModelsDir, m.noCleanup, m.client)
 		if err != nil {
@@ -473,6 +487,11 @@ func (m *AppModel) handleLinkModelKey() (tea.Model, tea.Cmd) {
 
 func (m *AppModel) handleLinkAllModelsKey() (tea.Model, tea.Cmd) {
 	logging.DebugLogger.Println("LinkAllModels key matched")
+	// Function not available on remote Ollama servers
+	if msg := m.isRemoteHost(); msg != "" {
+		m.message = msg
+		return m, nil
+	}
 	var messages []string
 	for _, model := range m.models {
 		message, err := linkModel(model.Name, m.lmStudioModelsDir, m.noCleanup, m.client)
@@ -732,8 +751,7 @@ func (m *AppModel) topView() string {
 	return "\n" + t.View() + "\nPress 'q' or `esc` to return to the main view."
 }
 
-// FullHelp returns keybindings for the expanded help view. It's part of the
-// key.Map interface.
+// FullHelp returns keybindings for the expanded help view. It's part of the key.Map interface.
 func (k KeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Space, k.Delete, k.RunModel, k.LinkModel, k.LinkAllModels, k.CopyModel, k.PushModel}, // first column
@@ -744,7 +762,6 @@ func (k KeyMap) FullHelp() [][]key.Binding {
 
 // a function that can be called from the man app_model.go file with a hotkey to print the FullHelp as a string
 func (m *AppModel) printFullHelp() string {
-	// FIXME: this borks up the list formatting after exiting the help view, not sure why it's not resetting the list properly
 	if m.view != HelpView {
 		m.message = ""
 		return m.message

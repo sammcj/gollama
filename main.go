@@ -48,6 +48,7 @@ type AppModel struct {
 	altScreenActive   bool
 	view              View
 	showProgress      bool
+	remoteHost        bool
 }
 
 type progressMsg struct {
@@ -94,6 +95,7 @@ func main() {
 	cleanupFlag := flag.Bool("cleanup", false, "Remove all symlinked models and empty directories and exit")
 	unloadModelsFlag := flag.Bool("u", false, "Unload all models and exit")
 	versionFlag := flag.Bool("v", false, "Print the version and exit")
+	hostFlag := flag.String("h", "", "Override the config file to set the Ollama API host (e.g. http://localhost:11434)")
 
 	flag.Parse()
 
@@ -104,7 +106,11 @@ func main() {
 
 	os.Setenv("EDITOR", cfg.Editor)
 
-	// Initialize the API client
+	if *hostFlag != "" {
+		cfg.OllamaAPIURL = *hostFlag
+	}
+
+	// Initialise the API client
 	ctx := context.Background()
 	httpClient := &http.Client{}
 	url, err := url.Parse(cfg.OllamaAPIURL)
