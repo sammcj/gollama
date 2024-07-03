@@ -28,7 +28,7 @@ permissions:
   issues: write
 
 concurrency:
-  group: build
+  group: build-${{ github.ref }}-${{ github.sha }}
   cancel-in-progress: true
 
 jobs:
