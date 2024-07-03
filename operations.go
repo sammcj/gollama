@@ -7,12 +7,14 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
 	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/ollama/ollama/api"
 	"github.com/sammcj/gollama/config"
 	"github.com/sammcj/gollama/logging"
@@ -365,6 +367,127 @@ func copyModel(m *AppModel, client *api.Client, oldName string, newName string) 
 	m.models = parseAPIResponse(resp)
 	m.refreshList()
 
+}
+
+// A function that returns a list of models that contain a search term (case insensitive) in their name, for use by the cli flag -s
+func searchModels(models []Model, searchTerms ...string) {
+	logging.InfoLogger.Printf("Searching for models with terms: %v\n", searchTerms)
+
+	var searchResults []Model
+	for _, model := range models {
+		if containsAllTerms(model.Name, searchTerms...) {
+			searchResults = append(searchResults, model)
+		}
+	}
+
+	// Sort the results alphabetically case insensitive
+	sort.Slice(searchResults, func(i, j int) bool {
+		return strings.ToLower(searchResults[i].Name) < strings.ToLower(searchResults[j].Name)
+	})
+
+	// Define adaptive styles
+	baseStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.AdaptiveColor{Light: "#5000D3", Dark: "#FF60FF"})
+	highlightStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.AdaptiveColor{Light: "#000000", Dark: "#FFFFFF"})
+	headerStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.AdaptiveColor{Light: "#000000", Dark: "#AAEE9A"})
+
+	// Colorize the matching parts of the model name
+	for i, model := range searchResults {
+		colorizedName := model.Name
+		for _, term := range searchTerms {
+			andTerms := strings.Split(term, "&")
+			colorizedName = highlightTerms(colorizedName, baseStyle, highlightStyle, andTerms)
+		}
+		searchResults[i].Name = colorizedName
+	}
+
+	fmt.Println(headerStyle.Render("Search results for: " + highlightStyle.Render(strings.Join(searchTerms, " "))))
+	fmt.Println(headerStyle.Render("-------------------"))
+	if len(searchResults) == 0 {
+		fmt.Println("No matching models found.")
+		logging.InfoLogger.Println("No matching models found.")
+	} else {
+		for _, model := range searchResults {
+			fmt.Println(model.Name)
+		}
+		logging.InfoLogger.Printf("Found %d matching models\n", len(searchResults))
+	}
+}
+
+func highlightTerms(modelName string, baseStyle, highlightStyle lipgloss.Style, searchTerms []string) string {
+	lowercaseName := strings.ToLower(modelName)
+	var highlights []struct{ start, end int }
+
+	for _, term := range searchTerms {
+		orTerms := strings.Split(term, "|")
+		for _, orTerm := range orTerms {
+			lowercaseOrTerm := strings.ToLower(orTerm)
+			start := 0
+			for {
+				index := strings.Index(lowercaseName[start:], lowercaseOrTerm)
+				if index == -1 {
+					break
+				}
+				highlights = append(highlights, struct{ start, end int }{start + index, start + index + len(orTerm)})
+				start += index + len(orTerm)
+			}
+		}
+	}
+
+	if len(highlights) == 0 {
+		return baseStyle.Render(modelName)
+	}
+
+	sort.Slice(highlights, func(i, j int) bool {
+		return highlights[i].start < highlights[j].start
+	})
+
+	var result strings.Builder
+	lastEnd := 0
+	for _, h := range highlights {
+		if h.start < lastEnd {
+			continue // Skip overlapping highlights
+		}
+		result.WriteString(baseStyle.Render(modelName[lastEnd:h.start]))
+		result.WriteString(highlightStyle.Render(modelName[h.start:h.end]))
+		lastEnd = h.end
+	}
+	result.WriteString(baseStyle.Render(modelName[lastEnd:]))
+
+	return result.String()
+}
+
+// Helper function to check if a string contains all search terms
+func containsAllTerms(s string, terms ...string) bool {
+	lowercaseS := strings.ToLower(s)
+	for _, term := range terms {
+		andTerms := strings.Split(term, "&")
+		if !containsAllAndTerms(lowercaseS, andTerms...) {
+			return false
+		}
+	}
+	return true
+}
+
+func containsAllAndTerms(s string, terms ...string) bool {
+	for _, term := range terms {
+		orTerms := strings.Split(term, "|")
+		if !containsAnyTerm(s, orTerms...) {
+			return false
+		}
+	}
+	return true
+}
+
+func containsAnyTerm(s string, terms ...string) bool {
+	for _, term := range terms {
+		if strings.Contains(s, strings.ToLower(term)) {
+			return true
+		}
+	}
+	return false
 }
 
 // A renameModel function that takes a selected model, prompts for a new name then calls copyModel, then deleteModel

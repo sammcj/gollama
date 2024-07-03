@@ -93,6 +93,7 @@ func main() {
 	lmStudioDirFlag := flag.String("lm-dir", cfg.LMStudioFilePaths, "Custom LM Studio models directory")
 	noCleanupFlag := flag.Bool("no-cleanup", false, "Don't cleanup broken symlinks")
 	cleanupFlag := flag.Bool("cleanup", false, "Remove all symlinked models and empty directories and exit")
+	searchFlag := flag.String("s", "", "Search - return a list of models that contain the search term in their name")
 	unloadModelsFlag := flag.Bool("u", false, "Unload all models and exit")
 	versionFlag := flag.Bool("v", false, "Print the version and exit")
 	hostFlag := flag.String("h", "", "Override the config file to set the Ollama API host (e.g. http://localhost:11434)")
@@ -203,6 +204,16 @@ func main() {
 
 	if *cleanupFlag {
 		cleanupSymlinkedModels(app.lmStudioModelsDir)
+		os.Exit(0)
+	}
+
+	if *searchFlag != "" {
+		searchTerms := flag.Args()
+		// If no additional arguments are provided, use the searchFlag value
+		if len(searchTerms) == 0 {
+			searchTerms = []string{*searchFlag}
+		}
+		searchModels(models, searchTerms...)
 		os.Exit(0)
 	}
 

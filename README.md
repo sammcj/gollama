@@ -96,6 +96,9 @@ echo "alias g=gollama" >> ~/.zshrc
 - `-ollama-dir`: Custom Ollama models directory
 - `-lm-dir`: Custom LM Studio models directory
 - `-no-cleanup`: Don't cleanup broken symlinks
+- `-s <search term>`: Search for models by name
+  - OR operator (`'term1|term2'`) returns models that match either term
+  - AND operator (`'term1&term2'`) returns models that match both terms
 - `-cleanup`: Remove all symlinked models and empty directories and exit
 - `-u`: Unload all running models
 - `-v`: Print the version and exit
