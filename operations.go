@@ -28,14 +28,14 @@ func runModel(model string, cfg *config.Config) tea.Cmd {
 
 	ollamaPath, err := exec.LookPath("ollama")
 	if err != nil {
-		logging.ErrorLogger.Printf("Error finding ollama binary: %v\n", err)
+		logging.ErrorLogger.Printf("error finding ollama binary: %v\n", err)
 		logging.ErrorLogger.Printf("If you're running Ollama in a container, make sure you updated the config file with the container name\n")
 		return nil
 	}
 	c := exec.Command(ollamaPath, "run", model)
 	return tea.ExecProcess(c, func(err error) tea.Msg {
 		if err != nil {
-			logging.ErrorLogger.Printf("Error running model: %v\n", err)
+			logging.ErrorLogger.Printf("error running model: %v\n", err)
 		}
 		return runFinishedMessage{err}
 	})
@@ -44,7 +44,7 @@ func runModel(model string, cfg *config.Config) tea.Cmd {
 func runDocker(container string, model string) tea.Cmd {
 	dockerPath, err := exec.LookPath("docker")
 	if err != nil {
-		logging.ErrorLogger.Printf("Error finding docker binary: %v\n", err)
+		logging.ErrorLogger.Printf("error finding docker binary: %v\n", err)
 		return nil
 	}
 
@@ -54,7 +54,7 @@ func runDocker(container string, model string) tea.Cmd {
 	c := exec.Command(dockerPath, args...)
 	return tea.ExecProcess(c, func(err error) tea.Msg {
 		if err != nil {
-			logging.ErrorLogger.Printf("Error running model in docker container: %v\n", err)
+			logging.ErrorLogger.Printf("error running model in docker container: %v\n", err)
 		}
 		return runFinishedMessage{err}
 	})
@@ -581,8 +581,6 @@ func openEditor(filePath string) tea.Cmd {
 }
 
 func createModelFromModelfile(modelName, modelfilePath string, client *api.Client) error {
-	// cmd := exec.Command("ollama", "create", "-f", modelfilePath, modelName)
-	// return cmd.Run()
 	ctx := context.Background()
 	req := &api.CreateRequest{
 		Name:      modelName,
@@ -650,4 +648,73 @@ func unloadModel(client *api.Client, modelName string) (string, error) {
 	}
 
 	return modelName, nil
+}
+
+func editModelfile(client *api.Client, modelName string) (string, error) {
+	if client == nil {
+		return "", fmt.Errorf("error: Client is nil")
+	}
+	ctx := context.Background()
+
+	// Fetch the current modelfile from the server
+	showResp, err := client.Show(ctx, &api.ShowRequest{Name: modelName})
+	if err != nil {
+		return "", fmt.Errorf("error fetching modelfile for %s: %v", modelName, err)
+	}
+	modelfileContent := showResp.Modelfile
+
+	if os.Getenv("EDITOR") == "" {
+		os.Setenv("EDITOR", "vim")
+	}
+
+	logging.DebugLogger.Printf("Editing modelfile for model: %s\n", modelName)
+
+	// Write the fetched content to a temporary file
+	tempDir := os.TempDir()
+	newModelfilePath := filepath.Join(tempDir, fmt.Sprintf("%s_modelfile.txt", modelName))
+	err = os.WriteFile(newModelfilePath, []byte(modelfileContent), 0644)
+	if err != nil {
+		return "", fmt.Errorf("error writing modelfile to temp file: %v", err)
+	}
+	defer os.Remove(newModelfilePath)
+
+	// Open the local modelfile in the editor
+	cmd := exec.Command(os.Getenv("EDITOR"), newModelfilePath)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	err = cmd.Run()
+	if err != nil {
+		return "", fmt.Errorf("error running editor: %v", err)
+	}
+
+	// Read the edited content from the local file
+	newModelfileContent, err := os.ReadFile(newModelfilePath)
+	if err != nil {
+		return "", fmt.Errorf("error reading edited modelfile: %v", err)
+	}
+
+	// If there were no changes, return early
+	if string(newModelfileContent) == modelfileContent {
+		return fmt.Sprintf("No changes made to model %s", modelName), nil
+	}
+
+	// Update the model on the server with the new modelfile content
+	createReq := &api.CreateRequest{
+		Name:      modelName,
+		Modelfile: string(newModelfileContent),
+	}
+
+	err = client.Create(ctx, createReq, func(resp api.ProgressResponse) error {
+		logging.InfoLogger.Printf("Create progress: %s\n", resp.Status)
+		return nil
+	})
+	if err != nil {
+		return "", fmt.Errorf("error updating model with new modelfile: %v", err)
+	}
+
+	// log to the console if we're not in a tea app
+	fmt.Printf("Model %s updated successfully\n", modelName)
+
+	return fmt.Sprintf("Model %s updated successfully, Press 'q' to return to the models list", modelName), nil
 }

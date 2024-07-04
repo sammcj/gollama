@@ -181,7 +181,7 @@ func (m *AppModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleAltScreenKey()
 	case key.Matches(msg, m.keys.ClearScreen):
 		return m.handleClearScreenKey()
-	case key.Matches(msg, m.keys.UpdateModel):
+	case key.Matches(msg, m.keys.EditModel):
 		return m.handleUpdateModelKey()
 	case key.Matches(msg, m.keys.UnloadModels):
 		return m.handleUnloadModelsKey()
@@ -426,18 +426,19 @@ func (m *AppModel) handleTopKey() (tea.Model, tea.Cmd) {
 
 func (m *AppModel) handleUpdateModelKey() (tea.Model, tea.Cmd) {
 	logging.DebugLogger.Println("UpdateModel key matched")
-	defer func() {
-		m.refreshList()
-	}()
 	if item, ok := m.list.SelectedItem().(Model); ok {
 		m.editing = true
-		modelfilePath, err := copyModelfile(item.Name, item.Name, m.client)
+		message, err := editModelfile(m.client, item.Name)
 		if err != nil {
-			m.message = fmt.Sprintf("Error copying modelfile: %v", err)
-			return m, nil
+			m.message = fmt.Sprintf("Error updating model: %v", err)
+		} else {
+			m.message = message
 		}
-		return m, openEditor(modelfilePath)
+		m.clearScreen()
+		m.refreshList()
+		return m, nil
 	}
+	m.refreshList()
 	return m, nil
 }
 
@@ -603,7 +604,11 @@ func (m *AppModel) View() string {
 		return m.filterView()
 	}
 
-	view := m.list.View() + "\n" + m.message
+	view := m.list.View()
+
+	if m.message != "" {
+		view += "\n\n" + lipgloss.NewStyle().Foreground(lipgloss.Color("205")).Render(m.message)
+	}
 
 	if m.showProgress {
 		view += "\n" + m.progress.View()
@@ -756,7 +761,7 @@ func (k KeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Space, k.Delete, k.RunModel, k.LinkModel, k.LinkAllModels, k.CopyModel, k.PushModel}, // first column
 		{k.SortByName, k.SortBySize, k.SortByModified, k.SortByQuant, k.SortByFamily},           // second column
-		{k.Top, k.UpdateModel, k.InspectModel, k.Quit},                                          // third column
+		{k.Top, k.EditModel, k.InspectModel, k.Quit},                                            // third column
 	}
 }
 
