@@ -33,8 +33,9 @@ The project started off as a rewrite of my [llamalink](https://smcleod.net/2024/
 It's in the early stages of development, so there are plenty of bugs and missing features, but I'm already finding it useful for managing my models, especially for cleaning up old models.
 
 - Interactive TUI with sorting and filtering capabilities.
-- List available models and display basic metadata such as size, quantization level, model family, and modified date.
-- Sort models by name, size, modification date, quantization level, and family.
+- List available models and display basic metadata such as size, quantisation level, model family, and modified date.
+- Edit / update a model's Modelfile.
+- Sort models by name, size, modification date, quantisation level, and family.
 - Select and delete models.
 - Inspect model for additional details.
 - Link models to LM Studio.
