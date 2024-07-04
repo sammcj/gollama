@@ -16,6 +16,8 @@ The application allows users to interactively select models, sort them by variou
   - [Installation](#installation)
   - [Usage](#usage)
     - [Key Bindings](#key-bindings)
+      - [Top](#top)
+      - [Inspect](#inspect)
       - [Command-line Options](#command-line-options)
   - [Configuration](#configuration)
   - [Installation and build from source](#installation-and-build-from-source)
@@ -76,30 +78,43 @@ echo "alias g=gollama" >> ~/.zshrc
 - `i`: Inspect model
 - `t`: Top (show running models)  _**(Work in progress)**_
 - `D`: Delete model
+- `e`: Edit model **new**
 - `c`: Copy model
-- `r`: Rename model _**(Work in progress)**_
-- `u`: Update model (edit Modelfile) _**(Work in progress)**_
 - `U`: Unload all models
 - `P`: Push model
 - `n`: Sort by name
 - `s`: Sort by size
 - `m`: Sort by modified
-- `k`: Sort by quantization
+- `k`: Sort by quantisation
 - `f`: Sort by family
 - `l`: Link model to LM Studio
 - `L`: Link all models to LM Studio
+- `r`: Rename model _**(Work in progress)**_
 - `q`: Quit
+
+#### Top
+
+Top (`t`)
+
+![](screenshots/gollama-top.jpg)
+
+#### Inspect
+
+Inspect (`i`)
+
+![](screenshots/gollama-inspect.png)
 
 #### Command-line Options
 
 - `-l`: List all available Ollama models and exit
-- `-ollama-dir`: Custom Ollama models directory
-- `-lm-dir`: Custom LM Studio models directory
-- `-no-cleanup`: Don't cleanup broken symlinks
-- `-s <search term>`: Search for models by name
+- `-s <search term>`: Search for models by name **new**
   - OR operator (`'term1|term2'`) returns models that match either term
   - AND operator (`'term1&term2'`) returns models that match both terms
+- `-e <model>`: Edit the Modelfile for a model **new**
+- `-ollama-dir`: Custom Ollama models directory
+- `-lm-dir`: Custom LM Studio models directory
 - `-cleanup`: Remove all symlinked models and empty directories and exit
+- `-no-cleanup`: Don't cleanup broken symlinks
 - `-u`: Unload all running models
 - `-v`: Print the version and exit
 
@@ -115,17 +130,25 @@ List (`gollama -l`):
 
 ![](screenshots/cli-list.jpg)
 
-##### Inspect
+##### Edit
 
-Inspect (`i`)
+Gollama can be called with `-e` to edit the Modelfile for a model.
 
-![](screenshots/gollama-inspect.png)
+```shell
+gollama -e my-model
+```
 
-##### Top
+##### Search
 
-Top (`t`)
+Gollama can be called with `-s` to search for models by name.
 
-![](screenshots/gollama-top.jpg)
+```shell
+gollama -s my-model # returns models that contain 'my-model'
+
+gollama -s 'my-model|my-other-model' # returns models that contain either 'my-model' or 'my-other-model'
+
+gollama -s 'my-model&instruct' # returns models that contain both 'my-model' and 'instruct'
+```
 
 ## Configuration
 
@@ -228,9 +251,10 @@ Please fork the repository and create a pull request with your changes.
 - [Llama.cpp](https://github.com/ggerganov/llama.cpp)
 - [Charmbracelet](https://charm.sh/)
 
-Thank you to folks such as Matt Williams for giving this a shot and providing feedback.
+Thank you to folks such as Matt Williams and Fahd Mirza for giving this a shot and providing feedback.
 
 [![Matt Williams - My favourite way to run Ollama: Gollama](https://img.youtube.com/vi/OCXuYm6LKgE/0.jpg)](https://www.youtube.com/watch?v=OCXuYm6LKgE)
+[![Fahd Mirza - Gollama - Manage Ollama Models Locally](https://img.youtube.com/vi/24yqFrQV-4Q/0.jpg)](https://www.youtube.com/watch?v=24yqFrQV-4Q)
 
 ## License
 

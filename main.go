@@ -73,7 +73,7 @@ var Version string // Version is set by the build system
 
 func main() {
 	if Version == "" {
-		Version = "1.13.1"
+		Version = "1.16.0"
 	}
 
 	cfg, err := config.LoadConfig()
@@ -97,6 +97,7 @@ func main() {
 	unloadModelsFlag := flag.Bool("u", false, "Unload all models and exit")
 	versionFlag := flag.Bool("v", false, "Print the version and exit")
 	hostFlag := flag.String("h", "", "Override the config file to set the Ollama API host (e.g. http://localhost:11434)")
+	editFlag := flag.Bool("e", false, "Edit a model's modelfile")
 
 	flag.Parse()
 
@@ -248,6 +249,16 @@ func main() {
 		os.Exit(0)
 	}
 
+	if *editFlag {
+		if flag.NArg() == 0 {
+			fmt.Println("Usage: gollama -e <model_name>")
+			os.Exit(1)
+		}
+		modelName := flag.Args()[0]
+		editModelfile(client, modelName)
+		os.Exit(0)
+	}
+
 	l := list.New(items, NewItemDelegate(&app), width, height-5)
 	l.Title = "Ollama Models"
 	l.Help.Styles.ShortDesc.Bold(true)
@@ -276,7 +287,7 @@ func main() {
 			keys.CopyModel,
 			keys.PushModel,
 			keys.Top,
-			keys.UpdateModel,
+			keys.EditModel,
 			keys.Help,
 		}
 	}

@@ -25,7 +25,7 @@ type KeyMap struct {
 	PushModel      key.Binding
 	Top            key.Binding
 	AltScreen      key.Binding
-	UpdateModel    key.Binding
+	EditModel      key.Binding
 	UnloadModels   key.Binding
 	Help           key.Binding
 	RenameModel    key.Binding
@@ -48,6 +48,7 @@ func NewKeyMap() *KeyMap {
 		Delete:         key.NewBinding(key.WithKeys("D"), key.WithHelp("D", "delete")),
 		Help:           key.NewBinding(key.WithKeys("h"), key.WithHelp("h", "help")),
 		InspectModel:   key.NewBinding(key.WithKeys("i"), key.WithHelp("i", "inspect")),
+		EditModel:      key.NewBinding(key.WithKeys("e"), key.WithHelp("e", "edit model")),
 		LinkAllModels:  key.NewBinding(key.WithKeys("L"), key.WithHelp("L", "link all")),
 		LinkModel:      key.NewBinding(key.WithKeys("l"), key.WithHelp("l", "link (L=all)")),
 		PushModel:      key.NewBinding(key.WithKeys("P"), key.WithHelp("P", "push")),
@@ -59,7 +60,6 @@ func NewKeyMap() *KeyMap {
 		SortByQuant:    key.NewBinding(key.WithKeys("k"), key.WithHelp("k", "^quant")),
 		SortBySize:     key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "^size")),
 		Top:            key.NewBinding(key.WithKeys("t"), key.WithHelp("t", "top")),
-		UpdateModel:    key.NewBinding(key.WithKeys("u"), key.WithHelp("u", "update model")),
 		UnloadModels:   key.NewBinding(key.WithKeys("U"), key.WithHelp("U", "unload all")),
 	}
 }
