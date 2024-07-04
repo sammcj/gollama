@@ -694,6 +694,11 @@ func editModelfile(client *api.Client, modelName string) (string, error) {
 		return "", fmt.Errorf("error reading edited modelfile: %v", err)
 	}
 
+	// If there were no changes, return early
+	if string(newModelfileContent) == modelfileContent {
+		return fmt.Sprintf("No changes made to model %s", modelName), nil
+	}
+
 	// Update the model on the server with the new modelfile content
 	createReq := &api.CreateRequest{
 		Name:      modelName,
