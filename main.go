@@ -89,6 +89,7 @@ func main() {
 	}
 
 	listFlag := flag.Bool("l", false, "List all available Ollama models and exit")
+	linkFlag := flag.Bool("L", false, "Link a model to a specific name")
 	ollamaDirFlag := flag.String("ollama-dir", cfg.OllamaAPIKey, "Custom Ollama models directory")
 	lmStudioDirFlag := flag.String("lm-dir", cfg.LMStudioFilePaths, "Custom LM Studio models directory")
 	noCleanupFlag := flag.Bool("no-cleanup", false, "Don't cleanup broken symlinks")
@@ -215,6 +216,26 @@ func main() {
 			searchTerms = []string{*searchFlag}
 		}
 		searchModels(models, searchTerms...)
+		os.Exit(0)
+	}
+
+	if *linkFlag {
+		// Make sure we're not running on a remote host by checking the API URL to ensure it contains localhost or 127.0.0.1
+		if !isLocalhost(cfg.OllamaAPIURL) {
+			fmt.Println("Error: Linking models is only supported on localhost")
+			os.Exit(1)
+		}
+		// link all models
+		for _, model := range models {
+			message, err := linkModel(model.Name, cfg.LMStudioFilePaths, false, client)
+			logging.InfoLogger.Println(message)
+			fmt.Printf("Linking model %s\n", model.Name)
+			if err != nil {
+				logging.ErrorLogger.Printf("Error linking model %s: %v\n", model.Name, err)
+			} else {
+				logging.InfoLogger.Printf("Model %s linked\n", model.Name)
+			}
+		}
 		os.Exit(0)
 	}
 

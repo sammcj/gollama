@@ -108,6 +108,7 @@ Inspect (`i`)
 #### Command-line Options
 
 - `-l`: List all available Ollama models and exit
+- `-L`: Link all available Ollama models to LM Studio and exit **new**
 - `-s <search term>`: Search for models by name **new**
   - OR operator (`'term1|term2'`) returns models that match either term
   - AND operator (`'term1&term2'`) returns models that match both terms
