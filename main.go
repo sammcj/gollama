@@ -220,6 +220,11 @@ func main() {
 	}
 
 	if *linkFlag {
+		// Make sure we're not running on a remote host by checking the API URL to ensure it contains localhost or 127.0.0.1
+		if !isLocalhost(cfg.OllamaAPIURL) {
+			fmt.Println("Error: Linking models is only supported on localhost")
+			os.Exit(1)
+		}
 		// link all models
 		for _, model := range models {
 			message, err := linkModel(model.Name, cfg.LMStudioFilePaths, false, client)

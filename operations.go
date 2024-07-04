@@ -718,3 +718,7 @@ func editModelfile(client *api.Client, modelName string) (string, error) {
 
 	return fmt.Sprintf("Model %s updated successfully, Press 'q' to return to the models list", modelName), nil
 }
+
+func isLocalhost(url string) bool {
+	return strings.Contains(url, "localhost") || strings.Contains(url, "127.0.0.1")
+}
