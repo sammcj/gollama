@@ -89,6 +89,20 @@ func (m *AppModel) startPushModel(modelName string) tea.Cmd {
 	)
 }
 
+func (m *AppModel) startPullModel(modelName string) tea.Cmd {
+	logging.InfoLogger.Printf("Pulling model: %s\n", modelName)
+
+	// Initialize the progress model
+	m.progress = progress.New(progress.WithDefaultGradient())
+
+	return tea.Batch(
+		tea.Tick(time.Millisecond*100, func(t time.Time) tea.Msg {
+			return progressMsg{modelName: modelName}
+		}),
+		m.pullModelCmd(modelName),
+	)
+}
+
 func (m *AppModel) pushModelCmd(modelName string) tea.Cmd {
 	return func() tea.Msg {
 		ctx := context.Background()
@@ -101,6 +115,21 @@ func (m *AppModel) pushModelCmd(modelName string) tea.Cmd {
 			return pushErrorMsg{err}
 		}
 		return pushSuccessMsg{modelName}
+	}
+}
+
+func (m *AppModel) pullModelCmd(modelName string) tea.Cmd {
+	return func() tea.Msg {
+		ctx := context.Background()
+		req := &api.PullRequest{Name: modelName}
+		err := m.client.Pull(ctx, req, func(resp api.ProgressResponse) error {
+			m.progress.SetPercent(float64(resp.Completed) / float64(resp.Total))
+			return nil
+		})
+		if err != nil {
+			return pullErrorMsg{err}
+		}
+		return pullSuccessMsg{modelName}
 	}
 }
 

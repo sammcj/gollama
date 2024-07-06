@@ -51,6 +51,7 @@ type AppModel struct {
 	remoteHost        bool
 }
 
+// TODO: Refactor: we don't need unique message types for every single action
 type progressMsg struct {
 	modelName string
 }
@@ -62,6 +63,14 @@ type pushSuccessMsg struct {
 }
 
 type pushErrorMsg struct {
+	err error
+}
+
+type pullSuccessMsg struct {
+	modelName string
+}
+
+type pullErrorMsg struct {
 	err error
 }
 
