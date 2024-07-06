@@ -84,7 +84,7 @@ echo "alias g=gollama" >> ~/.zshrc
 - `e`: Edit model **new**
 - `c`: Copy model
 - `U`: Unload all models
-- `p`: Pull model **new**
+- `p`: Pull model **new** _**(Work in progress, no progress bar yet)**_
 - `P`: Push model
 - `n`: Sort by name
 - `s`: Sort by size
