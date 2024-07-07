@@ -6,7 +6,7 @@ Gollama is a tool for managing Ollama models.
 
 It provides a TUI (Text User Interface) for listing, inspecting, deleting, copying, and pushing Ollama models as well as optionally linking them to LM Studio.
 
-The application allows users to interactively select models, sort them by various criteria, and perform actions on them using hotkeys.
+The application allows users to interactively select models, sort, filter, edit, run, unload and perform actions on them using hotkeys.
 
 ![](screenshots/gollama-v1.0.0.jpg)
 
@@ -32,19 +32,20 @@ The application allows users to interactively select models, sort them by variou
 
 The project started off as a rewrite of my [llamalink](https://smcleod.net/2024/03/llamalink-ollama-to-lm-studio-llm-model-linker/) project, but I decided to expand it to include more features and make it more user-friendly.
 
-It's in the early stages of development, so there are plenty of bugs and missing features, but I'm already finding it useful for managing my models, especially for cleaning up old models.
+It's in active development, so there are some bugs and missing features, however I'm finding it useful for managing my models every day, especially for cleaning up old models.
 
-- Interactive TUI with sorting and filtering capabilities.
-- List available models and display basic metadata such as size, quantisation level, model family, and modified date.
-- Edit / update a model's Modelfile.
-- Sort models by name, size, modification date, quantisation level, and family.
-- Select and delete models.
-- Inspect model for additional details.
-- Link models to LM Studio.
-- Copy models.
-- Push models to a registry.
-- Show running models.
-- Plenty more comings soon if I continue to find the tool useful.
+- List available models
+- Display metadata such as size, quantisation level, model family, and modified date
+- Edit / update a model's Modelfile
+- Sort models by name, size, modification date, quantisation level, family etc
+- Select and delete models
+- Run and unload models
+- Inspect model for additional details
+- Link models to LM Studio
+- Copy / rename models
+- Push models to a registry
+- Show running models
+- Has some cool bugs
 
 ## Installation
 
