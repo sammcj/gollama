@@ -256,8 +256,9 @@ Please fork the repository and create a pull request with your changes.
 - [Llama.cpp](https://github.com/ggerganov/llama.cpp)
 - [Charmbracelet](https://charm.sh/)
 
-Thank you to folks such as Matt Williams and Fahd Mirza for giving this a shot and providing feedback.
+Thank you to folks such as Matt Williams, Fahd Mirza and AI Code King for giving this a shot and providing feedback.
 
+[![AI Code King - Easiest & Interactive way to Manage & Run Ollama Models Locally](https://img.youtube.com/vi/T4uiTnacyhI/0.jpg)](https://www.youtube.com/watch?v=T4uiTnacyhI)
 [![Matt Williams - My favourite way to run Ollama: Gollama](https://img.youtube.com/vi/OCXuYm6LKgE/0.jpg)](https://www.youtube.com/watch?v=OCXuYm6LKgE)
 [![Fahd Mirza - Gollama - Manage Ollama Models Locally](https://img.youtube.com/vi/24yqFrQV-4Q/0.jpg)](https://www.youtube.com/watch?v=24yqFrQV-4Q)
 
