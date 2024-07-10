@@ -76,7 +76,7 @@ jobs:
       - uses: robherley/go-test-action@a612d1675dda7397d3bced585f8a2a3a8545455f # v0
 
       - name: Upload artefacts
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
+        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4
         if: ${{ startsWith(github.ref, 'refs/heads/main') && !contains(github.event.head_commit.message, '[skip ci]') && ! contains(github.event.pull_request.title, '[skip ci]') }}
         with:
           name: gollama
