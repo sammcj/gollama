@@ -11,13 +11,13 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/table"
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/ollama/ollama/api"
 
 	"github.com/sammcj/gollama/logging"
 )
-
-type View int
 
 const (
 	MainView View = iota
@@ -41,6 +41,46 @@ var topRunning = false
 
 func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
+
+	if m.pulling {
+		switch msg := msg.(type) {
+		case tea.KeyMsg:
+			if m.newModelPull {
+				switch msg.Type {
+				case tea.KeyEnter:
+					m.newModelPull = false
+					m.pullProgress = 0.01 // Start progress immediately
+					return m, tea.Batch(
+						m.startPullModel(m.pullInput.Value()),
+						m.updateProgressCmd(),
+					)
+				case tea.KeyCtrlC, tea.KeyEsc:
+					m.pulling = false
+					m.newModelPull = false
+					m.pullInput.Reset()
+					return m, nil
+				}
+				var cmd tea.Cmd
+				m.pullInput, cmd = m.pullInput.Update(msg)
+				return m, cmd
+			} else {
+				if msg.Type == tea.KeyCtrlC {
+					m.pulling = false
+					m.pullProgress = 0
+					return m, nil
+				}
+			}
+		case pullSuccessMsg:
+			return m.handlePullSuccessMsg(msg)
+		case pullErrorMsg:
+			return m.handlePullErrorMsg(msg)
+		case progressMsg:
+			if m.pullProgress < 1.0 {
+				m.pullProgress = msg.progress
+				return m, m.updateProgressCmd()
+			}
+		}
+	}
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		return m.handleKeyMsg(msg)
@@ -61,7 +101,6 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		m.list.SetSize(m.width, m.height)
 		return m, nil
-
 	default:
 		m.list, cmd = m.list.Update(msg)
 		return m, cmd
@@ -101,6 +140,18 @@ func (m *AppModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	// Handle other keys
 	switch msg.String() {
+	case "ctrl+c":
+		if m.pulling {
+			m.pulling = false
+			m.pullProgress = 0
+			m.pullInput.Reset()
+			return m, nil
+		}
+		if m.editing {
+			m.editing = false
+			return m, nil
+		}
+		return m, tea.Quit
 	case "q":
 		if m.list.FilterState() == list.FilterApplied {
 			logging.DebugLogger.Println("Clearing filter with 'q' key")
@@ -129,12 +180,6 @@ func (m *AppModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		} else {
 			return m, nil
 		}
-	case "ctrl+c":
-		if m.editing {
-			m.editing = false
-			return m, nil
-		}
-		return m, tea.Quit
 	}
 
 	if m.confirmDeletion {
@@ -197,6 +242,8 @@ func (m *AppModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handlePullModelKey()
 	case key.Matches(msg, m.keys.RenameModel):
 		return m.handleRenameModelKey()
+	case key.Matches(msg, m.keys.PullNewModel):
+		return m.handlePullNewModelKey()
 	case key.Matches(msg, m.keys.InspectModel):
 		return m.handleInspectModelKey()
 	case key.Matches(msg, m.keys.Top):
@@ -313,14 +360,36 @@ func (m *AppModel) handlePushErrorMsg(msg pushErrorMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m *AppModel) handlePullSuccessMsg(msg pullSuccessMsg) (tea.Model, tea.Cmd) {
-	m.message = fmt.Sprintf("Successfully pulled model: %s\n", msg.modelName)
-	return m, nil
+	m.pulling = false
+	m.newModelPull = false
+	m.pullProgress = 0
+	m.message = fmt.Sprintf("Successfully pulled model: %s", msg.modelName)
+	return m, tea.Batch(
+		m.refreshModelsAfterPull(),
+		func() tea.Msg {
+			// This will force a refresh of the main view
+			return tea.WindowSizeMsg{Width: m.width, Height: m.height}
+		},
+	)
 }
 
 func (m *AppModel) handlePullErrorMsg(msg pullErrorMsg) (tea.Model, tea.Cmd) {
-	logging.ErrorLogger.Printf("Error pulling model: %v\n", msg.err)
-	m.message = fmt.Sprintf("Error pulling model: %v\n", msg.err)
-	return m, nil
+	m.pulling = false
+	m.pullProgress = 0
+	m.message = fmt.Sprintf("Error pulling model: %v", msg.err)
+	return m, func() tea.Msg {
+		// This will force a refresh of the main view
+		return tea.WindowSizeMsg{Width: m.width, Height: m.height}
+	}
+}
+
+func (m *AppModel) updateProgressCmd() tea.Cmd {
+	return tea.Tick(time.Millisecond*100, func(t time.Time) tea.Msg {
+		return progressMsg{
+			modelName: m.pullInput.Value(),
+			progress:  m.pullProgress,
+		}
+	})
 }
 
 func (m *AppModel) handleGenericMsg(msg genericMsg) (tea.Model, tea.Cmd) {
@@ -552,13 +621,57 @@ func (m *AppModel) handlePushModelKey() (tea.Model, tea.Cmd) {
 }
 
 func (m *AppModel) handlePullModelKey() (tea.Model, tea.Cmd) {
-	// TODO: Add progress bar
 	logging.DebugLogger.Println("PullModel key matched")
 	if item, ok := m.list.SelectedItem().(Model); ok {
 		m.message = lipgloss.NewStyle().Foreground(lipgloss.Color("129")).Render(fmt.Sprintf("Pulling model: %s\n", item.Name))
+		m.pulling = true
+		m.pullProgress = 0
 		return m, m.startPullModel(item.Name)
 	}
 	return m, nil
+}
+
+func (m *AppModel) handlePullNewModelKey() (tea.Model, tea.Cmd) {
+	m.pullInput = textinput.New()
+	m.pullInput.Placeholder = "Enter model name (e.g. llama3:8b-instruct)"
+	m.pullInput.Focus()
+	m.pulling = true
+	m.newModelPull = true
+	return m, textinput.Blink
+}
+
+func (m *AppModel) updatePullInput(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
+	m.pullInput, cmd = m.pullInput.Update(msg)
+
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.Type {
+		case tea.KeyEnter:
+			return m, m.startPullModel(m.pullInput.Value())
+		case tea.KeyEsc:
+			m.pulling = false
+			m.pullInput.Reset()
+			return m, nil
+		}
+	}
+
+	return m, cmd
+}
+
+func (m *AppModel) startPullNewModel(modelName string) tea.Cmd {
+	return func() tea.Msg {
+		ctx := context.Background()
+		req := &api.PullRequest{Name: modelName}
+		err := m.client.Pull(ctx, req, func(resp api.ProgressResponse) error {
+			m.pullProgress = float64(resp.Completed) / float64(resp.Total)
+			return nil
+		})
+		if err != nil {
+			return pullErrorMsg{err}
+		}
+		return pullSuccessMsg{modelName}
+	}
 }
 
 func (m *AppModel) handleInspectModelKey() (tea.Model, tea.Cmd) {
@@ -627,6 +740,22 @@ func (m *AppModel) View() string {
 	}
 	if m.filtering() {
 		return m.filterView()
+	}
+
+	if m.pulling {
+		if m.newModelPull && m.pullProgress == 0 {
+			return fmt.Sprintf(
+				"%s\n%s",
+				"Enter model name to pull:",
+				m.pullInput.View(),
+			)
+		}
+		return fmt.Sprintf(
+			"Pulling model: %.0f%%\n%s\n%s",
+			m.pullProgress*100,
+			m.progress.ViewAs(m.pullProgress),
+			"Press Ctrl+C to cancel",
+		)
 	}
 
 	view := m.list.View()
@@ -826,4 +955,18 @@ func (m *AppModel) printFullHelp() string {
 	// Render the table view
 	return "\n" + t.View() + "\nPress 'q' or `esc` to return to the main view."
 
+}
+
+// Add this method to refresh the model list after pulling:
+func (m *AppModel) refreshModelsAfterPull() tea.Cmd {
+	return func() tea.Msg {
+		ctx := context.Background()
+		resp, err := m.client.List(ctx)
+		if err != nil {
+			return pullErrorMsg{err}
+		}
+		m.models = parseAPIResponse(resp)
+		m.refreshList()
+		return nil
+	}
 }

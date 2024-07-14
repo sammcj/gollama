@@ -80,12 +80,13 @@ echo "alias g=gollama" >> ~/.zshrc
 - `Space`: Select
 - `Enter`: Run model (Ollama run)
 - `i`: Inspect model
-- `t`: Top (show running models)  _**(Work in progress)**_
+- `t`: Top (show running models)
 - `D`: Delete model
 - `e`: Edit model **new**
 - `c`: Copy model
 - `U`: Unload all models
-- `p`: Pull model **new** _**(Work in progress, no progress bar yet)**_
+- `p`: Pull an existing model **new**
+- `g`: Pull (get) new model **new**
 - `P`: Push model
 - `n`: Sort by name
 - `s`: Sort by size
