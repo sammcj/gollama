@@ -15,6 +15,7 @@ import (
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/table"
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/ollama/ollama/api"
@@ -48,12 +49,16 @@ type AppModel struct {
 	altScreenActive   bool
 	view              View
 	showProgress      bool
-	remoteHost        bool
+	pullInput         textinput.Model
+	pulling           bool
+	pullProgress      float64
+	newModelPull      bool
 }
 
 // TODO: Refactor: we don't need unique message types for every single action
 type progressMsg struct {
 	modelName string
+	progress  float64
 }
 
 type runFinishedMessage struct{ err error }
@@ -77,6 +82,8 @@ type pullErrorMsg struct {
 type genericMsg struct {
 	message string
 }
+
+type View int
 
 var Version string // Version is set by the build system
 
@@ -199,6 +206,9 @@ func main() {
 		noCleanup:         *noCleanupFlag,
 		cfg:               &cfg,
 		progress:          progress.New(progress.WithDefaultGradient()),
+		pullInput:         textinput.New(),
+		pulling:           false,
+		pullProgress:      0,
 	}
 
 	if *ollamaDirFlag == "" {
