@@ -23,6 +23,7 @@ type KeyMap struct {
 	Quit           key.Binding
 	CopyModel      key.Binding
 	PushModel      key.Binding
+	PullModel      key.Binding
 	Top            key.Binding
 	AltScreen      key.Binding
 	EditModel      key.Binding
@@ -52,6 +53,7 @@ func NewKeyMap() *KeyMap {
 		LinkAllModels:  key.NewBinding(key.WithKeys("L"), key.WithHelp("L", "link all")),
 		LinkModel:      key.NewBinding(key.WithKeys("l"), key.WithHelp("l", "link (L=all)")),
 		PushModel:      key.NewBinding(key.WithKeys("P"), key.WithHelp("P", "push")),
+		PullModel:      key.NewBinding(key.WithKeys("p"), key.WithHelp("p", "pull")),
 		Quit:           key.NewBinding(key.WithKeys("q")),
 		RunModel:       key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "run")),
 		SortByFamily:   key.NewBinding(key.WithKeys("f"), key.WithHelp("f", "^family")),

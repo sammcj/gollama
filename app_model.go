@@ -193,6 +193,8 @@ func (m *AppModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleCopyModelKey()
 	case key.Matches(msg, m.keys.PushModel):
 		return m.handlePushModelKey()
+	case key.Matches(msg, m.keys.PullModel):
+		return m.handlePullModelKey()
 	case key.Matches(msg, m.keys.RenameModel):
 		return m.handleRenameModelKey()
 	case key.Matches(msg, m.keys.InspectModel):
@@ -255,6 +257,8 @@ func (m *AppModel) handleRunFinishedMessage(msg runFinishedMessage) (tea.Model, 
 	return m, nil
 }
 
+// TODO: Refactor: Look into making generic handler functions
+
 func (m *AppModel) handleProgressMsg(msg progressMsg) (tea.Model, tea.Cmd) {
 	return m, tea.Tick(time.Millisecond*100, func(t time.Time) tea.Msg {
 		return progressMsg{modelName: msg.modelName}
@@ -305,6 +309,17 @@ func (m *AppModel) handlePushErrorMsg(msg pushErrorMsg) (tea.Model, tea.Cmd) {
 	logging.ErrorLogger.Printf("Error pushing model: %v\n", msg.err)
 	m.message = fmt.Sprintf("Error pushing model: %v\n", msg.err)
 	m.showProgress = false // Hide progress bar
+	return m, nil
+}
+
+func (m *AppModel) handlePullSuccessMsg(msg pullSuccessMsg) (tea.Model, tea.Cmd) {
+	m.message = fmt.Sprintf("Successfully pulled model: %s\n", msg.modelName)
+	return m, nil
+}
+
+func (m *AppModel) handlePullErrorMsg(msg pullErrorMsg) (tea.Model, tea.Cmd) {
+	logging.ErrorLogger.Printf("Error pulling model: %v\n", msg.err)
+	m.message = fmt.Sprintf("Error pulling model: %v\n", msg.err)
 	return m, nil
 }
 
@@ -532,6 +547,16 @@ func (m *AppModel) handlePushModelKey() (tea.Model, tea.Cmd) {
 		m.message = lipgloss.NewStyle().Foreground(lipgloss.Color("129")).Render(fmt.Sprintf("Pushing model: %s\n", item.Name))
 		m.showProgress = true // Show progress bar
 		return m, m.startPushModel(item.Name)
+	}
+	return m, nil
+}
+
+func (m *AppModel) handlePullModelKey() (tea.Model, tea.Cmd) {
+	// TODO: Add progress bar
+	logging.DebugLogger.Println("PullModel key matched")
+	if item, ok := m.list.SelectedItem().(Model); ok {
+		m.message = lipgloss.NewStyle().Foreground(lipgloss.Color("129")).Render(fmt.Sprintf("Pulling model: %s\n", item.Name))
+		return m, m.startPullModel(item.Name)
 	}
 	return m, nil
 }

@@ -89,6 +89,11 @@ func (m *AppModel) startPushModel(modelName string) tea.Cmd {
 	)
 }
 
+func (m *AppModel) startPullModel(modelName string) tea.Cmd {
+	logging.InfoLogger.Printf("Pulling model: %s\n", modelName)
+	return m.pullModelCmd(modelName)
+}
+
 func (m *AppModel) pushModelCmd(modelName string) tea.Cmd {
 	return func() tea.Msg {
 		ctx := context.Background()
@@ -101,6 +106,23 @@ func (m *AppModel) pushModelCmd(modelName string) tea.Cmd {
 			return pushErrorMsg{err}
 		}
 		return pushSuccessMsg{modelName}
+	}
+}
+
+func (m *AppModel) pullModelCmd(modelName string) tea.Cmd {
+	return func() tea.Msg {
+		ctx := context.Background()
+		req := &api.PullRequest{Name: modelName}
+		err := m.client.Pull(ctx, req, func(resp api.ProgressResponse) error {
+			m.progress.SetPercent(float64(resp.Completed) / float64(resp.Total))
+			return nil
+		})
+		// If the progress is 100%, the model has been successfully pulled, return a success message
+		if err == nil {
+			return pullSuccessMsg{modelName}
+		}
+		// If the progress is not 100%, the model has not been successfully pulled, return an error message
+		return pullErrorMsg{err}
 	}
 }
 
