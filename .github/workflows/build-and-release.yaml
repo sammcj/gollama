@@ -59,8 +59,8 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           dry_run: true
-          tag_prefix:
-            # blank to remove the v prefix
+          # tag_prefix:
+          #   # blank to remove the v prefix
 
       # Build
       - name: Build
@@ -114,8 +114,8 @@ jobs:
           pre_release_branches: dev
           dry_run: ${{ !startsWith(github.ref, 'refs/heads/main') }}
           custom_tag: ${{ steps.get_version.outputs.new_tag }}
-          tag_prefix:
-            # blank to remove the v prefix
+          # tag_prefix:
+          # blank to remove the v prefix
 
   # if the workflow is cancelled, don't mark the workflow as failed
   cleanup:

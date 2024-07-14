@@ -61,7 +61,7 @@ test: ## Run test
 	go test -v ./...
 
 build: ## Run build
-	@$(eval GOLLAMA_VERSION := $(shell if [ -z "$(GOLLAMA_VERSION)" ]; then echo "$(shell git describe --tags --abbrev=0)"; else echo "$(GOLLAMA_VERSION)"; fi))
+	@$(eval GOLLAMA_VERSION := $(shell if [ -z "$(GOLLAMA_VERSION)" ]; then echo "$(shell git describe --tags --abbrev=0 | sed 's/^v//')"; else echo "$(GOLLAMA_VERSION)"; fi))
 	@echo "Bumping version to: $(GOLLAMA_VERSION)"
 	@export GOLLAMA_VERSION=$(GOLLAMA_VERSION)
 	@if [ "$(shell uname)" == "Darwin" ]; then \
@@ -74,7 +74,7 @@ build: ## Run build
 	@echo "Build completed, run ./gollama"
 
 ci: ## build for linux and macOS
-	$(eval GOLLAMA_VERSION := $(shell if [ -z "$(GOLLAMA_VERSION)" ]; then echo "$(shell git describe --tags --abbrev=0)"; else echo "$(GOLLAMA_VERSION)"; fi))
+	$(eval GOLLAMA_VERSION := $(shell if [ -z "$(GOLLAMA_VERSION)" ]; then echo "$(shell git describe --tags --abbrev=0 | sed 's/^v//')"; else echo "$(GOLLAMA_VERSION)"; fi))
 	@if [ "$(shell uname)" == "Darwin" ]; then \
 		sed -i '' -e "s/Version = \".*\"/Version = \"$(GOLLAMA_VERSION)\"/g" main.go ; \
 	else \
