@@ -2,7 +2,7 @@
 
 ![](gollama-logo.png)
 
-Gollama is a tool for managing Ollama models.
+Gollama is a macOS / Linux tool for managing Ollama models.
 
 It provides a TUI (Text User Interface) for listing, inspecting, deleting, copying, and pushing Ollama models as well as optionally linking them to LM Studio.
 
