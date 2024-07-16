@@ -6,7 +6,7 @@ on:
 
 jobs:
   pr_agent_job:
-    if: ${{ github.event.sender.type != 'Bot' && github.event.sender.login != 'renovate[bot]' && startsWith(github.ref, 'refs/heads/main') && ! contains(github.event.pull_request.title, '[skip ci]') }}
+    if: ${{ github.event.sender.type != 'Bot' && github.event.sender.login != 'renovate[bot]' && ! contains(github.event.pull_request.title, '[skip ci]') }}
     runs-on: ubuntu-latest
     permissions:
       issues: write
