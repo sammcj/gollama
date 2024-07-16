@@ -1,0 +1,24 @@
+name: "PR Agent Bot"
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review]
+  # issue_comment:
+
+jobs:
+  pr_agent_job:
+    if: ${{ github.event.sender.type != 'Bot' && github.event.sender.login != 'renovate[bot]' && startsWith(github.ref, 'refs/heads/main') && ! contains(github.event.pull_request.title, '[skip ci]') }}
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+      contents: write
+
+    name: Run pr agent on every pull request, respond to user comments
+    steps:
+      - name: PR Agent action step
+        id: pragent
+        uses: Codium-ai/pr-agent@main
+        env:
+          OPENAI_KEY: ${{ secrets.OPENAI_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Options are as per config file, in caps: https://github.com/Codium-ai/pr-agent/blob/main/pr_agent/settings/configuration.toml
