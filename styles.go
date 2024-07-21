@@ -68,6 +68,9 @@ func quantColour(quant string) lipgloss.Color {
 	if !exists {
 		index = 0 // Default to lightest if unknown quant
 	}
+	if index >= len(synthGradient) {
+		index = len(synthGradient) - 1 // Use the last valid index
+	}
 	return lipgloss.Color(synthGradient[index])
 }
 
