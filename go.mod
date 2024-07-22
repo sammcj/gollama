@@ -1,6 +1,6 @@
 module github.com/sammcj/gollama
 
-go 1.22.4
+go 1.22.5
 
 require (
 	github.com/charmbracelet/bubbles v0.18.0
@@ -8,7 +8,7 @@ require (
 	github.com/charmbracelet/lipgloss v0.12.1
 	github.com/fsnotify/fsnotify v1.7.0
 	github.com/natefinch/lumberjack v2.0.0+incompatible
-	github.com/ollama/ollama v0.2.7
+	github.com/ollama/ollama v0.2.8
 	github.com/rs/zerolog v1.33.0
 	github.com/spf13/viper v1.19.0
 	golang.org/x/term v0.22.0
