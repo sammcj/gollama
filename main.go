@@ -119,12 +119,12 @@ func main() {
 
 	// vRAM estimation flags
 	vramFlag := flag.Bool("vram", false, "Estimate vRAM usage")
-	modelIDFlag := flag.String("model", "", "Model ID for vRAM estimation")
-	quantFlag := flag.String("quant", "", "Quantisation type (e.g., q4_k_m) or bits per weight (e.g., 5.0)")
-	contextFlag := flag.Int("context", 0, "Context length for vRAM estimation")
-	kvCacheFlag := flag.String("kvcache", "fp16", "KV cache quantisation: fp16, q8_0, or q4_0")
-	memoryFlag := flag.Float64("memory", 0, "Available memory in GB for context calculation")
-	quantTypeFlag := flag.String("quanttype", "gguf", "Quantisation type: gguf or exl2")
+	modelIDFlag := flag.String("model", "", "vRAM Estimation - Model ID")
+	quantFlag := flag.String("quant", "", "vRAM Estimation - Quantisation type (e.g., q4_k_m) or bits per weight (e.g., 5.0)")
+	contextFlag := flag.Int("context", 0, "vRAM Estimation - Context length for vRAM estimation")
+	kvCacheFlag := flag.String("kvcache", "fp16", "vRAM Estimation - KV cache quantisation: fp16, q8_0, or q4_0")
+	memoryFlag := flag.Float64("memory", 0, "vRAM Estimation - Available memory in GB for context calculation")
+	quantTypeFlag := flag.String("quanttype", "gguf", "vRAM Estimation - Quantisation type: gguf or exl2")
 
 	flag.Parse()
 
