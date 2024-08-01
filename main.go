@@ -90,7 +90,7 @@ var Version string // Version is set by the build system
 
 func main() {
 	if Version == "" {
-		Version = "1.21.2"
+		Version = "v1.20.5"
 	}
 
 	cfg, err := config.LoadConfig()
