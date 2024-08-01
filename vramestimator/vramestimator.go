@@ -134,7 +134,9 @@ func bitsToGB(bits float64) float64 {
 
 // DownloadFile downloads a file from a URL and saves it to the specified path
 func DownloadFile(url, filePath string, headers map[string]string) error {
-  println("Downloading model configuration metadata", url, "to", filePath)
+  if os.Getenv("DEBUG") == "true" {
+    fmt.Println("Downloading", url)
+  }
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
