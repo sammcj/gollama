@@ -134,6 +134,7 @@ func bitsToGB(bits float64) float64 {
 
 // DownloadFile downloads a file from a URL and saves it to the specified path
 func DownloadFile(url, filePath string, headers map[string]string) error {
+  println("Downloading model configuration metadata", url, "to", filePath)
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -171,7 +172,7 @@ func DownloadFile(url, filePath string, headers map[string]string) error {
 
 // GetModelConfig retrieves and parses the model configuration
 func GetModelConfig(modelID, accessToken string) (ModelConfig, error) {
-	baseDir := filepath.Join("cache", modelID)
+  baseDir := filepath.Join(os.Getenv("HOME"), ".cache/huggingface/hub", modelID)
 	configPath := filepath.Join(baseDir, "config.json")
 	indexPath := filepath.Join(baseDir, "model.safetensors.index.json")
 
