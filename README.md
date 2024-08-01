@@ -94,8 +94,8 @@ echo "alias g=gollama" >> ~/.zshrc
 - `m`: Sort by modified
 - `k`: Sort by quantisation
 - `f`: Sort by family
-- `l`: Link model to LM Studio
-- `L`: Link all models to LM Studio
+- `l`: Link model to LM Studio **Note: This is currently broken on the latest LM-Studio versions, see [#82](https://github.com/sammcj/gollama/issues/82)**
+- `L`: Link all models to LM Studio *^
 - `r`: Rename model _**(Work in progress)**_
 - `q`: Quit
 
@@ -114,18 +114,18 @@ Inspect (`i`)
 #### Command-line Options
 
 - `-l`: List all available Ollama models and exit
-- `-L`: Link all available Ollama models to LM Studio and exit **new**
-- `-s <search term>`: Search for models by name **new**
+- `-L`: Link all available Ollama models to LM Studio and exit **Note: This is currently broken on the latest LM-Studio versions, see [#82](https://github.com/sammcj/gollama/issues/82)**
+- `-s <search term>`: Search for models by name
   - OR operator (`'term1|term2'`) returns models that match either term
   - AND operator (`'term1&term2'`) returns models that match both terms
-- `-e <model>`: Edit the Modelfile for a model **new**
+- `-e <model>`: Edit the Modelfile for a model
 - `-ollama-dir`: Custom Ollama models directory
 - `-lm-dir`: Custom LM Studio models directory
 - `-cleanup`: Remove all symlinked models and empty directories and exit
 - `-no-cleanup`: Don't cleanup broken symlinks
 - `-u`: Unload all running models
 - `-v`: Print the version and exit
-- `--vram`: Estimate vRAM usage for a model
+- `--vram`: Estimate vRAM usage for a model **new**
   - `--model`: Model ID for vRAM estimation
   - `--quant`: Quantisation type (e.g., q4_k_m) or bits per weight (e.g., 5.0)
   - `--context`: Context length for vRAM estimation
