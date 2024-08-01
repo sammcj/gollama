@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 )
 
 // KVCacheQuantisation represents the quantisation type for the k/v context cache
@@ -27,9 +29,11 @@ const (
 var GGUFMapping = map[string]float64{
 	"Q8_0":    8.5,
 	"Q6_K":    6.59,
+	"Q5_K_L":  5.75,
 	"Q5_K_M":  5.69,
 	"Q5_K_S":  5.54,
 	"Q5_0":    5.54,
+	"Q4_K_L":  4.9,
 	"Q4_K_M":  4.85,
 	"Q4_K_S":  4.58,
 	"Q4_0":    4.55,
@@ -71,12 +75,11 @@ type ModelConfig struct {
 	VocabSize             int     `json:"vocab_size"`
 }
 
-
 // BPWValues represents the bits per weight values for different components
 type BPWValues struct {
-	BPW         float64
-	LMHeadBPW   float64
-	KVCacheBPW  float64
+	BPW        float64
+	LMHeadBPW  float64
+	KVCacheBPW float64
 }
 
 // CalculateVRAMRaw calculates the raw VRAM usage
@@ -84,7 +87,7 @@ func CalculateVRAMRaw(config ModelConfig, bpwValues BPWValues, context int, numG
 	cudaSize := float64(CUDASize * numGPUs)
 	paramsSize := config.NumParams * 1e9 * (bpwValues.BPW / 8)
 
-	kvCacheSize := float64(context * 2 * config.NumHiddenLayers * config.HiddenSize) * (bpwValues.KVCacheBPW / 8)
+	kvCacheSize := float64(context*2*config.NumHiddenLayers*config.HiddenSize) * (bpwValues.KVCacheBPW / 8)
 	if gqa {
 		kvCacheSize *= float64(config.NumKeyValueHeads) / float64(config.NumAttentionHeads)
 	}
@@ -93,31 +96,31 @@ func CalculateVRAMRaw(config ModelConfig, bpwValues BPWValues, context int, numG
 	lmHeadBytesPerParam := bpwValues.LMHeadBPW / 8
 
 	headDim := float64(config.HiddenSize) / float64(config.NumAttentionHeads)
-	attentionInput := bytesPerParam * float64(context * config.HiddenSize)
+	attentionInput := bytesPerParam * float64(context*config.HiddenSize)
 
 	q := bytesPerParam * float64(context) * headDim * float64(config.NumAttentionHeads)
 	k := bytesPerParam * float64(context) * headDim * float64(config.NumKeyValueHeads)
 	v := bytesPerParam * float64(context) * headDim * float64(config.NumKeyValueHeads)
 
-	softmaxOutput := lmHeadBytesPerParam * float64(config.NumAttentionHeads * context)
+	softmaxOutput := lmHeadBytesPerParam * float64(config.NumAttentionHeads*context)
 	softmaxDropoutMask := float64(config.NumAttentionHeads * context)
-	dropoutOutput := lmHeadBytesPerParam * float64(config.NumAttentionHeads * context)
+	dropoutOutput := lmHeadBytesPerParam * float64(config.NumAttentionHeads*context)
 
-	outProjInput := lmHeadBytesPerParam * float64(context * config.NumAttentionHeads) * headDim
+	outProjInput := lmHeadBytesPerParam * float64(context*config.NumAttentionHeads) * headDim
 	attentionDropout := float64(context * config.HiddenSize)
 
 	attentionBlock := attentionInput + q + k + softmaxOutput + v + outProjInput + softmaxDropoutMask + dropoutOutput + attentionDropout
 
-	mlpInput := bytesPerParam * float64(context * config.HiddenSize)
-	activationInput := bytesPerParam * float64(context * config.IntermediateSize)
-	downProjInput := bytesPerParam * float64(context * config.IntermediateSize)
+	mlpInput := bytesPerParam * float64(context*config.HiddenSize)
+	activationInput := bytesPerParam * float64(context*config.IntermediateSize)
+	downProjInput := bytesPerParam * float64(context*config.IntermediateSize)
 	dropoutMask := float64(context * config.HiddenSize)
 	mlpBlock := mlpInput + activationInput + downProjInput + dropoutMask
 
-	layerNorms := bytesPerParam * float64(context * config.HiddenSize * 2)
+	layerNorms := bytesPerParam * float64(context*config.HiddenSize*2)
 	activationsSize := attentionBlock + mlpBlock + layerNorms
 
-	outputSize := lmHeadBytesPerParam * float64(context * config.VocabSize)
+	outputSize := lmHeadBytesPerParam * float64(context*config.VocabSize)
 
 	vramBits := cudaSize + paramsSize + activationsSize + outputSize + kvCacheSize
 
@@ -335,5 +338,72 @@ func CalculateBPW(modelID string, memory float64, context int, kvCacheQuant KVCa
 	default:
 		return nil, fmt.Errorf("invalid quantisation type: %s", quantType)
 	}
-	return nil, nil
+	return nil, fmt.Errorf("no suitable BPW found for the given memory constraint")
+}
+
+// parseBPWOrQuant takes a string and returns a float64 BPW value
+func ParseBPWOrQuant(input string) (float64, error) {
+	// First, try to parse as a float64 (direct BPW value)
+	bpw, err := strconv.ParseFloat(input, 64)
+	if err == nil {
+		return bpw, nil
+	}
+
+	// If parsing as float fails, check if it's a valid quantisation type
+	input = strings.ToUpper(input) // Convert to uppercase for case-insensitive matching
+	if bpw, ok := GGUFMapping[input]; ok {
+		return bpw, nil
+	}
+
+	// If not found, try to find a close match
+	var closestMatch string
+	var minDistance int = len(input)
+	for key := range GGUFMapping {
+		distance := levenshteinDistance(input, key)
+		if distance < minDistance {
+			minDistance = distance
+			closestMatch = key
+		}
+	}
+
+	if closestMatch != "" {
+		return 0, fmt.Errorf("invalid quantisation type: %s. Did you mean %s?", input, closestMatch)
+	}
+
+	return 0, fmt.Errorf("invalid quantisation or BPW value: %s", input)
+}
+
+// levenshteinDistance calculates the Levenshtein distance between two strings
+func levenshteinDistance(s1, s2 string) int {
+	s1 = strings.ToUpper(s1)
+	s2 = strings.ToUpper(s2)
+	m := len(s1)
+	n := len(s2)
+	d := make([][]int, m+1)
+	for i := range d {
+		d[i] = make([]int, n+1)
+	}
+	for i := 0; i <= m; i++ {
+		d[i][0] = i
+	}
+	for j := 0; j <= n; j++ {
+		d[0][j] = j
+	}
+	for j := 1; j <= n; j++ {
+		for i := 1; i <= m; i++ {
+			if s1[i-1] == s2[j-1] {
+				d[i][j] = d[i-1][j-1]
+			} else {
+				min := d[i-1][j]
+				if d[i][j-1] < min {
+					min = d[i][j-1]
+				}
+				if d[i-1][j-1] < min {
+					min = d[i-1][j-1]
+				}
+				d[i][j] = min + 1
+			}
+		}
+	}
+	return d[m][n]
 }

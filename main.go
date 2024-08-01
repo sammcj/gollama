@@ -23,6 +23,7 @@ import (
 
 	"github.com/sammcj/gollama/config"
 	"github.com/sammcj/gollama/logging"
+	"github.com/sammcj/gollama/vramestimator"
 )
 
 type AppModel struct {
@@ -115,6 +116,15 @@ func main() {
 	versionFlag := flag.Bool("v", false, "Print the version and exit")
 	hostFlag := flag.String("h", "", "Override the config file to set the Ollama API host (e.g. http://localhost:11434)")
 	editFlag := flag.Bool("e", false, "Edit a model's modelfile")
+
+	// vRAM estimation flags
+	vramFlag := flag.Bool("vram", false, "Estimate vRAM usage")
+	modelIDFlag := flag.String("model", "", "Model ID for vRAM estimation")
+	quantFlag := flag.String("quant", "", "Quantisation type (e.g., q4_k_m) or bits per weight (e.g., 5.0)")
+	contextFlag := flag.Int("context", 0, "Context length for vRAM estimation")
+	kvCacheFlag := flag.String("kvcache", "fp16", "KV cache quantisation: fp16, q8_0, or q4_0")
+	memoryFlag := flag.Float64("memory", 0, "Available memory in GB for context calculation")
+	quantTypeFlag := flag.String("quanttype", "gguf", "Quantisation type: gguf or exl2")
 
 	flag.Parse()
 
@@ -299,6 +309,68 @@ func main() {
 		os.Exit(0)
 	}
 
+	// Handle vRAM estimation flags
+	if *vramFlag {
+		if *modelIDFlag == "" {
+			fmt.Println("Error: Model ID is required for vRAM estimation")
+			os.Exit(1)
+		}
+
+		var kvCacheQuant vramestimator.KVCacheQuantisation
+		switch *kvCacheFlag {
+		case "fp16":
+			kvCacheQuant = vramestimator.KVCacheFP16
+		case "q8_0":
+			kvCacheQuant = vramestimator.KVCacheQ8_0
+		case "q4_0":
+			kvCacheQuant = vramestimator.KVCacheQ4_0
+		default:
+			fmt.Printf("Invalid KV cache quantisation: %s. Using default fp16.\n", *kvCacheFlag)
+			kvCacheQuant = vramestimator.KVCacheFP16
+		}
+
+		if *memoryFlag > 0 && *contextFlag == 0 && *quantFlag == "" {
+			// Calculate best BPW
+			bestBPW, err := vramestimator.CalculateBPW(*modelIDFlag, *memoryFlag, 0, kvCacheQuant, *quantTypeFlag, "")
+			if err != nil {
+				fmt.Printf("Error calculating BPW: %v\n", err)
+				os.Exit(1)
+			}
+			fmt.Printf("Best BPW for %.2f GB of memory: %v\n", *memoryFlag, bestBPW)
+		} else {
+			// Parse the quant flag for other operations
+			bpw, err := vramestimator.ParseBPWOrQuant(*quantFlag)
+			if err != nil {
+				fmt.Printf("Error parsing quantisation: %v\n", err)
+				os.Exit(1)
+			}
+
+			if *memoryFlag > 0 && *contextFlag == 0 {
+				// Calculate maximum context
+				maxContext, err := vramestimator.CalculateContext(*modelIDFlag, *memoryFlag, bpw, kvCacheQuant, "")
+				if err != nil {
+					fmt.Printf("Error calculating context: %v\n", err)
+					os.Exit(1)
+				}
+				fmt.Printf("Maximum context for %.2f GB of memory: %d\n", *memoryFlag, maxContext)
+			} else if *contextFlag > 0 {
+				// Calculate VRAM usage
+				vram, err := vramestimator.CalculateVRAM(*modelIDFlag, bpw, *contextFlag, kvCacheQuant, "")
+				if err != nil {
+					fmt.Printf("Error calculating VRAM: %v\n", err)
+					os.Exit(1)
+				}
+				fmt.Printf("Estimated VRAM usage: %.2f GB\n", vram)
+			} else {
+				fmt.Println("Error: Invalid combination of flags. Please specify either --memory, --context, or both.")
+				os.Exit(1)
+			}
+		}
+
+		os.Exit(0)
+	}
+
+	// TUI App
 	l := list.New(items, NewItemDelegate(&app), width, height-5)
 	l.Title = "Ollama Models"
 	l.Help.Styles.ShortDesc.Bold(true)
