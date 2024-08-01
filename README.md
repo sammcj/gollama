@@ -175,16 +175,14 @@ gollama -s 'my-model&instruct' # returns models that contain both 'my-model' and
 To estimate VRAM usage:
 
 ```shell
-gollama --vram --model NousResearch/Hermes-2-Theta-Llama-3-8B --quant q4_k_m --context 2048 --kvcache q4_0 # For GGUF models
-gollama --vram --model NousResearch/Hermes-2-Theta-Llama-3-8B --quant 5.0 --context 2048 --kvcache q4_0 # For exl2 models
+gollama --vram --model NousResearch/Hermes-2-Theta-Llama-3-8B --quant q4_k_m --context 2048 --kvcache q4_0
 # Estimated VRAM usage: 5.35 GB
 ```
 
 To calculate maximum context for a given memory constraint:
 
 ```shell
-gollama --vram --model NousResearch/Hermes-2-Theta-Llama-3-8B --quant q4_k_m --memory 6 --kvcache q8_0 # For GGUF models
-gollama --vram --model NousResearch/Hermes-2-Theta-Llama-3-8B --bpw 5.0 --memory 6 --kvcache q8_0 # For exl2 models
+gollama --vram --model NousResearch/Hermes-2-Theta-Llama-3-8B --quant q4_k_m --memory 6 --kvcache q8_0
 # Maximum context for 6.00 GB of memory: 5069
 ```
 
@@ -193,6 +191,13 @@ To find the best BPW:
 ```shell
 gollama --vram --model NousResearch/Hermes-2-Theta-Llama-3-8B --memory 6 --quanttype gguf
 # Best BPW for 6.00 GB of memory: IQ3_S
+```
+
+The tool also works for exl2 (ExllamaV2) models:
+
+```shell
+gollama --vram --model NousResearch/Hermes-2-Theta-Llama-3-8B --quant 5.0 --context 2048 --kvcache q4_0 # For exl2 models
+gollama --vram --model NousResearch/Hermes-2-Theta-Llama-3-8B --bpw 5.0 --memory 6 --kvcache q8_0 # For exl2 models
 ```
 
 The vRAM estimator works by:
