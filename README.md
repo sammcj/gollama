@@ -4,7 +4,7 @@
 
 Gollama is a macOS / Linux tool for managing Ollama models.
 
-It provides a TUI (Text User Interface) for listing, inspecting, deleting, copying, and pushing Ollama models as well as optionally linking them to LM Studio.
+It provides a TUI (Text User Interface) for listing, inspecting, deleting, copying, and pushing Ollama models as well as optionally linking them to LM Studio*.
 
 The application allows users to interactively select models, sort, filter, edit, run, unload and perform actions on them using hotkeys.
 
@@ -41,7 +41,8 @@ It's in active development, so there are some bugs and missing features, however
 - Select and delete models
 - Run and unload models
 - Inspect model for additional details
-- Link models to LM Studio
+- Calculate approximate vRAM usage for a model
+- Link models to LM Studio **Note: This is currently broken on the latest LM-Studio versions, see [#82](https://github.com/sammcj/gollama/issues/82)**
 - Copy / rename models
 - Push models to a registry
 - Show running models
@@ -93,8 +94,8 @@ echo "alias g=gollama" >> ~/.zshrc
 - `m`: Sort by modified
 - `k`: Sort by quantisation
 - `f`: Sort by family
-- `l`: Link model to LM Studio
-- `L`: Link all models to LM Studio
+- `l`: Link model to LM Studio **Note: This is currently broken on the latest LM-Studio versions, see [#82](https://github.com/sammcj/gollama/issues/82)**
+- `L`: Link all models to LM Studio *^
 - `r`: Rename model _**(Work in progress)**_
 - `q`: Quit
 
@@ -113,17 +114,24 @@ Inspect (`i`)
 #### Command-line Options
 
 - `-l`: List all available Ollama models and exit
-- `-L`: Link all available Ollama models to LM Studio and exit **new**
-- `-s <search term>`: Search for models by name **new**
+- `-L`: Link all available Ollama models to LM Studio and exit **Note: This is currently broken on the latest LM-Studio versions, see [#82](https://github.com/sammcj/gollama/issues/82)**
+- `-s <search term>`: Search for models by name
   - OR operator (`'term1|term2'`) returns models that match either term
   - AND operator (`'term1&term2'`) returns models that match both terms
-- `-e <model>`: Edit the Modelfile for a model **new**
+- `-e <model>`: Edit the Modelfile for a model
 - `-ollama-dir`: Custom Ollama models directory
 - `-lm-dir`: Custom LM Studio models directory
 - `-cleanup`: Remove all symlinked models and empty directories and exit
 - `-no-cleanup`: Don't cleanup broken symlinks
 - `-u`: Unload all running models
 - `-v`: Print the version and exit
+- `--vram`: Estimate vRAM usage for a model **new**
+  - `--model`: Model ID for vRAM estimation
+  - `--quant`: Quantisation type (e.g., q4_k_m) or bits per weight (e.g., 5.0)
+  - `--context`: Context length for vRAM estimation
+  - `--kvcache`: KV cache quantisation: fp16, q8_0, or q4_0
+  - `--memory`: Available memory in GB for context calculation
+  - `--quanttype`: Quantisation type: gguf or exl2
 
 ##### Simple model listing
 
@@ -156,6 +164,43 @@ gollama -s 'my-model|my-other-model' # returns models that contain either 'my-mo
 
 gollama -s 'my-model&instruct' # returns models that contain both 'my-model' and 'instruct'
 ```
+
+##### vRAM Estimation
+
+- Calculate vRAM usage for a given model configuration
+- Determine maximum context length for a given vRAM constraint
+- Find the best quantisation setting for a given vRAM and context constraint
+- Support for different k/v cache quantisation options (fp16, q8_0, q4_0)
+
+To estimate VRAM usage:
+
+```shell
+gollama --vram --model NousResearch/Hermes-2-Theta-Llama-3-8B --quant q4_k_m --context 2048 --kvcache q4_0 # For GGUF models
+gollama --vram --model NousResearch/Hermes-2-Theta-Llama-3-8B --quant 5.0 --context 2048 --kvcache q4_0 # For exl2 models
+# Estimated VRAM usage: 5.35 GB
+```
+
+To calculate maximum context for a given memory constraint:
+
+```shell
+gollama --vram --model NousResearch/Hermes-2-Theta-Llama-3-8B --quant q4_k_m --memory 6 --kvcache q8_0 # For GGUF models
+gollama --vram --model NousResearch/Hermes-2-Theta-Llama-3-8B --bpw 5.0 --memory 6 --kvcache q8_0 # For exl2 models
+# Maximum context for 6.00 GB of memory: 5069
+```
+
+To find the best BPW:
+
+```shell
+gollama --vram --model NousResearch/Hermes-2-Theta-Llama-3-8B --memory 6 --quanttype gguf
+# Best BPW for 6.00 GB of memory: IQ3_S
+```
+
+The vRAM estimator works by:
+
+1. Fetching the model configuration from Hugging Face (if not cached locally)
+2. Calculating the memory requirements for model parameters, activations, and KV cache
+3. Adjusting calculations based on the specified quantisation settings
+4. Performing binary and linear searches to optimize for context length or quantisation settings
 
 ## Configuration
 
