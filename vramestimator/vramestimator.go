@@ -5,19 +5,23 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"math"
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/NVIDIA/go-nvml/pkg/nvml"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/olekukonko/tablewriter"
 	"github.com/sammcj/gollama/logging"
+	"github.com/shirou/gopsutil/v3/mem"
 )
 
 // KVCacheQuantisation represents the quantisation type for the k/v context cache
@@ -44,24 +48,23 @@ type BPWValues struct {
 
 // Update the QuantResult struct
 type QuantResult struct {
-  QuantType string
-  BPW       float64
-  Contexts  map[int]ContextVRAM
+	QuantType string
+	BPW       float64
+	Contexts  map[int]ContextVRAM
 }
 
 type ContextVRAM struct {
-  VRAM     float64
-  VRAMQ8_0 float64
-  VRAMQ4_0 float64
+	VRAM     float64
+	VRAMQ8_0 float64
+	VRAMQ4_0 float64
 }
 
 // QuantResultTable represents a table of VRAM estimation results
 type QuantResultTable struct {
-	ModelID string
-	Results []QuantResult
+	ModelID  string
+	Results  []QuantResult
 	FitsVRAM float64
 }
-
 
 const (
 	KVCacheFP16 KVCacheQuantisation = "fp16"
@@ -74,8 +77,8 @@ const (
 )
 
 var colourMap = []string{
-  "#ff0000", // red
-  "#00ff00", // green
+	"#ff0000", // red
+	"#00ff00", // green
 }
 
 // GGUFMapping maps GGUF quantisation types to their corresponding bits per weight
@@ -121,6 +124,73 @@ func init() {
 	}
 }
 
+func GetCUDAVRAM() (float64, error) {
+	if ret := nvml.Init(); ret != nvml.SUCCESS {
+		return 0, fmt.Errorf("failed to initialize NVML: %v", ret)
+	}
+	defer nvml.Shutdown()
+
+	count, ret := nvml.DeviceGetCount()
+	if ret != nvml.SUCCESS {
+		return 0, fmt.Errorf("failed to get device count: %v", ret)
+	}
+
+	var totalVRAM uint64
+	for i := 0; i < int(count); i++ {
+		device, ret := nvml.DeviceGetHandleByIndex(int(i))
+		if ret != nvml.SUCCESS {
+			return 0, fmt.Errorf("failed to get device handle: %v", ret)
+		}
+
+		memory, ret := device.GetMemoryInfo()
+		if ret != nvml.SUCCESS {
+			return 0, fmt.Errorf("failed to get memory info: %v", ret)
+		}
+
+		totalVRAM += memory.Total
+	}
+
+	return float64(totalVRAM) / 1024 / 1024 / 1024, nil // Convert to GB
+}
+
+func GetSystemRAM() (float64, error) {
+	vmStat, err := mem.VirtualMemory()
+	if err != nil {
+		return 0, fmt.Errorf("failed to get system memory info: %v", err)
+	}
+
+	totalRAM := float64(vmStat.Total) / 1024 / 1024 / 1024 // Convert to GB
+	return totalRAM, nil
+}
+
+func GetAvailableMemory() (float64, error) {
+
+	// if we're running on macOS, we can't use NVML, so we'll just use system RAM
+	if runtime.GOOS == "darwin" {
+		ram, err := GetSystemRAM()
+		if err != nil {
+			return 0, fmt.Errorf("failed to get system RAM: %v", err)
+		}
+		return ram, nil
+	} else {
+
+		// Try to get CUDA
+		vram, err := GetCUDAVRAM()
+		if err == nil {
+			logging.InfoLogger.Printf("Using CUDA VRAM: %.2f GB", vram)
+			return vram, nil
+		}
+
+		// If CUDA is not available, fall back to system RAM
+		ram, err := GetSystemRAM()
+		if err != nil {
+			return 0, fmt.Errorf("failed to get system RAM: %v", err)
+		}
+
+		logging.InfoLogger.Printf("Using system RAM: %.2f GB", ram)
+		return ram, nil
+	}
+}
 
 // CalculateVRAMRaw calculates the raw VRAM usage
 func CalculateVRAMRaw(config ModelConfig, bpwValues BPWValues, context int, numGPUs int, gqa bool) float64 {
@@ -223,64 +293,64 @@ func DownloadFile(url, filePath string, headers map[string]string) error {
 
 // GetModelConfig retrieves and parses the model configuration
 func GetModelConfig(modelID, accessToken string) (ModelConfig, error) {
-  cacheMutex.RLock()
-  if config, ok := modelConfigCache[modelID]; ok {
-      cacheMutex.RUnlock()
-      return config, nil
-  }
-  cacheMutex.RUnlock()
+	cacheMutex.RLock()
+	if config, ok := modelConfigCache[modelID]; ok {
+		cacheMutex.RUnlock()
+		return config, nil
+	}
+	cacheMutex.RUnlock()
 
-  baseDir := filepath.Join(os.Getenv("HOME"), ".cache/huggingface/hub", modelID)
-  configPath := filepath.Join(baseDir, "config.json")
-  indexPath := filepath.Join(baseDir, "model.safetensors.index.json")
+	baseDir := filepath.Join(os.Getenv("HOME"), ".cache/huggingface/hub", modelID)
+	configPath := filepath.Join(baseDir, "config.json")
+	indexPath := filepath.Join(baseDir, "model.safetensors.index.json")
 
-  configURL := fmt.Sprintf("https://huggingface.co/%s/raw/main/config.json", modelID)
-  indexURL := fmt.Sprintf("https://huggingface.co/%s/raw/main/model.safetensors.index.json", modelID)
+	configURL := fmt.Sprintf("https://huggingface.co/%s/raw/main/config.json", modelID)
+	indexURL := fmt.Sprintf("https://huggingface.co/%s/raw/main/model.safetensors.index.json", modelID)
 
-  headers := make(map[string]string)
-  if accessToken != "" {
-      headers["Authorization"] = "Bearer " + accessToken
-  }
+	headers := make(map[string]string)
+	if accessToken != "" {
+		headers["Authorization"] = "Bearer " + accessToken
+	}
 
-  if err := DownloadFile(configURL, configPath, headers); err != nil {
-      return ModelConfig{}, err
-  }
+	if err := DownloadFile(configURL, configPath, headers); err != nil {
+		return ModelConfig{}, err
+	}
 
-  if err := DownloadFile(indexURL, indexPath, headers); err != nil {
-      return ModelConfig{}, err
-  }
+	if err := DownloadFile(indexURL, indexPath, headers); err != nil {
+		return ModelConfig{}, err
+	}
 
-  configFile, err := os.ReadFile(configPath)
-  if err != nil {
-      return ModelConfig{}, err
-  }
+	configFile, err := os.ReadFile(configPath)
+	if err != nil {
+		return ModelConfig{}, err
+	}
 
-  indexFile, err := os.ReadFile(indexPath)
-  if err != nil {
-      return ModelConfig{}, err
-  }
+	indexFile, err := os.ReadFile(indexPath)
+	if err != nil {
+		return ModelConfig{}, err
+	}
 
-  var config ModelConfig
-  if err := json.Unmarshal(configFile, &config); err != nil {
-      return ModelConfig{}, err
-  }
+	var config ModelConfig
+	if err := json.Unmarshal(configFile, &config); err != nil {
+		return ModelConfig{}, err
+	}
 
-  var index struct {
-      Metadata struct {
-          TotalSize float64 `json:"total_size"`
-      } `json:"metadata"`
-  }
-  if err := json.Unmarshal(indexFile, &index); err != nil {
-      return ModelConfig{}, err
-  }
+	var index struct {
+		Metadata struct {
+			TotalSize float64 `json:"total_size"`
+		} `json:"metadata"`
+	}
+	if err := json.Unmarshal(indexFile, &index); err != nil {
+		return ModelConfig{}, err
+	}
 
-  config.NumParams = index.Metadata.TotalSize / 2 / 1e9
+	config.NumParams = index.Metadata.TotalSize / 2 / 1e9
 
-  cacheMutex.Lock()
-  modelConfigCache[modelID] = config
-  cacheMutex.Unlock()
+	cacheMutex.Lock()
+	modelConfigCache[modelID] = config
+	cacheMutex.Unlock()
 
-  return config, nil
+	return config, nil
 }
 
 // ParseBPW parses the BPW value
@@ -474,106 +544,116 @@ func levenshteinDistance(s1, s2 string) int {
 	}
 	return d[m][n]
 }
+
 func GenerateQuantTable(modelID string, accessToken string, fitsVRAM float64) (QuantResultTable, error) {
-  table := QuantResultTable{ModelID: modelID, FitsVRAM: fitsVRAM}
-  contextSizes := []int{2048, 8192, 16384, 32768, 49152, 65536}
+	if fitsVRAM == 0 {
+		var err error
+		fitsVRAM, err = GetAvailableMemory()
+		if err != nil {
+			log.Printf("Failed to get available memory: %v. Using default value.", err)
+			fitsVRAM = 24 // Default to 24GB if we can't determine available memory
+		}
+		log.Printf("Using %.2f GB as available memory for VRAM estimation", fitsVRAM)
+	}
 
-  _, err := GetModelConfig(modelID, accessToken)
-  if err != nil {
-      return QuantResultTable{}, err
-  }
+	table := QuantResultTable{ModelID: modelID, FitsVRAM: fitsVRAM}
+	contextSizes := []int{2048, 8192, 16384, 32768, 49152, 65536}
 
-  for quantType, bpw := range GGUFMapping {
-      var result QuantResult
-      result.QuantType = quantType
-      result.BPW = bpw
-      result.Contexts = make(map[int]ContextVRAM)
+	_, err := GetModelConfig(modelID, accessToken)
+	if err != nil {
+		return QuantResultTable{}, err
+	}
 
-      for _, context := range contextSizes {
-          vramFP16, err := CalculateVRAM(modelID, bpw, context, KVCacheFP16, accessToken)
-          if err != nil {
-              return QuantResultTable{}, err
-          }
-          vramQ8_0, err := CalculateVRAM(modelID, bpw, context, KVCacheQ8_0, accessToken)
-          if err != nil {
-              return QuantResultTable{}, err
-          }
-          vramQ4_0, err := CalculateVRAM(modelID, bpw, context, KVCacheQ4_0, accessToken)
-          if err != nil {
-              return QuantResultTable{}, err
-          }
-          result.Contexts[context] = ContextVRAM{
-              VRAM:     vramFP16,
-              VRAMQ8_0: vramQ8_0,
-              VRAMQ4_0: vramQ4_0,
-          }
-      }
-      table.Results = append(table.Results, result)
-  }
+	for quantType, bpw := range GGUFMapping {
+		var result QuantResult
+		result.QuantType = quantType
+		result.BPW = bpw
+		result.Contexts = make(map[int]ContextVRAM)
 
-  // Sort the results from lowest BPW to highest
-  sort.Slice(table.Results, func(i, j int) bool {
-      return table.Results[i].BPW < table.Results[j].BPW
-  })
+		for _, context := range contextSizes {
+			vramFP16, err := CalculateVRAM(modelID, bpw, context, KVCacheFP16, accessToken)
+			if err != nil {
+				return QuantResultTable{}, err
+			}
+			vramQ8_0, err := CalculateVRAM(modelID, bpw, context, KVCacheQ8_0, accessToken)
+			if err != nil {
+				return QuantResultTable{}, err
+			}
+			vramQ4_0, err := CalculateVRAM(modelID, bpw, context, KVCacheQ4_0, accessToken)
+			if err != nil {
+				return QuantResultTable{}, err
+			}
+			result.Contexts[context] = ContextVRAM{
+				VRAM:     vramFP16,
+				VRAMQ8_0: vramQ8_0,
+				VRAMQ4_0: vramQ4_0,
+			}
+		}
+		table.Results = append(table.Results, result)
+	}
 
-  return table, nil
+	// Sort the results from lowest BPW to highest
+	sort.Slice(table.Results, func(i, j int) bool {
+		return table.Results[i].BPW < table.Results[j].BPW
+	})
+
+	return table, nil
 }
 func PrintFormattedTable(table QuantResultTable) string {
-  var buf bytes.Buffer
-  tw := tablewriter.NewWriter(&buf)
+	var buf bytes.Buffer
+	tw := tablewriter.NewWriter(&buf)
 
-  // Set table header
-  tw.SetHeader([]string{"Quant Type", "BPW", "2K", "8K", "16K", "32K", "49K", "64K"})
+	// Set table header
+	tw.SetHeader([]string{"Quant|Ctx", "BPW", "2K", "8K", "16K", "32K", "49K", "64K"})
 
-  // Set table style
-  tw.SetBorders(tablewriter.Border{Left: true, Top: false, Right: true, Bottom: false})
-  tw.SetCenterSeparator("|")
-  tw.SetColumnSeparator("|")
-  tw.SetRowSeparator("-")
+	// Set table style
+	tw.SetBorders(tablewriter.Border{Left: true, Top: false, Right: true, Bottom: false})
+	tw.SetCenterSeparator("|")
+	tw.SetColumnSeparator("|")
+	tw.SetRowSeparator("-")
 
-  // Set header colour to bright white
-  headerColours := make([]tablewriter.Colors, 8)
-  for i := range headerColours {
-      headerColours[i] = tablewriter.Colors{tablewriter.FgHiWhiteColor}
-  }
-  tw.SetHeaderColor(headerColours...)
-  // set header row colours to bright white
+	// Set header colour to bright white
+	headerColours := make([]tablewriter.Colors, 8)
+	for i := range headerColours {
+		headerColours[i] = tablewriter.Colors{tablewriter.FgHiWhiteColor}
+	}
+	tw.SetHeaderColor(headerColours...)
+	// set header row colours to bright white
 
-  // Prepare data rows
-  for _, result := range table.Results {
-      row := []string{
-          result.QuantType,
-          fmt.Sprintf("%.2f", result.BPW),
-      }
+	// Prepare data rows
+	for _, result := range table.Results {
+		row := []string{
+			result.QuantType,
+			fmt.Sprintf("%.2f", result.BPW),
+		}
 
-      // Add VRAM estimates for each context size
-      contextSizes := []int{2048, 8192, 16384, 32768, 49152, 65536}
-      for _, context := range contextSizes {
-          vram := result.Contexts[context]
+		// Add VRAM estimates for each context size
+		contextSizes := []int{2048, 8192, 16384, 32768, 49152, 65536}
+		for _, context := range contextSizes {
+			vram := result.Contexts[context]
 
-          fp16Str := getColouredVRAM(vram.VRAM, fmt.Sprintf("%.1f", vram.VRAM), table.FitsVRAM)
+			fp16Str := getColouredVRAM(vram.VRAM, fmt.Sprintf("%.1f", vram.VRAM), table.FitsVRAM)
 
-          if context >= 16384 {
-            q8Str := getColouredVRAM(vram.VRAMQ8_0, fmt.Sprintf("%.1f", vram.VRAMQ8_0), table.FitsVRAM)
-            q4Str := getColouredVRAM(vram.VRAMQ4_0, fmt.Sprintf("%.1f", vram.VRAMQ4_0), table.FitsVRAM)
+			if context >= 16384 {
+				q8Str := getColouredVRAM(vram.VRAMQ8_0, fmt.Sprintf("%.1f", vram.VRAMQ8_0), table.FitsVRAM)
+				q4Str := getColouredVRAM(vram.VRAMQ4_0, fmt.Sprintf("%.1f", vram.VRAMQ4_0), table.FitsVRAM)
 
-            combinedStr := fmt.Sprintf("%s(%s,%s)", fp16Str, q8Str, q4Str)
-            row = append(row, combinedStr)
-          } else {
-            combinedStr := fp16Str
-            row = append(row, combinedStr)
-          }
-      }
+				combinedStr := fmt.Sprintf("%s(%s,%s)", fp16Str, q8Str, q4Str)
+				row = append(row, combinedStr)
+			} else {
+				combinedStr := fp16Str
+				row = append(row, combinedStr)
+			}
+		}
 
-      tw.Append(row)
-  }
+		tw.Append(row)
+	}
 
-  // Render the table
-  tw.Render()
+	// Render the table
+	tw.Render()
 
-  return fmt.Sprintf("📊 VRAM Estimation for Model: %s\n\n%s", table.ModelID, buf.String())
+  return lipgloss.NewStyle().Foreground(lipgloss.Color("#ffffff")).Render(fmt.Sprintf("📊 VRAM Estimation for Model: %s\n\n%s", table.ModelID, buf.String()))
 }
-
 
 func getColouredVRAM(vram float64, vramStr string, fitsVRAM float64) string {
 	var colorIndex int
