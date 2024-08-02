@@ -86,6 +86,7 @@ type genericMsg struct {
 
 type View int
 
+var fitsVRAM float64
 var Version string // Version is set by the build system
 
 func main() {
@@ -120,6 +121,7 @@ func main() {
 	// vRAM estimation flags
 	vramFlag := flag.Bool("vram", false, "Estimate vRAM usage")
 	modelIDFlag := flag.String("model", "", "vRAM Estimation - Model ID")
+  flag.Float64Var(&fitsVRAM, "fits", 0, "Highlight quant sizes and context sizes that fit in this amount of vRAM (in GB)")
 
 	flag.Parse()
 
@@ -129,23 +131,23 @@ func main() {
 	}
 
 	// Handle vRAM estimation flags
-	if *vramFlag {
-		logging.DebugLogger.Println("vRAM estimation flag detected")
-		if *modelIDFlag == "" {
-			fmt.Println("Error: Model ID is required for vRAM estimation")
-			os.Exit(1)
-		}
+  if *vramFlag {
+    logging.DebugLogger.Println("vRAM estimation flag detected")
+    if *modelIDFlag == "" {
+        fmt.Println("Error: Model ID is required for vRAM estimation")
+        os.Exit(1)
+    }
 
-		logging.DebugLogger.Println("Generating VRAM estimation table")
-		table, err := vramestimator.GenerateQuantTable(*modelIDFlag, "")
-		if err != nil {
-			fmt.Printf("Error generating VRAM estimation table: %v\n", err)
-			os.Exit(1)
-		}
+    logging.DebugLogger.Println("Generating VRAM estimation table")
+    table, err := vramestimator.GenerateQuantTable(*modelIDFlag, "", fitsVRAM)
+    if err != nil {
+        fmt.Printf("Error generating VRAM estimation table: %v\n", err)
+        os.Exit(1)
+    }
 
-		fmt.Println(vramestimator.PrintFormattedTable(table))
-		os.Exit(0)
-	}
+    fmt.Println(vramestimator.PrintFormattedTable(table))
+    os.Exit(0)
+}
 
 	os.Setenv("EDITOR", cfg.Editor)
 
