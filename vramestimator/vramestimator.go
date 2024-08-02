@@ -74,9 +74,8 @@ const (
 )
 
 var colourMap = []string{
-  // "#FF4500",
-  "#FF8C00",
-  "#00D400",
+  "#ff0000", // red
+  "#00ff00", // green
 }
 
 // GGUFMapping maps GGUF quantisation types to their corresponding bits per weight
@@ -347,7 +346,7 @@ func CalculateContext(modelID string, memory, bpw float64, kvCacheQuant KVCacheQ
 		return 0, err
 	}
 
-	minContext := 2048
+	minContext := 512
 	maxContext := config.MaxPositionEmbeddings
 
 	low, high := minContext, maxContext
@@ -477,7 +476,7 @@ func levenshteinDistance(s1, s2 string) int {
 }
 func GenerateQuantTable(modelID string, accessToken string, fitsVRAM float64) (QuantResultTable, error) {
   table := QuantResultTable{ModelID: modelID, FitsVRAM: fitsVRAM}
-  contextSizes := []int{2048, 8192, 16384, 32768, 49152}
+  contextSizes := []int{2048, 8192, 16384, 32768, 49152, 65536}
 
   _, err := GetModelConfig(modelID, accessToken)
   if err != nil {
@@ -519,13 +518,12 @@ func GenerateQuantTable(modelID string, accessToken string, fitsVRAM float64) (Q
 
   return table, nil
 }
-
 func PrintFormattedTable(table QuantResultTable) string {
   var buf bytes.Buffer
   tw := tablewriter.NewWriter(&buf)
 
   // Set table header
-  tw.SetHeader([]string{"Quant Type", "BPW", "2K", "8K", "16K", "32K", "49K"})
+  tw.SetHeader([]string{"Quant Type", "BPW", "2K", "8K", "16K", "32K", "49K", "64K"})
 
   // Set table style
   tw.SetBorders(tablewriter.Border{Left: true, Top: false, Right: true, Bottom: false})
@@ -533,12 +531,13 @@ func PrintFormattedTable(table QuantResultTable) string {
   tw.SetColumnSeparator("|")
   tw.SetRowSeparator("-")
 
-  // Set header color to bright white
-  headerColors := make([]tablewriter.Colors, 7)
-  for i := range headerColors {
-      headerColors[i] = tablewriter.Colors{tablewriter.FgHiWhiteColor}
+  // Set header colour to bright white
+  headerColours := make([]tablewriter.Colors, 8)
+  for i := range headerColours {
+      headerColours[i] = tablewriter.Colors{tablewriter.FgHiWhiteColor}
   }
-  tw.SetHeaderColor(headerColors...)
+  tw.SetHeaderColor(headerColours...)
+  // set header row colours to bright white
 
   // Prepare data rows
   for _, result := range table.Results {
@@ -548,14 +547,22 @@ func PrintFormattedTable(table QuantResultTable) string {
       }
 
       // Add VRAM estimates for each context size
-      for _, context := range []int{2048, 8192, 16384, 32768, 49152} {
+      contextSizes := []int{2048, 8192, 16384, 32768, 49152, 65536}
+      for _, context := range contextSizes {
           vram := result.Contexts[context]
-          fp16Str := getColoredVRAM(vram.VRAM, fmt.Sprintf("%.1f", vram.VRAM), table.FitsVRAM)
-          q8Str := getColoredVRAM(vram.VRAMQ8_0, fmt.Sprintf("%.1f", vram.VRAMQ8_0), table.FitsVRAM)
-          q4Str := getColoredVRAM(vram.VRAMQ4_0, fmt.Sprintf("%.1f", vram.VRAMQ4_0), table.FitsVRAM)
 
-          cellValue := fmt.Sprintf("%s\n(%s,%s)", fp16Str, q8Str, q4Str)
-          row = append(row, cellValue)
+          fp16Str := getColouredVRAM(vram.VRAM, fmt.Sprintf("%.1f", vram.VRAM), table.FitsVRAM)
+
+          if context >= 16384 {
+            q8Str := getColouredVRAM(vram.VRAMQ8_0, fmt.Sprintf("%.1f", vram.VRAMQ8_0), table.FitsVRAM)
+            q4Str := getColouredVRAM(vram.VRAMQ4_0, fmt.Sprintf("%.1f", vram.VRAMQ4_0), table.FitsVRAM)
+
+            combinedStr := fmt.Sprintf("%s(%s,%s)", fp16Str, q8Str, q4Str)
+            row = append(row, combinedStr)
+          } else {
+            combinedStr := fp16Str
+            row = append(row, combinedStr)
+          }
       }
 
       tw.Append(row)
@@ -568,8 +575,7 @@ func PrintFormattedTable(table QuantResultTable) string {
 }
 
 
-
-func getColoredVRAM(vram float64, vramStr string, fitsVRAM float64) string {
+func getColouredVRAM(vram float64, vramStr string, fitsVRAM float64) string {
 	var colorIndex int
 	if fitsVRAM > 0 {
 		if vram > fitsVRAM {
