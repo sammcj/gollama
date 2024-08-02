@@ -1,6 +1,7 @@
 package vramestimator
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -8,12 +9,54 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
+
+	"github.com/charmbracelet/lipgloss"
+	"github.com/olekukonko/tablewriter"
+	"github.com/sammcj/gollama/logging"
 )
 
 // KVCacheQuantisation represents the quantisation type for the k/v context cache
 type KVCacheQuantisation string
+
+// ModelConfig represents the configuration of a model
+type ModelConfig struct {
+	NumParams             float64 `json:"num_params"`
+	MaxPositionEmbeddings int     `json:"max_position_embeddings"`
+	NumHiddenLayers       int     `json:"num_hidden_layers"`
+	HiddenSize            int     `json:"hidden_size"`
+	NumKeyValueHeads      int     `json:"num_key_value_heads"`
+	NumAttentionHeads     int     `json:"num_attention_heads"`
+	IntermediateSize      int     `json:"intermediate_size"`
+	VocabSize             int     `json:"vocab_size"`
+}
+
+// BPWValues represents the bits per weight values for different components
+type BPWValues struct {
+	BPW        float64
+	LMHeadBPW  float64
+	KVCacheBPW float64
+}
+
+
+// QuantResult represents the result of VRAM estimation for a specific quantization and context size
+type QuantResult struct {
+	QuantType string
+	BPW       float64
+	Context   int
+	VRAM      float64
+}
+
+// QuantResultTable represents a table of VRAM estimation results
+type QuantResultTable struct {
+	ModelID string
+	Results []QuantResult
+}
+
 
 const (
 	KVCacheFP16 KVCacheQuantisation = "fp16"
@@ -57,33 +100,22 @@ var GGUFMapping = map[string]float64{
 // EXL2Options contains the EXL2 quantisation options
 var EXL2Options []float64
 
+var (
+	modelConfigCache = make(map[string]ModelConfig)
+	cacheMutex       sync.RWMutex
+)
+
 func init() {
 	for i := 6.0; i >= 2.0; i -= 0.05 {
 		EXL2Options = append(EXL2Options, math.Round(i*100)/100)
 	}
 }
 
-// ModelConfig represents the configuration of a model
-type ModelConfig struct {
-	NumParams             float64 `json:"num_params"`
-	MaxPositionEmbeddings int     `json:"max_position_embeddings"`
-	NumHiddenLayers       int     `json:"num_hidden_layers"`
-	HiddenSize            int     `json:"hidden_size"`
-	NumKeyValueHeads      int     `json:"num_key_value_heads"`
-	NumAttentionHeads     int     `json:"num_attention_heads"`
-	IntermediateSize      int     `json:"intermediate_size"`
-	VocabSize             int     `json:"vocab_size"`
-}
-
-// BPWValues represents the bits per weight values for different components
-type BPWValues struct {
-	BPW        float64
-	LMHeadBPW  float64
-	KVCacheBPW float64
-}
 
 // CalculateVRAMRaw calculates the raw VRAM usage
 func CalculateVRAMRaw(config ModelConfig, bpwValues BPWValues, context int, numGPUs int, gqa bool) float64 {
+	logging.DebugLogger.Println("Calculating VRAM usage...")
+
 	cudaSize := float64(CUDASize * numGPUs)
 	paramsSize := config.NumParams * 1e9 * (bpwValues.BPW / 8)
 
@@ -134,10 +166,17 @@ func bitsToGB(bits float64) float64 {
 
 // DownloadFile downloads a file from a URL and saves it to the specified path
 func DownloadFile(url, filePath string, headers map[string]string) error {
-  if os.Getenv("DEBUG") == "true" {
-    fmt.Println("Downloading", url)
-  }
-	client := &http.Client{}
+	if _, err := os.Stat(filePath); err == nil {
+		logging.InfoLogger.Println("File already exists, skipping download")
+		return nil
+	}
+
+	// fmt.Printf("Downloading file from: %s\n", url)
+	logging.DebugLogger.Println("Downloading file from:", url)
+
+	client := &http.Client{
+		Timeout: 30 * time.Second,
+	}
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return err
@@ -174,53 +213,64 @@ func DownloadFile(url, filePath string, headers map[string]string) error {
 
 // GetModelConfig retrieves and parses the model configuration
 func GetModelConfig(modelID, accessToken string) (ModelConfig, error) {
+  cacheMutex.RLock()
+  if config, ok := modelConfigCache[modelID]; ok {
+      cacheMutex.RUnlock()
+      return config, nil
+  }
+  cacheMutex.RUnlock()
+
   baseDir := filepath.Join(os.Getenv("HOME"), ".cache/huggingface/hub", modelID)
-	configPath := filepath.Join(baseDir, "config.json")
-	indexPath := filepath.Join(baseDir, "model.safetensors.index.json")
+  configPath := filepath.Join(baseDir, "config.json")
+  indexPath := filepath.Join(baseDir, "model.safetensors.index.json")
 
-	configURL := fmt.Sprintf("https://huggingface.co/%s/raw/main/config.json", modelID)
-	indexURL := fmt.Sprintf("https://huggingface.co/%s/raw/main/model.safetensors.index.json", modelID)
+  configURL := fmt.Sprintf("https://huggingface.co/%s/raw/main/config.json", modelID)
+  indexURL := fmt.Sprintf("https://huggingface.co/%s/raw/main/model.safetensors.index.json", modelID)
 
-	headers := make(map[string]string)
-	if accessToken != "" {
-		headers["Authorization"] = "Bearer " + accessToken
-	}
+  headers := make(map[string]string)
+  if accessToken != "" {
+      headers["Authorization"] = "Bearer " + accessToken
+  }
 
-	if err := DownloadFile(configURL, configPath, headers); err != nil {
-		return ModelConfig{}, err
-	}
+  if err := DownloadFile(configURL, configPath, headers); err != nil {
+      return ModelConfig{}, err
+  }
 
-	if err := DownloadFile(indexURL, indexPath, headers); err != nil {
-		return ModelConfig{}, err
-	}
+  if err := DownloadFile(indexURL, indexPath, headers); err != nil {
+      return ModelConfig{}, err
+  }
 
-	configFile, err := os.ReadFile(configPath)
-	if err != nil {
-		return ModelConfig{}, err
-	}
+  configFile, err := os.ReadFile(configPath)
+  if err != nil {
+      return ModelConfig{}, err
+  }
 
-	indexFile, err := os.ReadFile(indexPath)
-	if err != nil {
-		return ModelConfig{}, err
-	}
+  indexFile, err := os.ReadFile(indexPath)
+  if err != nil {
+      return ModelConfig{}, err
+  }
 
-	var config ModelConfig
-	if err := json.Unmarshal(configFile, &config); err != nil {
-		return ModelConfig{}, err
-	}
+  var config ModelConfig
+  if err := json.Unmarshal(configFile, &config); err != nil {
+      return ModelConfig{}, err
+  }
 
-	var index struct {
-		Metadata struct {
-			TotalSize float64 `json:"total_size"`
-		} `json:"metadata"`
-	}
-	if err := json.Unmarshal(indexFile, &index); err != nil {
-		return ModelConfig{}, err
-	}
+  var index struct {
+      Metadata struct {
+          TotalSize float64 `json:"total_size"`
+      } `json:"metadata"`
+  }
+  if err := json.Unmarshal(indexFile, &index); err != nil {
+      return ModelConfig{}, err
+  }
 
-	config.NumParams = index.Metadata.TotalSize / 2 / 1e9
+  config.NumParams = index.Metadata.TotalSize / 2 / 1e9
 
-	return config, nil
+  cacheMutex.Lock()
+  modelConfigCache[modelID] = config
+  cacheMutex.Unlock()
+
+  return config, nil
 }
 
 // ParseBPW parses the BPW value
@@ -233,6 +283,7 @@ func ParseBPW(bpw string) float64 {
 
 // GetBPWValues calculates the BPW values based on the input
 func GetBPWValues(bpw float64, kvCacheQuant KVCacheQuantisation) BPWValues {
+	logging.DebugLogger.Println("Calculating BPW values...")
 	var lmHeadBPW, kvCacheBPW float64
 
 	if bpw > 6.0 {
@@ -261,6 +312,7 @@ func GetBPWValues(bpw float64, kvCacheQuant KVCacheQuantisation) BPWValues {
 
 // CalculateVRAM calculates the VRAM usage for a given model and configuration
 func CalculateVRAM(modelID string, bpw float64, context int, kvCacheQuant KVCacheQuantisation, accessToken string) (float64, error) {
+	logging.DebugLogger.Println("Calculating VRAM usage...")
 	config, err := GetModelConfig(modelID, accessToken)
 	if err != nil {
 		return 0, err
@@ -278,6 +330,7 @@ func CalculateVRAM(modelID string, bpw float64, context int, kvCacheQuant KVCach
 
 // CalculateContext calculates the maximum context for a given memory constraint
 func CalculateContext(modelID string, memory, bpw float64, kvCacheQuant KVCacheQuantisation, accessToken string) (int, error) {
+	logging.DebugLogger.Println("Calculating context...")
 	config, err := GetModelConfig(modelID, accessToken)
 	if err != nil {
 		return 0, err
@@ -317,6 +370,7 @@ func CalculateContext(modelID string, memory, bpw float64, kvCacheQuant KVCacheQ
 
 // CalculateBPW calculates the best BPW for a given memory and context constraint
 func CalculateBPW(modelID string, memory float64, context int, kvCacheQuant KVCacheQuantisation, quantType string, accessToken string) (interface{}, error) {
+	logging.DebugLogger.Println("Calculating BPW...")
 	switch quantType {
 	case "exl2":
 		for _, bpw := range EXL2Options {
@@ -409,4 +463,95 @@ func levenshteinDistance(s1, s2 string) int {
 		}
 	}
 	return d[m][n]
+}
+
+// GenerateQuantTable generates a table of VRAM estimations for various quantization types and context sizes
+func GenerateQuantTable(modelID string, accessToken string) (QuantResultTable, error) {
+  table := QuantResultTable{ModelID: modelID}
+  contextSizes := []int{2048, 8192, 16384, 32768, 49152}
+  kvCacheQuant := KVCacheQ4_0 // We'll use Q4_0 for all calculations to simplify the table
+
+  // Get the model config once, outside the loops
+  _, err := GetModelConfig(modelID, accessToken)
+  if err != nil {
+      return QuantResultTable{}, err
+  }
+
+  for quantType, bpw := range GGUFMapping {
+      for _, context := range contextSizes {
+          vram, err := CalculateVRAM(modelID, bpw, context, kvCacheQuant, accessToken)
+          if err != nil {
+              return QuantResultTable{}, err
+          }
+          table.Results = append(table.Results, QuantResult{
+              QuantType: quantType,
+              BPW:       bpw,
+              Context:   context,
+              VRAM:      vram,
+          })
+      }
+  }
+
+  sort.Slice(table.Results, func(i, j int) bool {
+      return table.Results[i].BPW > table.Results[j].BPW
+  })
+
+  return table, nil
+}
+
+// PrintFormattedTable prints a nicely formatted table of VRAM estimations
+
+func PrintFormattedTable(table QuantResultTable) string {
+  var buf bytes.Buffer
+  tw := tablewriter.NewWriter(&buf)
+
+  // Set table header
+  tw.SetHeader([]string{"Quant Type", "BPW", "2K", "8K", "16K", "32K", "49K"})
+
+  // Set table style
+  tw.SetBorders(tablewriter.Border{Left: true, Top: false, Right: true, Bottom: false})
+  tw.SetCenterSeparator("|")
+  tw.SetColumnSeparator("|")
+  tw.SetRowSeparator("-")
+
+  // Prepare data rows
+  data := make(map[string][]string)
+  for _, result := range table.Results {
+      if _, ok := data[result.QuantType]; !ok {
+          data[result.QuantType] = make([]string, 6)
+          data[result.QuantType][0] = fmt.Sprintf("%.2f", result.BPW)
+      }
+      vramStr := fmt.Sprintf("%.1f", result.VRAM)
+      switch result.Context {
+      case 2048:
+          data[result.QuantType][1] = getColoredVRAM(result.VRAM, vramStr)
+      case 8192:
+          data[result.QuantType][2] = getColoredVRAM(result.VRAM, vramStr)
+      case 16384:
+          data[result.QuantType][3] = getColoredVRAM(result.VRAM, vramStr)
+      case 32768:
+          data[result.QuantType][4] = getColoredVRAM(result.VRAM, vramStr)
+      case 49152:
+          data[result.QuantType][5] = getColoredVRAM(result.VRAM, vramStr)
+      }
+  }
+
+  // Add rows to the table
+  for quantType, row := range data {
+      tw.Append(append([]string{quantType}, row...))
+  }
+
+  // Render the table
+  tw.Render()
+
+  return fmt.Sprintf("📊 VRAM Estimation for Model: %s\n\n%s", table.ModelID, buf.String())
+}
+
+func getColoredVRAM(vram float64, vramStr string) string {
+  if vram > 24 {
+      return lipgloss.NewStyle().Foreground(lipgloss.Color("#FF0000")).Render(vramStr)
+  } else if vram > 12 {
+      return lipgloss.NewStyle().Foreground(lipgloss.Color("#FFFF00")).Render(vramStr)
+  }
+  return lipgloss.NewStyle().Foreground(lipgloss.Color("#00FF00")).Render(vramStr)
 }

@@ -8,6 +8,7 @@ require (
 	github.com/charmbracelet/lipgloss v0.12.1
 	github.com/fsnotify/fsnotify v1.7.0
 	github.com/natefinch/lumberjack v2.0.0+incompatible
+	github.com/olekukonko/tablewriter v0.0.5
 	github.com/ollama/ollama v0.3.2
 	github.com/rs/zerolog v1.33.0
 	github.com/spf13/viper v1.19.0
