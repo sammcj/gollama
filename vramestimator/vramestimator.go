@@ -124,6 +124,17 @@ func init() {
 	}
 }
 
+func checkNVMLAvailable() bool {
+	if runtime.GOOS == "darwin" {
+    return false
+  }
+  if _, err := os.Stat("/usr/lib/libnvidia-ml.so"); err == nil {
+    return true
+  }
+	return false
+}
+
+
 func GetCUDAVRAM() (float64, error) {
 	if ret := nvml.Init(); ret != nvml.SUCCESS {
 		return 0, fmt.Errorf("failed to initialize NVML: %v", ret)
@@ -164,16 +175,7 @@ func GetSystemRAM() (float64, error) {
 }
 
 func GetAvailableMemory() (float64, error) {
-
-	// if we're running on macOS, we can't use NVML, so we'll just use system RAM
-	if runtime.GOOS == "darwin" {
-		ram, err := GetSystemRAM()
-		if err != nil {
-			return 0, fmt.Errorf("failed to get system RAM: %v", err)
-		}
-		return ram, nil
-	} else {
-
+	if checkNVMLAvailable() {
 		// Try to get CUDA
 		vram, err := GetCUDAVRAM()
 		if err == nil {
@@ -189,7 +191,15 @@ func GetAvailableMemory() (float64, error) {
 
 		logging.InfoLogger.Printf("Using system RAM: %.2f GB", ram)
 		return ram, nil
-	}
+	} else {
+    ram, err := GetSystemRAM()
+    if err != nil {
+      return 0, fmt.Errorf("failed to get system RAM: %v", err)
+    }
+
+    logging.InfoLogger.Printf("Using system RAM: %.2f GB", ram)
+    return ram, nil
+  }
 }
 
 // CalculateVRAMRaw calculates the raw VRAM usage
