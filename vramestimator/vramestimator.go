@@ -42,14 +42,17 @@ type BPWValues struct {
 	KVCacheBPW float64
 }
 
-// QuantResult represents the result of VRAM estimation for a specific quantization and context size
+// Update the QuantResult struct
 type QuantResult struct {
-	QuantType string
-	BPW       float64
-	Context   int
-	VRAM      float64
-	VRAMQ8_0  float64
-	VRAMQ4_0  float64
+  QuantType string
+  BPW       float64
+  Contexts  map[int]ContextVRAM
+}
+
+type ContextVRAM struct {
+  VRAM     float64
+  VRAMQ8_0 float64
+  VRAMQ4_0 float64
 }
 
 // QuantResultTable represents a table of VRAM estimation results
@@ -69,6 +72,12 @@ const (
 const (
 	CUDASize = 500 * 1024 * 1024 // 500 MB
 )
+
+var colourMap = []string{
+  // "#FF4500",
+  "#FF8C00",
+  "#00D400",
+}
 
 // GGUFMapping maps GGUF quantisation types to their corresponding bits per weight
 var GGUFMapping = map[string]float64{
@@ -466,143 +475,120 @@ func levenshteinDistance(s1, s2 string) int {
 	}
 	return d[m][n]
 }
-
-// GenerateQuantTable generates a table of VRAM estimations for various quantization types and context sizes
 func GenerateQuantTable(modelID string, accessToken string, fitsVRAM float64) (QuantResultTable, error) {
-	table := QuantResultTable{ModelID: modelID, FitsVRAM: fitsVRAM}
-	contextSizes := []int{2048, 8192, 16384, 32768, 49152}
+  table := QuantResultTable{ModelID: modelID, FitsVRAM: fitsVRAM}
+  contextSizes := []int{2048, 8192, 16384, 32768, 49152}
 
-	// Get the model config once, outside the loops
-	_, err := GetModelConfig(modelID, accessToken)
-	if err != nil {
-		return QuantResultTable{}, err
-	}
+  _, err := GetModelConfig(modelID, accessToken)
+  if err != nil {
+      return QuantResultTable{}, err
+  }
 
-	for quantType, bpw := range GGUFMapping {
-		for _, context := range contextSizes {
-			vramFP16, err := CalculateVRAM(modelID, bpw, context, KVCacheFP16, accessToken)
-			if err != nil {
-				return QuantResultTable{}, err
-			}
-			vramQ8_0, err := CalculateVRAM(modelID, bpw, context, KVCacheQ8_0, accessToken)
-			if err != nil {
-				return QuantResultTable{}, err
-			}
-			vramQ4_0, err := CalculateVRAM(modelID, bpw, context, KVCacheQ4_0, accessToken)
-			if err != nil {
-				return QuantResultTable{}, err
-			}
-			table.Results = append(table.Results, QuantResult{
-				QuantType: quantType,
-				BPW:       bpw,
-				Context:   context,
-				VRAM:      vramFP16,
-				VRAMQ8_0:  vramQ8_0,
-				VRAMQ4_0:  vramQ4_0,
-			})
-		}
-	}
+  for quantType, bpw := range GGUFMapping {
+      var result QuantResult
+      result.QuantType = quantType
+      result.BPW = bpw
+      result.Contexts = make(map[int]ContextVRAM)
 
-	// Sort the results from lowest BPW to highest
-	sort.Slice(table.Results, func(i, j int) bool {
-		return table.Results[i].BPW < table.Results[j].BPW
-	})
+      for _, context := range contextSizes {
+          vramFP16, err := CalculateVRAM(modelID, bpw, context, KVCacheFP16, accessToken)
+          if err != nil {
+              return QuantResultTable{}, err
+          }
+          vramQ8_0, err := CalculateVRAM(modelID, bpw, context, KVCacheQ8_0, accessToken)
+          if err != nil {
+              return QuantResultTable{}, err
+          }
+          vramQ4_0, err := CalculateVRAM(modelID, bpw, context, KVCacheQ4_0, accessToken)
+          if err != nil {
+              return QuantResultTable{}, err
+          }
+          result.Contexts[context] = ContextVRAM{
+              VRAM:     vramFP16,
+              VRAMQ8_0: vramQ8_0,
+              VRAMQ4_0: vramQ4_0,
+          }
+      }
+      table.Results = append(table.Results, result)
+  }
 
-	return table, nil
+  // Sort the results from lowest BPW to highest
+  sort.Slice(table.Results, func(i, j int) bool {
+      return table.Results[i].BPW < table.Results[j].BPW
+  })
+
+  return table, nil
 }
 
-
-// PrintFormattedTable prints a nicely formatted table of VRAM estimations
 func PrintFormattedTable(table QuantResultTable) string {
-	var buf bytes.Buffer
-	tw := tablewriter.NewWriter(&buf)
+  var buf bytes.Buffer
+  tw := tablewriter.NewWriter(&buf)
 
-	// Set table header
-	tw.SetHeader([]string{"Quant Type", "BPW", "2K", "8K", "16K", "32K", "49K"})
+  // Set table header
+  tw.SetHeader([]string{"Quant Type", "BPW", "2K", "8K", "16K", "32K", "49K"})
 
-	// Set table style
-	tw.SetBorders(tablewriter.Border{Left: true, Top: false, Right: true, Bottom: false})
-	tw.SetCenterSeparator("|")
-	tw.SetColumnSeparator("|")
-	tw.SetRowSeparator("-")
+  // Set table style
+  tw.SetBorders(tablewriter.Border{Left: true, Top: false, Right: true, Bottom: false})
+  tw.SetCenterSeparator("|")
+  tw.SetColumnSeparator("|")
+  tw.SetRowSeparator("-")
 
-	// Set header color to bright white
-	tw.SetHeaderColor(
-		tablewriter.Colors{tablewriter.FgHiWhiteColor},
-		tablewriter.Colors{tablewriter.FgHiWhiteColor},
-		tablewriter.Colors{tablewriter.FgHiWhiteColor},
-		tablewriter.Colors{tablewriter.FgHiWhiteColor},
-		tablewriter.Colors{tablewriter.FgHiWhiteColor},
-		tablewriter.Colors{tablewriter.FgHiWhiteColor},
-		tablewriter.Colors{tablewriter.FgHiWhiteColor},
-	)
+  // Set header color to bright white
+  headerColors := make([]tablewriter.Colors, 7)
+  for i := range headerColors {
+      headerColors[i] = tablewriter.Colors{tablewriter.FgHiWhiteColor}
+  }
+  tw.SetHeaderColor(headerColors...)
 
-	// Prepare data rows
-	data := make(map[string][][]string)
-	for _, result := range table.Results {
-		if _, ok := data[result.QuantType]; !ok {
-			data[result.QuantType] = make([][]string, 3) // FP16, Q8_0, Q4_0
-			for i := range data[result.QuantType] {
-				data[result.QuantType][i] = make([]string, 6)
-			}
-			data[result.QuantType][0][0] = fmt.Sprintf("%.2f", result.BPW)
-			data[result.QuantType][1][0] = "Q8_0"
-			data[result.QuantType][2][0] = "Q4_0"
-		}
-		fp16Str := getColoredVRAM(result.VRAM, fmt.Sprintf("%.1f", result.VRAM), table.FitsVRAM)
-		q8_0Str := getColoredVRAM(result.VRAMQ8_0, fmt.Sprintf("%.1f", result.VRAMQ8_0), table.FitsVRAM)
-		q4_0Str := getColoredVRAM(result.VRAMQ4_0, fmt.Sprintf("%.1f", result.VRAMQ4_0), table.FitsVRAM)
-		switch result.Context {
-		case 2048:
-			data[result.QuantType][0][1] = fp16Str
-			data[result.QuantType][1][1] = q8_0Str
-			data[result.QuantType][2][1] = q4_0Str
-		case 8192:
-			data[result.QuantType][0][2] = fp16Str
-			data[result.QuantType][1][2] = q8_0Str
-			data[result.QuantType][2][2] = q4_0Str
-		case 16384:
-			data[result.QuantType][0][3] = fp16Str
-			data[result.QuantType][1][3] = q8_0Str
-			data[result.QuantType][2][3] = q4_0Str
-		case 32768:
-			data[result.QuantType][0][4] = fp16Str
-			data[result.QuantType][1][4] = q8_0Str
-			data[result.QuantType][2][4] = q4_0Str
-		case 49152:
-			data[result.QuantType][0][5] = fp16Str
-			data[result.QuantType][1][5] = q8_0Str
-			data[result.QuantType][2][5] = q4_0Str
-		}
-	}
+  // Prepare data rows
+  for _, result := range table.Results {
+      row := []string{
+          result.QuantType,
+          fmt.Sprintf("%.2f", result.BPW),
+      }
 
-	// Add rows to the table
-	for quantType, rows := range data {
-		tw.Append(append([]string{quantType}, rows[0]...))
-		tw.Append(append([]string{""}, rows[1]...))
-		tw.Append(append([]string{""}, rows[2]...))
-	}
+      // Add VRAM estimates for each context size
+      for _, context := range []int{2048, 8192, 16384, 32768, 49152} {
+          vram := result.Contexts[context]
+          fp16Str := getColoredVRAM(vram.VRAM, fmt.Sprintf("%.1f", vram.VRAM), table.FitsVRAM)
+          q8Str := getColoredVRAM(vram.VRAMQ8_0, fmt.Sprintf("%.1f", vram.VRAMQ8_0), table.FitsVRAM)
+          q4Str := getColoredVRAM(vram.VRAMQ4_0, fmt.Sprintf("%.1f", vram.VRAMQ4_0), table.FitsVRAM)
 
-	// Render the table
-	tw.Render()
+          cellValue := fmt.Sprintf("%s\n(%s,%s)", fp16Str, q8Str, q4Str)
+          row = append(row, cellValue)
+      }
 
-	return fmt.Sprintf("📊 VRAM Estimation for Model: %s\n\n%s", table.ModelID, buf.String())
+      tw.Append(row)
+  }
+
+  // Render the table
+  tw.Render()
+
+  return fmt.Sprintf("📊 VRAM Estimation for Model: %s\n\n%s", table.ModelID, buf.String())
 }
+
+
 
 func getColoredVRAM(vram float64, vramStr string, fitsVRAM float64) string {
+	var colorIndex int
 	if fitsVRAM > 0 {
 		if vram > fitsVRAM {
-			return lipgloss.NewStyle().Foreground(lipgloss.Color("#FF0000")).Render(vramStr)
+			colorIndex = 0 // Red
 		} else {
-			return lipgloss.NewStyle().Foreground(lipgloss.Color("#00FF00")).Render(vramStr)
+			colorIndex = len(colourMap) - 1 // Green
+		}
+	} else {
+		// Calculate color index based on VRAM usage
+		if vram <= 4 {
+			colorIndex = len(colourMap) - 1
+		} else if vram >= 24 {
+			colorIndex = 0
+		} else {
+			// Interpolate between 4 and 24 GB
+			colorIndex = len(colourMap) - 1 - int((vram-4)/(24-4)*float64(len(colourMap)-1))
 		}
 	}
 
-	if vram > 24 {
-		return lipgloss.NewStyle().Foreground(lipgloss.Color("#FF0000")).Render(vramStr)
-	} else if vram > 12 {
-		return lipgloss.NewStyle().Foreground(lipgloss.Color("#FFFF00")).Render(vramStr)
-	}
-	return lipgloss.NewStyle().Foreground(lipgloss.Color("#00FF00")).Render(vramStr)
+	style := lipgloss.NewStyle().Foreground(lipgloss.Color(colourMap[colorIndex]))
+	return style.Render(vramStr)
 }
-
