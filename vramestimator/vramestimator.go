@@ -144,7 +144,7 @@ func GetSystemRAM() (float64, error) {
 }
 
 func GetAvailableMemory() (float64, error) {
-  // will fix this soon
+	// will fix this soon
 	// if checkNVMLAvailable() {
 	// 	// Try to get CUDA
 	// 	vram, err := cuda.GetCUDAVRAM()
@@ -162,14 +162,80 @@ func GetAvailableMemory() (float64, error) {
 	// 	logging.InfoLogger.Printf("Using system RAM: %.2f GB", ram)
 	// 	return ram, nil
 	// } else {
-		ram, err := GetSystemRAM()
-		if err != nil {
-			return 0, fmt.Errorf("failed to get system RAM: %v", err)
-		}
+	ram, err := GetSystemRAM()
+	if err != nil {
+		return 0, fmt.Errorf("failed to get system RAM: %v", err)
+	}
 
-		logging.InfoLogger.Printf("Using system RAM: %.2f GB", ram)
-		return ram, nil
+	logging.InfoLogger.Printf("Using system RAM: %.2f GB", ram)
+	return ram, nil
 	// }
+}
+
+type OllamaModelInfo struct {
+	Details struct {
+		ParameterSize     string   `json:"parameter_size"`
+		QuantizationLevel string   `json:"quantization_level"`
+		Family            string   `json:"family"`
+		Families          []string `json:"families"`
+	} `json:"details"`
+	ModelInfo struct {
+		Architecture         string `json:"general.architecture"`
+		ParameterCount       int64  `json:"general.parameter_count"`
+		ContextLength        int    `json:"llama.context_length"`
+		AttentionHeadCount   int    `json:"llama.attention.head_count"`
+		AttentionHeadCountKV int    `json:"llama.attention.head_count_kv"`
+		EmbeddingLength      int    `json:"llama.embedding_length"`
+		FeedForwardLength    int    `json:"llama.feed_forward_length"`
+		RopeDimensionCount   int    `json:"llama.rope.dimension_count"`
+		VocabSize            int    `json:"llama.vocab_size"`
+	} `json:"model_info"`
+}
+
+func FetchOllamaModelInfo(apiURL, modelName string) (*OllamaModelInfo, error) {
+	url := fmt.Sprintf("%s/api/show", apiURL)
+	payload := []byte(fmt.Sprintf(`{"name": "%s"}`, modelName))
+
+	resp, err := http.Post(url, "application/json", bytes.NewBuffer(payload))
+	if err != nil {
+		return nil, fmt.Errorf("error making request to Ollama API: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("ollama API returned non-OK status: %d", resp.StatusCode)
+	}
+
+	var modelInfo OllamaModelInfo
+	if err := json.NewDecoder(resp.Body).Decode(&modelInfo); err != nil {
+		return nil, fmt.Errorf("error decoding Ollama API response: %v", err)
+	}
+
+	return &modelInfo, nil
+}
+
+func EstimateVRAM(modelIdentifier, apiURL string, fitsVRAM float64) error {
+	var ollamaModelInfo *OllamaModelInfo
+	var err error
+
+	// Check if the modelIdentifier is an Ollama model name
+	if strings.Contains(modelIdentifier, ":") {
+		ollamaModelInfo, err = FetchOllamaModelInfo(apiURL, modelIdentifier)
+		if err != nil {
+			return fmt.Errorf("error fetching Ollama model info: %v", err)
+		}
+	}
+
+	// Generate the quantization table
+	table, err := GenerateQuantTable(modelIdentifier, "", fitsVRAM, ollamaModelInfo)
+	if err != nil {
+		return fmt.Errorf("error generating quantization table: %v", err)
+	}
+
+	// Print the formatted table
+	fmt.Println(PrintFormattedTable(table))
+
+	return nil
 }
 
 // CalculateVRAMRaw calculates the raw VRAM usage
@@ -371,11 +437,38 @@ func GetBPWValues(bpw float64, kvCacheQuant KVCacheQuantisation) BPWValues {
 }
 
 // CalculateVRAM calculates the VRAM usage for a given model and configuration
-func CalculateVRAM(modelID string, bpw float64, context int, kvCacheQuant KVCacheQuantisation, accessToken string) (float64, error) {
+func CalculateVRAM(modelID string, bpw float64, context int, kvCacheQuant KVCacheQuantisation, accessToken string, ollamaModelInfo *OllamaModelInfo) (float64, error) {
 	logging.DebugLogger.Println("Calculating VRAM usage...")
-	config, err := GetModelConfig(modelID, accessToken)
-	if err != nil {
-		return 0, err
+
+	var config ModelConfig
+	var err error
+
+	if ollamaModelInfo != nil {
+		// Use Ollama model information
+		config = ModelConfig{
+			NumParams:             float64(ollamaModelInfo.ModelInfo.ParameterCount) / 1e9, // Convert to billions
+			MaxPositionEmbeddings: ollamaModelInfo.ModelInfo.ContextLength,
+			NumHiddenLayers:       0, // Not provided in Ollama API, might need to be inferred
+			HiddenSize:            ollamaModelInfo.ModelInfo.EmbeddingLength,
+			NumKeyValueHeads:      ollamaModelInfo.ModelInfo.AttentionHeadCountKV,
+			NumAttentionHeads:     ollamaModelInfo.ModelInfo.AttentionHeadCount,
+			IntermediateSize:      ollamaModelInfo.ModelInfo.FeedForwardLength,
+			VocabSize:             ollamaModelInfo.ModelInfo.VocabSize,
+		}
+
+		// Parse BPW from quantization level if not provided
+		if bpw == 0 {
+			bpw, err = ParseBPWOrQuant(ollamaModelInfo.Details.QuantizationLevel)
+			if err != nil {
+				return 0, fmt.Errorf("error parsing BPW from Ollama quantization level: %v", err)
+			}
+		}
+	} else {
+		// Use Hugging Face model information
+		config, err = GetModelConfig(modelID, accessToken)
+		if err != nil {
+			return 0, err
+		}
 	}
 
 	bpwValues := GetBPWValues(bpw, kvCacheQuant)
@@ -389,20 +482,25 @@ func CalculateVRAM(modelID string, bpw float64, context int, kvCacheQuant KVCach
 }
 
 // CalculateContext calculates the maximum context for a given memory constraint
-func CalculateContext(modelID string, memory, bpw float64, kvCacheQuant KVCacheQuantisation, accessToken string) (int, error) {
+func CalculateContext(modelID string, memory, bpw float64, kvCacheQuant KVCacheQuantisation, accessToken string, ollamaModelInfo *OllamaModelInfo) (int, error) {
 	logging.DebugLogger.Println("Calculating context...")
-	config, err := GetModelConfig(modelID, accessToken)
-	if err != nil {
-		return 0, err
+
+	var maxContext int
+	if ollamaModelInfo != nil {
+		maxContext = ollamaModelInfo.ModelInfo.ContextLength
+	} else {
+		config, err := GetModelConfig(modelID, accessToken)
+		if err != nil {
+			return 0, err
+		}
+		maxContext = config.MaxPositionEmbeddings
 	}
 
 	minContext := 512
-	maxContext := config.MaxPositionEmbeddings
-
 	low, high := minContext, maxContext
 	for low < high {
 		mid := (low + high + 1) / 2
-		vram, err := CalculateVRAM(modelID, bpw, mid, kvCacheQuant, accessToken)
+		vram, err := CalculateVRAM(modelID, bpw, mid, kvCacheQuant, accessToken, ollamaModelInfo)
 		if err != nil {
 			return 0, err
 		}
@@ -415,7 +513,7 @@ func CalculateContext(modelID string, memory, bpw float64, kvCacheQuant KVCacheQ
 
 	context := low
 	for context <= maxContext {
-		vram, err := CalculateVRAM(modelID, bpw, context, kvCacheQuant, accessToken)
+		vram, err := CalculateVRAM(modelID, bpw, context, kvCacheQuant, accessToken, ollamaModelInfo)
 		if err != nil {
 			return 0, err
 		}
@@ -429,12 +527,13 @@ func CalculateContext(modelID string, memory, bpw float64, kvCacheQuant KVCacheQ
 }
 
 // CalculateBPW calculates the best BPW for a given memory and context constraint
-func CalculateBPW(modelID string, memory float64, context int, kvCacheQuant KVCacheQuantisation, quantType string, accessToken string) (interface{}, error) {
+func CalculateBPW(modelID string, memory float64, context int, kvCacheQuant KVCacheQuantisation, quantType string, accessToken string, ollamaModelInfo *OllamaModelInfo) (interface{}, error) {
 	logging.DebugLogger.Println("Calculating BPW...")
+
 	switch quantType {
 	case "exl2":
 		for _, bpw := range EXL2Options {
-			vram, err := CalculateVRAM(modelID, bpw, context, kvCacheQuant, accessToken)
+			vram, err := CalculateVRAM(modelID, bpw, context, kvCacheQuant, accessToken, ollamaModelInfo)
 			if err != nil {
 				return nil, err
 			}
@@ -444,7 +543,7 @@ func CalculateBPW(modelID string, memory float64, context int, kvCacheQuant KVCa
 		}
 	case "gguf":
 		for name, bpw := range GGUFMapping {
-			vram, err := CalculateVRAM(modelID, bpw, context, kvCacheQuant, accessToken)
+			vram, err := CalculateVRAM(modelID, bpw, context, kvCacheQuant, accessToken, ollamaModelInfo)
 			if err != nil {
 				return nil, err
 			}
@@ -455,6 +554,7 @@ func CalculateBPW(modelID string, memory float64, context int, kvCacheQuant KVCa
 	default:
 		return nil, fmt.Errorf("invalid quantisation type: %s", quantType)
 	}
+
 	return nil, fmt.Errorf("no suitable BPW found for the given memory constraint")
 }
 
@@ -525,7 +625,7 @@ func levenshteinDistance(s1, s2 string) int {
 	return d[m][n]
 }
 
-func GenerateQuantTable(modelID string, accessToken string, fitsVRAM float64) (QuantResultTable, error) {
+func GenerateQuantTable(modelID string, accessToken string, fitsVRAM float64, ollamaModelInfo *OllamaModelInfo) (QuantResultTable, error) {
 	if fitsVRAM == 0 {
 		var err error
 		fitsVRAM, err = GetAvailableMemory()
@@ -539,9 +639,11 @@ func GenerateQuantTable(modelID string, accessToken string, fitsVRAM float64) (Q
 	table := QuantResultTable{ModelID: modelID, FitsVRAM: fitsVRAM}
 	contextSizes := []int{2048, 8192, 16384, 32768, 49152, 65536}
 
-	_, err := GetModelConfig(modelID, accessToken)
-	if err != nil {
-		return QuantResultTable{}, err
+	if ollamaModelInfo == nil {
+		_, err := GetModelConfig(modelID, accessToken)
+		if err != nil {
+			return QuantResultTable{}, err
+		}
 	}
 
 	for quantType, bpw := range GGUFMapping {
@@ -551,15 +653,15 @@ func GenerateQuantTable(modelID string, accessToken string, fitsVRAM float64) (Q
 		result.Contexts = make(map[int]ContextVRAM)
 
 		for _, context := range contextSizes {
-			vramFP16, err := CalculateVRAM(modelID, bpw, context, KVCacheFP16, accessToken)
+			vramFP16, err := CalculateVRAM(modelID, bpw, context, KVCacheFP16, accessToken, ollamaModelInfo)
 			if err != nil {
 				return QuantResultTable{}, err
 			}
-			vramQ8_0, err := CalculateVRAM(modelID, bpw, context, KVCacheQ8_0, accessToken)
+			vramQ8_0, err := CalculateVRAM(modelID, bpw, context, KVCacheQ8_0, accessToken, ollamaModelInfo)
 			if err != nil {
 				return QuantResultTable{}, err
 			}
-			vramQ4_0, err := CalculateVRAM(modelID, bpw, context, KVCacheQ4_0, accessToken)
+			vramQ4_0, err := CalculateVRAM(modelID, bpw, context, KVCacheQ4_0, accessToken, ollamaModelInfo)
 			if err != nil {
 				return QuantResultTable{}, err
 			}
@@ -579,6 +681,7 @@ func GenerateQuantTable(modelID string, accessToken string, fitsVRAM float64) (Q
 
 	return table, nil
 }
+
 func PrintFormattedTable(table QuantResultTable) string {
 	var buf bytes.Buffer
 	tw := tablewriter.NewWriter(&buf)

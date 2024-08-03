@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
@@ -117,34 +118,14 @@ func main() {
 	versionFlag := flag.Bool("v", false, "Print the version and exit")
 	hostFlag := flag.String("h", "", "Override the config file to set the Ollama API host (e.g. http://localhost:11434)")
 	editFlag := flag.Bool("e", false, "Edit a model's modelfile")
-
 	// vRAM estimation flags
-	vramFlag := flag.String("vram", "", "Estimate vRAM usage - Model ID")
+	vramFlag := flag.String("vram", "", "Estimate vRAM usage - Model ID or Ollama model name")
 	flag.Float64Var(&fitsVRAM, "fits", 0, "Highlight quant sizes and context sizes that fit in this amount of vRAM (in GB)")
 
 	flag.Parse()
 
 	if *versionFlag {
 		fmt.Println(Version)
-		os.Exit(0)
-	}
-
-	// Handle vRAM estimation flags
-	if *vramFlag != "" {
-		logging.DebugLogger.Println("vRAM estimation flag detected")
-		if *vramFlag == "" {
-			fmt.Println("Error: Model ID is required for vRAM estimation")
-			os.Exit(1)
-		}
-
-		logging.DebugLogger.Println("Generating VRAM estimation table")
-		table, err := vramestimator.GenerateQuantTable(*vramFlag, "", fitsVRAM)
-		if err != nil {
-			fmt.Printf("Error generating VRAM estimation table: %v\n", err)
-			os.Exit(1)
-		}
-
-		fmt.Println(vramestimator.PrintFormattedTable(table))
 		os.Exit(0)
 	}
 
@@ -164,6 +145,38 @@ func main() {
 		logging.ErrorLogger.Println(message)
 		fmt.Println(message)
 		os.Exit(1)
+	}
+
+	// Handle vRAM estimation flags
+	if *vramFlag != "" {
+		logging.DebugLogger.Println("vRAM estimation flag detected")
+		if *vramFlag == "" {
+			fmt.Println("Error: Model ID or Ollama model name is required for vRAM estimation")
+			os.Exit(1)
+		}
+
+		logging.DebugLogger.Println("Generating VRAM estimation table")
+
+		var ollamaModelInfo *vramestimator.OllamaModelInfo
+		var err error
+
+		// Check if the input is an Ollama model name (contains a colon)
+		if strings.Contains(*vramFlag, ":") {
+			ollamaModelInfo, err = vramestimator.FetchOllamaModelInfo(url.String(), *vramFlag)
+			if err != nil {
+				fmt.Printf("Error fetching Ollama model info: %v\n", err)
+				os.Exit(1)
+			}
+		}
+
+		table, err := vramestimator.GenerateQuantTable(*vramFlag, "", fitsVRAM, ollamaModelInfo)
+		if err != nil {
+			fmt.Printf("Error generating VRAM estimation table: %v\n", err)
+			os.Exit(1)
+		}
+
+		fmt.Println(vramestimator.PrintFormattedTable(table))
+		os.Exit(0)
 	}
 
 	client := api.NewClient(url, httpClient)
