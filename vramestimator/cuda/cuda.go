@@ -1,4 +1,4 @@
-package vramestimator
+package cuda
 
 import (
 	"fmt"

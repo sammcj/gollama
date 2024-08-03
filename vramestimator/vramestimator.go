@@ -20,6 +20,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/olekukonko/tablewriter"
 	"github.com/sammcj/gollama/logging"
+	"github.com/sammcj/gollama/vramestimator/cuda"
 	"github.com/shirou/gopsutil/v3/mem"
 )
 
@@ -146,7 +147,7 @@ func GetSystemRAM() (float64, error) {
 func GetAvailableMemory() (float64, error) {
 	if checkNVMLAvailable() {
 		// Try to get CUDA
-		vram, err := GetCUDAVRAM()
+		vram, err := cuda.GetCUDAVRAM()
 		if err == nil {
 			logging.InfoLogger.Printf("Using CUDA VRAM: %.2f GB", vram)
 			return vram, nil
