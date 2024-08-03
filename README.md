@@ -169,7 +169,7 @@ Gollama includes a comprehensive vRAM estimation feature:
 - Determine maximum context length for a given vRAM constraint
 - Find the best quantisation setting for a given vRAM and context constraint
 - Shows estimates for different k/v cache quantisation options (fp16, q8_0, q4_0)
-- Automatic detection of available CUDA vRAM or system RAM
+- Automatic detection of available CUDA vRAM (**coming soon!**) or system RAM
 
 ![](screenshots/vram.png)
 

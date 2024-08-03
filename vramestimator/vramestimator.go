@@ -20,7 +20,6 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/olekukonko/tablewriter"
 	"github.com/sammcj/gollama/logging"
-	"github.com/sammcj/gollama/vramestimator/cuda"
 	"github.com/shirou/gopsutil/v3/mem"
 )
 
@@ -145,15 +144,24 @@ func GetSystemRAM() (float64, error) {
 }
 
 func GetAvailableMemory() (float64, error) {
-	if checkNVMLAvailable() {
-		// Try to get CUDA
-		vram, err := cuda.GetCUDAVRAM()
-		if err == nil {
-			logging.InfoLogger.Printf("Using CUDA VRAM: %.2f GB", vram)
-			return vram, nil
-		}
+  // will fix this soon
+	// if checkNVMLAvailable() {
+	// 	// Try to get CUDA
+	// 	vram, err := cuda.GetCUDAVRAM()
+	// 	if err == nil {
+	// 		logging.InfoLogger.Printf("Using CUDA VRAM: %.2f GB", vram)
+	// 		return vram, nil
+	// 	}
 
-		// If CUDA is not available, fall back to system RAM
+	// 	// If CUDA is not available, fall back to system RAM
+	// 	ram, err := GetSystemRAM()
+	// 	if err != nil {
+	// 		return 0, fmt.Errorf("failed to get system RAM: %v", err)
+	// 	}
+
+	// 	logging.InfoLogger.Printf("Using system RAM: %.2f GB", ram)
+	// 	return ram, nil
+	// } else {
 		ram, err := GetSystemRAM()
 		if err != nil {
 			return 0, fmt.Errorf("failed to get system RAM: %v", err)
@@ -161,15 +169,7 @@ func GetAvailableMemory() (float64, error) {
 
 		logging.InfoLogger.Printf("Using system RAM: %.2f GB", ram)
 		return ram, nil
-	} else {
-		ram, err := GetSystemRAM()
-		if err != nil {
-			return 0, fmt.Errorf("failed to get system RAM: %v", err)
-		}
-
-		logging.InfoLogger.Printf("Using system RAM: %.2f GB", ram)
-		return ram, nil
-	}
+	// }
 }
 
 // CalculateVRAMRaw calculates the raw VRAM usage
