@@ -1,19 +1,69 @@
 package vramestimator
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"math"
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
+	"sort"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
+
+	"github.com/charmbracelet/lipgloss"
+	"github.com/olekukonko/tablewriter"
+	"github.com/sammcj/gollama/logging"
+	"github.com/shirou/gopsutil/v3/mem"
 )
 
 // KVCacheQuantisation represents the quantisation type for the k/v context cache
 type KVCacheQuantisation string
+
+// ModelConfig represents the configuration of a model
+type ModelConfig struct {
+	NumParams             float64 `json:"num_params"`
+	MaxPositionEmbeddings int     `json:"max_position_embeddings"`
+	NumHiddenLayers       int     `json:"num_hidden_layers"`
+	HiddenSize            int     `json:"hidden_size"`
+	NumKeyValueHeads      int     `json:"num_key_value_heads"`
+	NumAttentionHeads     int     `json:"num_attention_heads"`
+	IntermediateSize      int     `json:"intermediate_size"`
+	VocabSize             int     `json:"vocab_size"`
+}
+
+// BPWValues represents the bits per weight values for different components
+type BPWValues struct {
+	BPW        float64
+	LMHeadBPW  float64
+	KVCacheBPW float64
+}
+
+// Update the QuantResult struct
+type QuantResult struct {
+	QuantType string
+	BPW       float64
+	Contexts  map[int]ContextVRAM
+}
+
+type ContextVRAM struct {
+	VRAM     float64
+	VRAMQ8_0 float64
+	VRAMQ4_0 float64
+}
+
+// QuantResultTable represents a table of VRAM estimation results
+type QuantResultTable struct {
+	ModelID  string
+	Results  []QuantResult
+	FitsVRAM float64
+}
 
 const (
 	KVCacheFP16 KVCacheQuantisation = "fp16"
@@ -24,6 +74,11 @@ const (
 const (
 	CUDASize = 500 * 1024 * 1024 // 500 MB
 )
+
+var colourMap = []string{
+	"#ff0000", // red
+	"#00ff00", // green
+}
 
 // GGUFMapping maps GGUF quantisation types to their corresponding bits per weight
 var GGUFMapping = map[string]float64{
@@ -57,33 +112,70 @@ var GGUFMapping = map[string]float64{
 // EXL2Options contains the EXL2 quantisation options
 var EXL2Options []float64
 
+var (
+	modelConfigCache = make(map[string]ModelConfig)
+	cacheMutex       sync.RWMutex
+)
+
 func init() {
 	for i := 6.0; i >= 2.0; i -= 0.05 {
 		EXL2Options = append(EXL2Options, math.Round(i*100)/100)
 	}
 }
 
-// ModelConfig represents the configuration of a model
-type ModelConfig struct {
-	NumParams             float64 `json:"num_params"`
-	MaxPositionEmbeddings int     `json:"max_position_embeddings"`
-	NumHiddenLayers       int     `json:"num_hidden_layers"`
-	HiddenSize            int     `json:"hidden_size"`
-	NumKeyValueHeads      int     `json:"num_key_value_heads"`
-	NumAttentionHeads     int     `json:"num_attention_heads"`
-	IntermediateSize      int     `json:"intermediate_size"`
-	VocabSize             int     `json:"vocab_size"`
+func checkNVMLAvailable() bool {
+	if runtime.GOOS == "darwin" {
+		return false
+	}
+	if _, err := os.Stat("/usr/lib/libnvidia-ml.so"); err == nil {
+		return true
+	}
+	return false
 }
 
-// BPWValues represents the bits per weight values for different components
-type BPWValues struct {
-	BPW        float64
-	LMHeadBPW  float64
-	KVCacheBPW float64
+func GetSystemRAM() (float64, error) {
+	vmStat, err := mem.VirtualMemory()
+	if err != nil {
+		return 0, fmt.Errorf("failed to get system memory info: %v", err)
+	}
+
+	totalRAM := float64(vmStat.Total) / 1024 / 1024 / 1024 // Convert to GB
+	return totalRAM, nil
+}
+
+func GetAvailableMemory() (float64, error) {
+  // will fix this soon
+	// if checkNVMLAvailable() {
+	// 	// Try to get CUDA
+	// 	vram, err := cuda.GetCUDAVRAM()
+	// 	if err == nil {
+	// 		logging.InfoLogger.Printf("Using CUDA VRAM: %.2f GB", vram)
+	// 		return vram, nil
+	// 	}
+
+	// 	// If CUDA is not available, fall back to system RAM
+	// 	ram, err := GetSystemRAM()
+	// 	if err != nil {
+	// 		return 0, fmt.Errorf("failed to get system RAM: %v", err)
+	// 	}
+
+	// 	logging.InfoLogger.Printf("Using system RAM: %.2f GB", ram)
+	// 	return ram, nil
+	// } else {
+		ram, err := GetSystemRAM()
+		if err != nil {
+			return 0, fmt.Errorf("failed to get system RAM: %v", err)
+		}
+
+		logging.InfoLogger.Printf("Using system RAM: %.2f GB", ram)
+		return ram, nil
+	// }
 }
 
 // CalculateVRAMRaw calculates the raw VRAM usage
 func CalculateVRAMRaw(config ModelConfig, bpwValues BPWValues, context int, numGPUs int, gqa bool) float64 {
+	logging.DebugLogger.Println("Calculating VRAM usage...")
+
 	cudaSize := float64(CUDASize * numGPUs)
 	paramsSize := config.NumParams * 1e9 * (bpwValues.BPW / 8)
 
@@ -134,10 +226,17 @@ func bitsToGB(bits float64) float64 {
 
 // DownloadFile downloads a file from a URL and saves it to the specified path
 func DownloadFile(url, filePath string, headers map[string]string) error {
-  if os.Getenv("DEBUG") == "true" {
-    fmt.Println("Downloading", url)
-  }
-	client := &http.Client{}
+	if _, err := os.Stat(filePath); err == nil {
+		logging.InfoLogger.Println("File already exists, skipping download")
+		return nil
+	}
+
+	// fmt.Printf("Downloading file from: %s\n", url)
+	logging.DebugLogger.Println("Downloading file from:", url)
+
+	client := &http.Client{
+		Timeout: 30 * time.Second,
+	}
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return err
@@ -174,7 +273,14 @@ func DownloadFile(url, filePath string, headers map[string]string) error {
 
 // GetModelConfig retrieves and parses the model configuration
 func GetModelConfig(modelID, accessToken string) (ModelConfig, error) {
-  baseDir := filepath.Join(os.Getenv("HOME"), ".cache/huggingface/hub", modelID)
+	cacheMutex.RLock()
+	if config, ok := modelConfigCache[modelID]; ok {
+		cacheMutex.RUnlock()
+		return config, nil
+	}
+	cacheMutex.RUnlock()
+
+	baseDir := filepath.Join(os.Getenv("HOME"), ".cache/huggingface/hub", modelID)
 	configPath := filepath.Join(baseDir, "config.json")
 	indexPath := filepath.Join(baseDir, "model.safetensors.index.json")
 
@@ -220,6 +326,10 @@ func GetModelConfig(modelID, accessToken string) (ModelConfig, error) {
 
 	config.NumParams = index.Metadata.TotalSize / 2 / 1e9
 
+	cacheMutex.Lock()
+	modelConfigCache[modelID] = config
+	cacheMutex.Unlock()
+
 	return config, nil
 }
 
@@ -233,6 +343,7 @@ func ParseBPW(bpw string) float64 {
 
 // GetBPWValues calculates the BPW values based on the input
 func GetBPWValues(bpw float64, kvCacheQuant KVCacheQuantisation) BPWValues {
+	logging.DebugLogger.Println("Calculating BPW values...")
 	var lmHeadBPW, kvCacheBPW float64
 
 	if bpw > 6.0 {
@@ -261,6 +372,7 @@ func GetBPWValues(bpw float64, kvCacheQuant KVCacheQuantisation) BPWValues {
 
 // CalculateVRAM calculates the VRAM usage for a given model and configuration
 func CalculateVRAM(modelID string, bpw float64, context int, kvCacheQuant KVCacheQuantisation, accessToken string) (float64, error) {
+	logging.DebugLogger.Println("Calculating VRAM usage...")
 	config, err := GetModelConfig(modelID, accessToken)
 	if err != nil {
 		return 0, err
@@ -278,12 +390,13 @@ func CalculateVRAM(modelID string, bpw float64, context int, kvCacheQuant KVCach
 
 // CalculateContext calculates the maximum context for a given memory constraint
 func CalculateContext(modelID string, memory, bpw float64, kvCacheQuant KVCacheQuantisation, accessToken string) (int, error) {
+	logging.DebugLogger.Println("Calculating context...")
 	config, err := GetModelConfig(modelID, accessToken)
 	if err != nil {
 		return 0, err
 	}
 
-	minContext := 2048
+	minContext := 512
 	maxContext := config.MaxPositionEmbeddings
 
 	low, high := minContext, maxContext
@@ -317,6 +430,7 @@ func CalculateContext(modelID string, memory, bpw float64, kvCacheQuant KVCacheQ
 
 // CalculateBPW calculates the best BPW for a given memory and context constraint
 func CalculateBPW(modelID string, memory float64, context int, kvCacheQuant KVCacheQuantisation, quantType string, accessToken string) (interface{}, error) {
+	logging.DebugLogger.Println("Calculating BPW...")
 	switch quantType {
 	case "exl2":
 		for _, bpw := range EXL2Options {
@@ -409,4 +523,138 @@ func levenshteinDistance(s1, s2 string) int {
 		}
 	}
 	return d[m][n]
+}
+
+func GenerateQuantTable(modelID string, accessToken string, fitsVRAM float64) (QuantResultTable, error) {
+	if fitsVRAM == 0 {
+		var err error
+		fitsVRAM, err = GetAvailableMemory()
+		if err != nil {
+			log.Printf("Failed to get available memory: %v. Using default value.", err)
+			fitsVRAM = 24 // Default to 24GB if we can't determine available memory
+		}
+		log.Printf("Using %.2f GB as available memory for VRAM estimation", fitsVRAM)
+	}
+
+	table := QuantResultTable{ModelID: modelID, FitsVRAM: fitsVRAM}
+	contextSizes := []int{2048, 8192, 16384, 32768, 49152, 65536}
+
+	_, err := GetModelConfig(modelID, accessToken)
+	if err != nil {
+		return QuantResultTable{}, err
+	}
+
+	for quantType, bpw := range GGUFMapping {
+		var result QuantResult
+		result.QuantType = quantType
+		result.BPW = bpw
+		result.Contexts = make(map[int]ContextVRAM)
+
+		for _, context := range contextSizes {
+			vramFP16, err := CalculateVRAM(modelID, bpw, context, KVCacheFP16, accessToken)
+			if err != nil {
+				return QuantResultTable{}, err
+			}
+			vramQ8_0, err := CalculateVRAM(modelID, bpw, context, KVCacheQ8_0, accessToken)
+			if err != nil {
+				return QuantResultTable{}, err
+			}
+			vramQ4_0, err := CalculateVRAM(modelID, bpw, context, KVCacheQ4_0, accessToken)
+			if err != nil {
+				return QuantResultTable{}, err
+			}
+			result.Contexts[context] = ContextVRAM{
+				VRAM:     vramFP16,
+				VRAMQ8_0: vramQ8_0,
+				VRAMQ4_0: vramQ4_0,
+			}
+		}
+		table.Results = append(table.Results, result)
+	}
+
+	// Sort the results from lowest BPW to highest
+	sort.Slice(table.Results, func(i, j int) bool {
+		return table.Results[i].BPW < table.Results[j].BPW
+	})
+
+	return table, nil
+}
+func PrintFormattedTable(table QuantResultTable) string {
+	var buf bytes.Buffer
+	tw := tablewriter.NewWriter(&buf)
+
+	// Set table header
+	tw.SetHeader([]string{"Quant|Ctx", "BPW", "2K", "8K", "16K", "32K", "49K", "64K"})
+
+	// Set table style
+	tw.SetBorders(tablewriter.Border{Left: true, Top: false, Right: true, Bottom: false})
+	tw.SetCenterSeparator("|")
+	tw.SetColumnSeparator("|")
+	tw.SetRowSeparator("-")
+
+	// Set header colour to bright white
+	headerColours := make([]tablewriter.Colors, 8)
+	for i := range headerColours {
+		headerColours[i] = tablewriter.Colors{tablewriter.FgHiWhiteColor}
+	}
+	tw.SetHeaderColor(headerColours...)
+	// set header row colours to bright white
+
+	// Prepare data rows
+	for _, result := range table.Results {
+		row := []string{
+			result.QuantType,
+			fmt.Sprintf("%.2f", result.BPW),
+		}
+
+		// Add VRAM estimates for each context size
+		contextSizes := []int{2048, 8192, 16384, 32768, 49152, 65536}
+		for _, context := range contextSizes {
+			vram := result.Contexts[context]
+
+			fp16Str := getColouredVRAM(vram.VRAM, fmt.Sprintf("%.1f", vram.VRAM), table.FitsVRAM)
+
+			if context >= 16384 {
+				q8Str := getColouredVRAM(vram.VRAMQ8_0, fmt.Sprintf("%.1f", vram.VRAMQ8_0), table.FitsVRAM)
+				q4Str := getColouredVRAM(vram.VRAMQ4_0, fmt.Sprintf("%.1f", vram.VRAMQ4_0), table.FitsVRAM)
+
+				combinedStr := fmt.Sprintf("%s(%s,%s)", fp16Str, q8Str, q4Str)
+				row = append(row, combinedStr)
+			} else {
+				combinedStr := fp16Str
+				row = append(row, combinedStr)
+			}
+		}
+
+		tw.Append(row)
+	}
+
+	// Render the table
+	tw.Render()
+
+	return lipgloss.NewStyle().Foreground(lipgloss.Color("#ffffff")).Render(fmt.Sprintf("📊 VRAM Estimation for Model: %s\n\n%s", table.ModelID, buf.String()))
+}
+
+func getColouredVRAM(vram float64, vramStr string, fitsVRAM float64) string {
+	var colorIndex int
+	if fitsVRAM > 0 {
+		if vram > fitsVRAM {
+			colorIndex = 0 // Red
+		} else {
+			colorIndex = len(colourMap) - 1 // Green
+		}
+	} else {
+		// Calculate color index based on VRAM usage
+		if vram <= 4 {
+			colorIndex = len(colourMap) - 1
+		} else if vram >= 24 {
+			colorIndex = 0
+		} else {
+			// Interpolate between 4 and 24 GB
+			colorIndex = len(colourMap) - 1 - int((vram-4)/(24-4)*float64(len(colourMap)-1))
+		}
+	}
+
+	style := lipgloss.NewStyle().Foreground(lipgloss.Color(colourMap[colorIndex]))
+	return style.Render(vramStr)
 }

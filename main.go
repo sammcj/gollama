@@ -86,6 +86,7 @@ type genericMsg struct {
 
 type View int
 
+var fitsVRAM float64
 var Version string // Version is set by the build system
 
 func main() {
@@ -120,16 +121,31 @@ func main() {
 	// vRAM estimation flags
 	vramFlag := flag.Bool("vram", false, "Estimate vRAM usage")
 	modelIDFlag := flag.String("model", "", "vRAM Estimation - Model ID")
-	quantFlag := flag.String("quant", "", "vRAM Estimation - Quantisation type (e.g., q4_k_m) or bits per weight (e.g., 5.0)")
-	contextFlag := flag.Int("context", 0, "vRAM Estimation - Context length for vRAM estimation")
-	kvCacheFlag := flag.String("kvcache", "fp16", "vRAM Estimation - KV cache quantisation: fp16, q8_0, or q4_0")
-	memoryFlag := flag.Float64("memory", 0, "vRAM Estimation - Available memory in GB for context calculation")
-	quantTypeFlag := flag.String("quanttype", "gguf", "vRAM Estimation - Quantisation type: gguf or exl2")
+	flag.Float64Var(&fitsVRAM, "fits", 0, "Highlight quant sizes and context sizes that fit in this amount of vRAM (in GB)")
 
 	flag.Parse()
 
 	if *versionFlag {
 		fmt.Println(Version)
+		os.Exit(0)
+	}
+
+	// Handle vRAM estimation flags
+	if *vramFlag {
+		logging.DebugLogger.Println("vRAM estimation flag detected")
+		if *modelIDFlag == "" {
+			fmt.Println("Error: Model ID is required for vRAM estimation")
+			os.Exit(1)
+		}
+
+		logging.DebugLogger.Println("Generating VRAM estimation table")
+		table, err := vramestimator.GenerateQuantTable(*modelIDFlag, "", fitsVRAM)
+		if err != nil {
+			fmt.Printf("Error generating VRAM estimation table: %v\n", err)
+			os.Exit(1)
+		}
+
+		fmt.Println(vramestimator.PrintFormattedTable(table))
 		os.Exit(0)
 	}
 
@@ -306,67 +322,6 @@ func main() {
 		}
 		modelName := flag.Args()[0]
 		editModelfile(client, modelName)
-		os.Exit(0)
-	}
-
-	// Handle vRAM estimation flags
-	if *vramFlag {
-		if *modelIDFlag == "" {
-			fmt.Println("Error: Model ID is required for vRAM estimation")
-			os.Exit(1)
-		}
-
-		var kvCacheQuant vramestimator.KVCacheQuantisation
-		switch *kvCacheFlag {
-		case "fp16":
-			kvCacheQuant = vramestimator.KVCacheFP16
-		case "q8_0":
-			kvCacheQuant = vramestimator.KVCacheQ8_0
-		case "q4_0":
-			kvCacheQuant = vramestimator.KVCacheQ4_0
-		default:
-			fmt.Printf("Invalid KV cache quantisation: %s. Using default fp16.\n", *kvCacheFlag)
-			kvCacheQuant = vramestimator.KVCacheFP16
-		}
-
-		if *memoryFlag > 0 && *contextFlag == 0 && *quantFlag == "" {
-			// Calculate best BPW
-			bestBPW, err := vramestimator.CalculateBPW(*modelIDFlag, *memoryFlag, 0, kvCacheQuant, *quantTypeFlag, "")
-			if err != nil {
-				fmt.Printf("Error calculating BPW: %v\n", err)
-				os.Exit(1)
-			}
-			fmt.Printf("Best BPW for %.2f GB of memory: %v\n", *memoryFlag, bestBPW)
-		} else {
-			// Parse the quant flag for other operations
-			bpw, err := vramestimator.ParseBPWOrQuant(*quantFlag)
-			if err != nil {
-				fmt.Printf("Error parsing quantisation: %v\n", err)
-				os.Exit(1)
-			}
-
-			if *memoryFlag > 0 && *contextFlag == 0 {
-				// Calculate maximum context
-				maxContext, err := vramestimator.CalculateContext(*modelIDFlag, *memoryFlag, bpw, kvCacheQuant, "")
-				if err != nil {
-					fmt.Printf("Error calculating context: %v\n", err)
-					os.Exit(1)
-				}
-				fmt.Printf("Maximum context for %.2f GB of memory: %d\n", *memoryFlag, maxContext)
-			} else if *contextFlag > 0 {
-				// Calculate VRAM usage
-				vram, err := vramestimator.CalculateVRAM(*modelIDFlag, bpw, *contextFlag, kvCacheQuant, "")
-				if err != nil {
-					fmt.Printf("Error calculating VRAM: %v\n", err)
-					os.Exit(1)
-				}
-				fmt.Printf("Estimated VRAM usage: %.2f GB\n", vram)
-			} else {
-				fmt.Println("Error: Invalid combination of flags. Please specify either --memory, --context, or both.")
-				os.Exit(1)
-			}
-		}
-
 		os.Exit(0)
 	}
 
