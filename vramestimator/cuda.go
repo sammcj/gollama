@@ -6,7 +6,6 @@ import (
 	"github.com/NVIDIA/go-nvml/pkg/nvml"
 )
 
-
 func GetCUDAVRAM() (float64, error) {
 	if ret := nvml.Init(); ret != nvml.SUCCESS {
 		return 0, fmt.Errorf("failed to initialize NVML: %v", ret)

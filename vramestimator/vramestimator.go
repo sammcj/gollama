@@ -125,15 +125,13 @@ func init() {
 
 func checkNVMLAvailable() bool {
 	if runtime.GOOS == "darwin" {
-    return false
-  }
-  if _, err := os.Stat("/usr/lib/libnvidia-ml.so"); err == nil {
-    return true
-  }
+		return false
+	}
+	if _, err := os.Stat("/usr/lib/libnvidia-ml.so"); err == nil {
+		return true
+	}
 	return false
 }
-
-
 
 func GetSystemRAM() (float64, error) {
 	vmStat, err := mem.VirtualMemory()
@@ -163,14 +161,14 @@ func GetAvailableMemory() (float64, error) {
 		logging.InfoLogger.Printf("Using system RAM: %.2f GB", ram)
 		return ram, nil
 	} else {
-    ram, err := GetSystemRAM()
-    if err != nil {
-      return 0, fmt.Errorf("failed to get system RAM: %v", err)
-    }
+		ram, err := GetSystemRAM()
+		if err != nil {
+			return 0, fmt.Errorf("failed to get system RAM: %v", err)
+		}
 
-    logging.InfoLogger.Printf("Using system RAM: %.2f GB", ram)
-    return ram, nil
-  }
+		logging.InfoLogger.Printf("Using system RAM: %.2f GB", ram)
+		return ram, nil
+	}
 }
 
 // CalculateVRAMRaw calculates the raw VRAM usage
@@ -633,7 +631,7 @@ func PrintFormattedTable(table QuantResultTable) string {
 	// Render the table
 	tw.Render()
 
-  return lipgloss.NewStyle().Foreground(lipgloss.Color("#ffffff")).Render(fmt.Sprintf("📊 VRAM Estimation for Model: %s\n\n%s", table.ModelID, buf.String()))
+	return lipgloss.NewStyle().Foreground(lipgloss.Color("#ffffff")).Render(fmt.Sprintf("📊 VRAM Estimation for Model: %s\n\n%s", table.ModelID, buf.String()))
 }
 
 func getColouredVRAM(vram float64, vramStr string, fitsVRAM float64) string {
