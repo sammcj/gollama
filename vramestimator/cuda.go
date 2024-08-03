@@ -7,7 +7,8 @@ import (
 )
 
 func GetCUDAVRAM() (float64, error) {
-	if ret := nvml.Init(); ret != nvml.SUCCESS {
+	ret := nvml.Init()
+	if ret != nvml.SUCCESS {
 		return 0, fmt.Errorf("failed to initialize NVML: %v", ret)
 	}
 	defer nvml.Shutdown()
@@ -21,16 +22,19 @@ func GetCUDAVRAM() (float64, error) {
 	for i := 0; i < int(count); i++ {
 		device, ret := nvml.DeviceGetHandleByIndex(int(i))
 		if ret != nvml.SUCCESS {
-			return 0, fmt.Errorf("failed to get device handle: %v", ret)
+			return 0, fmt.Errorf("failed to get device handle for device %d: %v", i, ret)
 		}
 
 		memory, ret := device.GetMemoryInfo()
 		if ret != nvml.SUCCESS {
-			return 0, fmt.Errorf("failed to get memory info: %v", ret)
+			return 0, fmt.Errorf("failed to get memory info for device %d: %v", i, ret)
 		}
 
 		totalVRAM += memory.Total
 	}
 
-	return float64(totalVRAM) / 1024 / 1024 / 1024, nil // Convert to GB
+	// Convert to GB
+	totalVRAMGB := float64(totalVRAM) / (1024 * 1024 * 1024)
+
+	return totalVRAMGB, nil
 }
