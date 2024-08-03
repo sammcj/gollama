@@ -125,9 +125,8 @@ Inspect (`i`)
 - `-no-cleanup`: Don't cleanup broken symlinks
 - `-u`: Unload all running models
 - `-v`: Print the version and exit
-- `--vram`: Estimate vRAM usage for a model **new**
-  - `--model`: Model ID for vRAM estimation
-  - `--fits`: Available memory in GB for context calculation
+- `--vram`: Estimate vRAM usage for a huggingface model ID (e.g. `NousResearch/Hermes-2-Theta-Llama-3-8B`) **new**
+  - `--fits`: Available memory in GB for context calculation (e.g. `6` for 6GB)
 
 ##### Simple model listing
 
@@ -176,15 +175,15 @@ Gollama includes a comprehensive vRAM estimation feature:
 To estimate (v)RAM usage:
 
 ```shell
-gollama --vram --model NousResearch/Hermes-2-Theta-Llama-3-8B
+gollama --vram NousResearch/Hermes-2-Theta-Llama-3-8B
 ```
 
 To find the best quantisation type for a given memory constraint (e.g. 6GB):
 
 ```shell
-gollama --vram --model NousResearch/Hermes-2-Theta-Llama-3-8B --fits 6
+gollama --vram NousResearch/Hermes-2-Theta-Llama-3-8B --fits 6
 
-gollama --vram --model NousResearch/Hermes-2-Theta-Llama-3-8B --fits 6                                         (tableU)
+gollama --vram NousResearch/Hermes-2-Theta-Llama-3-8B --fits 6                                         (tableU)
 📊 VRAM Estimation for Model: NousResearch/Hermes-2-Theta-Llama-3-8B
 
 | QUANT/CTX | BPW  | 2K  | 8K   | 16K             | 32K             | 49K             | 64K             |
