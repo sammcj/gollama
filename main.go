@@ -119,8 +119,8 @@ func main() {
 	hostFlag := flag.String("h", "", "Override the config file to set the Ollama API host (e.g. http://localhost:11434)")
 	editFlag := flag.Bool("e", false, "Edit a model's modelfile")
 	// vRAM estimation flags
-	vramFlag := flag.String("vram", "", "Estimate vRAM usage - Model ID or Ollama model name")
 	flag.Float64Var(&fitsVRAM, "fits", 0, "Highlight quant sizes and context sizes that fit in this amount of vRAM (in GB)")
+	vramFlag := flag.String("vram", "", "Estimate vRAM usage - Model ID or Ollama model name")
 
 	flag.Parse()
 
@@ -152,7 +152,7 @@ func main() {
 	// Handle --vram flag
 	if *vramFlag != "" {
 		modelName := *vramFlag
-		if modelName == "" {
+		if modelName == "default" {
 			modelName = os.Getenv("GOLLAMA_DEFAULT_MODEL")
 			if modelName == "" {
 				fmt.Println("Error: Model ID or Ollama model name is required for vRAM estimation. Please provide a --vram argument or set the GOLLAMA_DEFAULT_MODEL environment variable.")
