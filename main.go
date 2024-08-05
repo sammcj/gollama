@@ -132,11 +132,11 @@ func main() {
 
 	os.Setenv("EDITOR", cfg.Editor)
 
-  if *localHostFlag == true {
-    *hostFlag = "http://localhost:11434"
-  }
+	if *localHostFlag {
+		*hostFlag = "http://localhost:11434"
+	}
 
-  if *hostFlag != "" {
+	if *hostFlag != "" {
 		cfg.OllamaAPIURL = *hostFlag
 	}
 
@@ -292,10 +292,10 @@ func main() {
 		}
 		// link all models
 		for _, model := range models {
-      // if cfg.LMStudioFilePaths is empty, use the default path in the user's home directory / .cache / lm-studio / models
-      if cfg.LMStudioFilePaths == "" {
-        cfg.LMStudioFilePaths = filepath.Join(os.Getenv("HOME"), ".cache", "lm-studio", "models")
-      }
+			// if cfg.LMStudioFilePaths is empty, use the default path in the user's home directory / .cache / lm-studio / models
+			if cfg.LMStudioFilePaths == "" {
+				cfg.LMStudioFilePaths = filepath.Join(os.Getenv("HOME"), ".cache", "lm-studio", "models")
+			}
 			message, err := linkModel(model.Name, cfg.LMStudioFilePaths, false, client)
 			logging.InfoLogger.Println(message)
 			fmt.Printf("Linking model %s to %s\n", model.Name, cfg.LMStudioFilePaths)
