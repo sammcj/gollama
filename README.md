@@ -125,6 +125,7 @@ Inspect (`i`)
 - `-no-cleanup`: Don't cleanup broken symlinks
 - `-u`: Unload all running models
 - `-v`: Print the version and exit
+- `-h`, or `--host`: Specify the host for the Ollama API, if you provide `l` as the host it will automatically use `http://localhost:11434`
 - `--vram`: Estimate vRAM usage for an existing (pulled) Ollama model name (e.g. `llama3.1:8b-instruct-q6_K`) huggingface model ID (e.g. `NousResearch/Hermes-2-Theta-Llama-3-8B`) **new**
   - `--fits`: Available memory in GB for context calculation (e.g. `6` for 6GB)
 
