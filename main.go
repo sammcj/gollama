@@ -92,7 +92,7 @@ var Version string // Version is set by the build system
 
 func main() {
 	if Version == "" {
-		Version = "v1.20.5"
+		Version = "1.26.0"
 	}
 
 	cfg, err := config.LoadConfig()
@@ -119,8 +119,8 @@ func main() {
 	hostFlag := flag.String("h", "", "Override the config file to set the Ollama API host (e.g. http://localhost:11434)")
 	editFlag := flag.Bool("e", false, "Edit a model's modelfile")
 	// vRAM estimation flags
-	vramFlag := flag.String("vram", "", "Estimate vRAM usage - Model ID or Ollama model name")
 	flag.Float64Var(&fitsVRAM, "fits", 0, "Highlight quant sizes and context sizes that fit in this amount of vRAM (in GB)")
+	vramFlag := flag.String("vram", "", "Estimate vRAM usage - Model ID or Ollama model name")
 
 	flag.Parse()
 
@@ -131,7 +131,9 @@ func main() {
 
 	os.Setenv("EDITOR", cfg.Editor)
 
-	if *hostFlag != "" {
+  if *hostFlag == "l" {
+    *hostFlag = "http://localhost:11434"
+  } else if *hostFlag != "" {
 		cfg.OllamaAPIURL = *hostFlag
 	}
 
@@ -147,12 +149,15 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Handle vRAM estimation flags
+	// Handle --vram flag
 	if *vramFlag != "" {
-		logging.DebugLogger.Println("vRAM estimation flag detected")
-		if *vramFlag == "" {
-			fmt.Println("Error: Model ID or Ollama model name is required for vRAM estimation")
-			os.Exit(1)
+		modelName := *vramFlag
+		if modelName == "default" {
+			modelName = os.Getenv("GOLLAMA_DEFAULT_MODEL")
+			if modelName == "" {
+				fmt.Println("Error: Model ID or Ollama model name is required for vRAM estimation. Please provide a --vram argument or set the GOLLAMA_DEFAULT_MODEL environment variable.")
+				os.Exit(1)
+			}
 		}
 
 		logging.DebugLogger.Println("Generating VRAM estimation table")
@@ -161,15 +166,15 @@ func main() {
 		var err error
 
 		// Check if the input is an Ollama model name (contains a colon)
-		if strings.Contains(*vramFlag, ":") {
-			ollamaModelInfo, err = vramestimator.FetchOllamaModelInfo(url.String(), *vramFlag)
+		if strings.Contains(modelName, ":") {
+			ollamaModelInfo, err = vramestimator.FetchOllamaModelInfo(cfg.OllamaAPIURL, modelName)
 			if err != nil {
 				fmt.Printf("Error fetching Ollama model info: %v\n", err)
 				os.Exit(1)
 			}
 		}
 
-		table, err := vramestimator.GenerateQuantTable(*vramFlag, "", fitsVRAM, ollamaModelInfo)
+		table, err := vramestimator.GenerateQuantTable(modelName, "", fitsVRAM, ollamaModelInfo)
 		if err != nil {
 			fmt.Printf("Error generating VRAM estimation table: %v\n", err)
 			os.Exit(1)

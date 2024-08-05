@@ -125,7 +125,8 @@ Inspect (`i`)
 - `-no-cleanup`: Don't cleanup broken symlinks
 - `-u`: Unload all running models
 - `-v`: Print the version and exit
-- `--vram`: Estimate vRAM usage for an existing (pulled) Ollama model name (e.g. `llama3.1:8b-instruct-q6_K`) huggingface model ID (e.g. `NousResearch/Hermes-2-Theta-Llama-3-8B`) **new**
+- `-h`, or `--host`: Specify the host for the Ollama API, if you provide `l` as the host it will automatically use `http://localhost:11434`
+- `--vram`: Estimate vRAM usage for an existing (pulled) Ollama model name (e.g. `llama3.1:8b-instruct-q6_K`) huggingface model ID (e.g. `NousResearch/Hermes-2-Theta-Llama-3-8B`), you can also set `GOLLAMA_DEFAULT_MODEL` in your environment and provide `default` as the model name (I'll add a config option for this soon)
   - `--fits`: Available memory in GB for context calculation (e.g. `6` for 6GB)
 
 ##### Simple model listing
