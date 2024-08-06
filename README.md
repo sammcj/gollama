@@ -42,7 +42,7 @@ It's in active development, so there are some bugs and missing features, however
 - Run and unload models
 - Inspect model for additional details
 - Calculate approximate vRAM usage for a model
-- Link models to LM Studio **Note: This is currently broken on the latest LM-Studio versions, see [#82](https://github.com/sammcj/gollama/issues/82)**
+- Link models to LM Studio
 - Copy / rename models
 - Push models to a registry
 - Show running models
@@ -94,8 +94,8 @@ echo "alias g=gollama" >> ~/.zshrc
 - `m`: Sort by modified
 - `k`: Sort by quantisation
 - `f`: Sort by family
-- `l`: Link model to LM Studio **Note: This is currently broken on the latest LM-Studio versions, see [#82](https://github.com/sammcj/gollama/issues/82)**
-- `L`: Link all models to LM Studio *^
+- `l`: Link model to LM Studio
+- `L`: Link all models to LM Studio
 - `r`: Rename model _**(Work in progress)**_
 - `q`: Quit
 
@@ -114,7 +114,7 @@ Inspect (`i`)
 #### Command-line Options
 
 - `-l`: List all available Ollama models and exit
-- `-L`: Link all available Ollama models to LM Studio and exit **Note: This is currently broken on the latest LM-Studio versions, see [#82](https://github.com/sammcj/gollama/issues/82)**
+- `-L`: Link all available Ollama models to LM Studio and exit
 - `-s <search term>`: Search for models by name
   - OR operator (`'term1|term2'`) returns models that match either term
   - AND operator (`'term1&term2'`) returns models that match both terms
@@ -125,7 +125,8 @@ Inspect (`i`)
 - `-no-cleanup`: Don't cleanup broken symlinks
 - `-u`: Unload all running models
 - `-v`: Print the version and exit
-- `-h`, or `-host`: Specify the host for the Ollama API, if you provide `l` as the host it will automatically use `http://localhost:11434`
+- `-h`, or `--host`: Specify the host for the Ollama API
+- `-H`: Shortcut for `-h http://localhost:11434` (connect to local Ollama API) **new**
 - `--vram`: Estimate vRAM usage for an existing (pulled) Ollama model name (e.g. `llama3.1:8b-instruct-q6_K`) huggingface model ID (e.g. `NousResearch/Hermes-2-Theta-Llama-3-8B`)
   - `--fits`: Available memory in GB for context calculation (e.g. `6` for 6GB)
 

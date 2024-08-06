@@ -117,6 +117,7 @@ func main() {
 	unloadModelsFlag := flag.Bool("u", false, "Unload all models and exit")
 	versionFlag := flag.Bool("v", false, "Print the version and exit")
 	hostFlag := flag.String("h", "", "Override the config file to set the Ollama API host (e.g. http://localhost:11434)")
+	localHostFlag := flag.Bool("H", false, "Shortcut to connect to http://localhost:11434")
 	editFlag := flag.Bool("e", false, "Edit a model's modelfile")
 	// vRAM estimation flags
 	flag.Float64Var(&fitsVRAM, "fits", 0, "Highlight quant sizes and context sizes that fit in this amount of vRAM (in GB)")
@@ -131,9 +132,11 @@ func main() {
 
 	os.Setenv("EDITOR", cfg.Editor)
 
-  if *hostFlag == "l" {
+  if *localHostFlag == true {
     *hostFlag = "http://localhost:11434"
-  } else if *hostFlag != "" {
+  }
+
+  if *hostFlag != "" {
 		cfg.OllamaAPIURL = *hostFlag
 	}
 
