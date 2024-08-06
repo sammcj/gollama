@@ -42,7 +42,7 @@ It's in active development, so there are some bugs and missing features, however
 - Run and unload models
 - Inspect model for additional details
 - Calculate approximate vRAM usage for a model
-- Link models to LM Studio **Note: This is currently broken on the latest LM-Studio versions, see [#82](https://github.com/sammcj/gollama/issues/82)**
+- Link models to LM Studio
 - Copy / rename models
 - Push models to a registry
 - Show running models
@@ -94,8 +94,8 @@ echo "alias g=gollama" >> ~/.zshrc
 - `m`: Sort by modified
 - `k`: Sort by quantisation
 - `f`: Sort by family
-- `l`: Link model to LM Studio **Note: This is currently broken on the latest LM-Studio versions, see [#82](https://github.com/sammcj/gollama/issues/82)**
-- `L`: Link all models to LM Studio *^
+- `l`: Link model to LM Studio
+- `L`: Link all models to LM Studio
 - `r`: Rename model _**(Work in progress)**_
 - `q`: Quit
 
@@ -114,7 +114,7 @@ Inspect (`i`)
 #### Command-line Options
 
 - `-l`: List all available Ollama models and exit
-- `-L`: Link all available Ollama models to LM Studio and exit **Note: This is currently broken on the latest LM-Studio versions, see [#82](https://github.com/sammcj/gollama/issues/82)**
+- `-L`: Link all available Ollama models to LM Studio and exit
 - `-s <search term>`: Search for models by name
   - OR operator (`'term1|term2'`) returns models that match either term
   - AND operator (`'term1&term2'`) returns models that match both terms
@@ -125,8 +125,9 @@ Inspect (`i`)
 - `-no-cleanup`: Don't cleanup broken symlinks
 - `-u`: Unload all running models
 - `-v`: Print the version and exit
-- `-h`, or `--host`: Specify the host for the Ollama API, if you provide `l` as the host it will automatically use `http://localhost:11434`
-- `--vram`: Estimate vRAM usage for an existing (pulled) Ollama model name (e.g. `llama3.1:8b-instruct-q6_K`) huggingface model ID (e.g. `NousResearch/Hermes-2-Theta-Llama-3-8B`), you can also set `GOLLAMA_DEFAULT_MODEL` in your environment and provide `default` as the model name (I'll add a config option for this soon)
+- `-h`, or `--host`: Specify the host for the Ollama API
+- `-H`: Shortcut for `-h http://localhost:11434` (connect to local Ollama API) **new**
+- `--vram`: Estimate vRAM usage for an existing (pulled) Ollama model name (e.g. `llama3.1:8b-instruct-q6_K`) huggingface model ID (e.g. `NousResearch/Hermes-2-Theta-Llama-3-8B`)
   - `--fits`: Available memory in GB for context calculation (e.g. `6` for 6GB)
 
 ##### Simple model listing
@@ -165,7 +166,7 @@ gollama -s 'my-model&instruct' # returns models that contain both 'my-model' and
 
 Gollama includes a comprehensive vRAM estimation feature:
 
-- Calculate vRAM usage for a given huggingface model ID (e.g. `author/name`) or pulled Ollama model (e.g. `my-model:mytag`)
+- Calculate vRAM usage for a pulled Ollama model (e.g. `my-model:mytag`), or huggingface model ID (e.g. `author/name`)
 - Determine maximum context length for a given vRAM constraint
 - Find the best quantisation setting for a given vRAM and context constraint
 - Shows estimates for different k/v cache quantisation options (fp16, q8_0, q4_0)
@@ -216,10 +217,10 @@ gollama --vram NousResearch/Hermes-2-Theta-Llama-3-8B --fits 6
 
 📊 VRAM Estimation for Model: NousResearch/Hermes-2-Theta-Llama-3-8B
 
-| QUANT/CTX | BPW  | 2K  | 8K   | 16K             | 32K             | 49K             | 64K             |
-| --------- | ---- | --- | ---- | --------------- | --------------- | --------------- | --------------- |
-| IQ1_S     | 1.56 | 2.4 | 3.8  | 5.7(4.7,4.2)    | 9.5(7.5,6.5)    | 13.3(10.3,8.8)  | 17.1(13.1,11.1) |
-| IQ2_XXS   | 2.06 | 2.9 | 4.3  | 6.3(5.3,4.8)    | 10.1(8.1,7.1)   | 13.9(10.9,9.4)  | 17.8(13.8,11.8) |
+| QUANT/CTX | BPW  | 2K  | 8K  | 16K          | 32K           | 49K            | 64K             |
+| --------- | ---- | --- | --- | ------------ | ------------- | -------------- | --------------- |
+| IQ1_S     | 1.56 | 2.4 | 3.8 | 5.7(4.7,4.2) | 9.5(7.5,6.5)  | 13.3(10.3,8.8) | 17.1(13.1,11.1) |
+| IQ2_XXS   | 2.06 | 2.9 | 4.3 | 6.3(5.3,4.8) | 10.1(8.1,7.1) | 13.9(10.9,9.4) | 17.8(13.8,11.8) |
 ...
 ```
 

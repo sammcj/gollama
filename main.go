@@ -117,6 +117,7 @@ func main() {
 	unloadModelsFlag := flag.Bool("u", false, "Unload all models and exit")
 	versionFlag := flag.Bool("v", false, "Print the version and exit")
 	hostFlag := flag.String("h", "", "Override the config file to set the Ollama API host (e.g. http://localhost:11434)")
+	localHostFlag := flag.Bool("H", false, "Shortcut to connect to http://localhost:11434")
 	editFlag := flag.Bool("e", false, "Edit a model's modelfile")
 	// vRAM estimation flags
 	flag.Float64Var(&fitsVRAM, "fits", 0, "Highlight quant sizes and context sizes that fit in this amount of vRAM (in GB)")
@@ -131,9 +132,11 @@ func main() {
 
 	os.Setenv("EDITOR", cfg.Editor)
 
-  if *hostFlag == "l" {
-    *hostFlag = "http://localhost:11434"
-  } else if *hostFlag != "" {
+	if *localHostFlag {
+		*hostFlag = "http://localhost:11434"
+	}
+
+	if *hostFlag != "" {
 		cfg.OllamaAPIURL = *hostFlag
 	}
 
@@ -152,13 +155,11 @@ func main() {
 	// Handle --vram flag
 	if *vramFlag != "" {
 		modelName := *vramFlag
-		if modelName == "default" {
-			modelName = os.Getenv("GOLLAMA_DEFAULT_MODEL")
-			if modelName == "" {
-				fmt.Println("Error: Model ID or Ollama model name is required for vRAM estimation. Please provide a --vram argument or set the GOLLAMA_DEFAULT_MODEL environment variable.")
-				os.Exit(1)
-			}
-		}
+    logging.DebugLogger.Println("vRAM estimation flag detected")
+		if *vramFlag == "" {
+			fmt.Println("Error: Model ID or Ollama model name is required for vRAM estimation")
+			os.Exit(1)
+    }
 
 		logging.DebugLogger.Println("Generating VRAM estimation table")
 
@@ -166,7 +167,7 @@ func main() {
 		var err error
 
 		// Check if the input is an Ollama model name (contains a colon)
-		if strings.Contains(modelName, ":") {
+    if strings.Contains(modelName, ":") {
 			ollamaModelInfo, err = vramestimator.FetchOllamaModelInfo(cfg.OllamaAPIURL, modelName)
 			if err != nil {
 				fmt.Printf("Error fetching Ollama model info: %v\n", err)
@@ -174,7 +175,7 @@ func main() {
 			}
 		}
 
-		table, err := vramestimator.GenerateQuantTable(modelName, "", fitsVRAM, ollamaModelInfo)
+		table, err := vramestimator.GenerateQuantTable(modelName, os.Getenv("HUGGINGFACE_TOKEN"), fitsVRAM, ollamaModelInfo)
 		if err != nil {
 			fmt.Printf("Error generating VRAM estimation table: %v\n", err)
 			os.Exit(1)
@@ -289,9 +290,13 @@ func main() {
 		}
 		// link all models
 		for _, model := range models {
+			// if cfg.LMStudioFilePaths is empty, use the default path in the user's home directory / .cache / lm-studio / models
+			if cfg.LMStudioFilePaths == "" {
+				cfg.LMStudioFilePaths = filepath.Join(os.Getenv("HOME"), ".cache", "lm-studio", "models")
+			}
 			message, err := linkModel(model.Name, cfg.LMStudioFilePaths, false, client)
 			logging.InfoLogger.Println(message)
-			fmt.Printf("Linking model %s\n", model.Name)
+			fmt.Printf("Linking model %s to %s\n", model.Name, cfg.LMStudioFilePaths)
 			if err != nil {
 				logging.ErrorLogger.Printf("Error linking model %s: %v\n", model.Name, err)
 			} else {
