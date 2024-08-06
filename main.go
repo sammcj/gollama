@@ -289,9 +289,13 @@ func main() {
 		}
 		// link all models
 		for _, model := range models {
+      // if cfg.LMStudioFilePaths is empty, use the default path in the user's home directory / .cache / lm-studio / models
+      if cfg.LMStudioFilePaths == "" {
+        cfg.LMStudioFilePaths = filepath.Join(os.Getenv("HOME"), ".cache", "lm-studio", "models")
+      }
 			message, err := linkModel(model.Name, cfg.LMStudioFilePaths, false, client)
 			logging.InfoLogger.Println(message)
-			fmt.Printf("Linking model %s\n", model.Name)
+			fmt.Printf("Linking model %s to %s\n", model.Name, cfg.LMStudioFilePaths)
 			if err != nil {
 				logging.ErrorLogger.Printf("Error linking model %s: %v\n", model.Name, err)
 			} else {
