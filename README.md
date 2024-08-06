@@ -166,7 +166,7 @@ gollama -s 'my-model&instruct' # returns models that contain both 'my-model' and
 
 Gollama includes a comprehensive vRAM estimation feature:
 
-- Calculate vRAM usage for a given huggingface model ID (e.g. `author/name`) or pulled Ollama model (e.g. `my-model:mytag`)
+- Calculate vRAM usage for a pulled Ollama model (e.g. `my-model:mytag`), or huggingface model ID (e.g. `author/name`)
 - Determine maximum context length for a given vRAM constraint
 - Find the best quantisation setting for a given vRAM and context constraint
 - Shows estimates for different k/v cache quantisation options (fp16, q8_0, q4_0)

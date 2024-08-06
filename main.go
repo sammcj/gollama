@@ -155,13 +155,11 @@ func main() {
 	// Handle --vram flag
 	if *vramFlag != "" {
 		modelName := *vramFlag
-		if modelName == "default" {
-			modelName = os.Getenv("GOLLAMA_DEFAULT_MODEL")
-			if modelName == "" {
-				fmt.Println("Error: Model ID or Ollama model name is required for vRAM estimation. Please provide a --vram argument or set the GOLLAMA_DEFAULT_MODEL environment variable.")
-				os.Exit(1)
-			}
-		}
+    logging.DebugLogger.Println("vRAM estimation flag detected")
+		if *vramFlag == "" {
+			fmt.Println("Error: Model ID or Ollama model name is required for vRAM estimation")
+			os.Exit(1)
+    }
 
 		logging.DebugLogger.Println("Generating VRAM estimation table")
 
@@ -169,7 +167,7 @@ func main() {
 		var err error
 
 		// Check if the input is an Ollama model name (contains a colon)
-		if strings.Contains(modelName, ":") {
+    if strings.Contains(modelName, ":") {
 			ollamaModelInfo, err = vramestimator.FetchOllamaModelInfo(cfg.OllamaAPIURL, modelName)
 			if err != nil {
 				fmt.Printf("Error fetching Ollama model info: %v\n", err)
@@ -177,7 +175,7 @@ func main() {
 			}
 		}
 
-		table, err := vramestimator.GenerateQuantTable(modelName, "", fitsVRAM, ollamaModelInfo)
+		table, err := vramestimator.GenerateQuantTable(modelName, os.Getenv("HUGGINGFACE_TOKEN"), fitsVRAM, ollamaModelInfo)
 		if err != nil {
 			fmt.Printf("Error generating VRAM estimation table: %v\n", err)
 			os.Exit(1)
