@@ -79,6 +79,8 @@ github.com/olekukonko/tablewriter v0.0.5 h1:P2Ga83D34wi1o9J6Wh1mRuqd4mF/x/lgBS7N
 github.com/olekukonko/tablewriter v0.0.5/go.mod h1:hPp6KlRPjbx+hW8ykQs1w3UBbZlj6HuIJcUGPhkA7kY=
 github.com/ollama/ollama v0.3.3 h1:g2gPXmz6hH4VGi68KZwQZXHz6zNRBeIDxfnMre/CIgQ=
 github.com/ollama/ollama v0.3.3/go.mod h1:USAVO5xFaXAoVWJ0rkPYgCVhTxE/oJ81o7YGcJxvyp8=
+github.com/ollama/ollama v0.3.4 h1:WHXyMmDZ+c0OQVQV9FKj4PrKLB5IB522dKA0X0tbYa4=
+github.com/ollama/ollama v0.3.4/go.mod h1:USAVO5xFaXAoVWJ0rkPYgCVhTxE/oJ81o7YGcJxvyp8=
 github.com/pelletier/go-toml/v2 v2.2.2 h1:aYUidT7k73Pcl9nb2gScu7NSrKCSHIDE89b3+6Wq+LM=
 github.com/pelletier/go-toml/v2 v2.2.2/go.mod h1:1t835xjRzz80PqgE6HHgN2JOsmgYu/h4qDAS4n929Rs=
 github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
