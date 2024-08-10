@@ -48,6 +48,8 @@ It's in active development, so there are some bugs and missing features, however
 - Show running models
 - Has some cool bugs
 
+See also - [ingest](https://github.com/sammcj/ingest) for passing directories/repos of code to markdown formatted for LLMs.
+
 ## Installation
 
 From go:
