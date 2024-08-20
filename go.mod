@@ -7,7 +7,7 @@ require (
 	github.com/charmbracelet/bubbletea v0.27.0
 	github.com/charmbracelet/lipgloss v0.13.0
 	github.com/fsnotify/fsnotify v1.7.0
-	github.com/natefinch/lumberjack v2.0.0+incompatible
+	github.com/natefinch/lumberjack v2.2.1+incompatible
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/ollama/ollama v0.3.6
 	github.com/rs/zerolog v1.33.0
