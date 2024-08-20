@@ -96,7 +96,7 @@ jobs:
           allowUpdates: true
           makeLatest: ${{ startsWith(github.ref, 'refs/heads/main') && !contains(github.event.head_commit.message, '[skip ci]') && ! contains(github.event.pull_request.title, '[skip ci]') }}
           prerelease: ${{ !startsWith(github.ref, 'refs/heads/main') }}
-          draft: true # I want to manually mark the release as ready
+          draft: false # true # I want to manually mark the release as ready
           artifactErrorsFailBuild: true
           artifacts: |
             gollama-*.zip
