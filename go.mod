@@ -1,6 +1,6 @@
 module github.com/sammcj/gollama
 
-go 1.23.0
+go 1.23.1
 
 require (
 	github.com/charmbracelet/bubbles v0.19.0
