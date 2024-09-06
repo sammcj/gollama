@@ -12,6 +12,7 @@ require (
 	github.com/ollama/ollama v0.3.9
 	github.com/rs/zerolog v1.33.0
 	github.com/shirou/gopsutil/v3 v3.24.5
+	github.com/shirou/gopsutil/v4 v4.24.8
 	github.com/spf13/viper v1.19.0
 	golang.org/x/term v0.24.0
 )
