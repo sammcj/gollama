@@ -155,11 +155,11 @@ func main() {
 	// Handle --vram flag
 	if *vramFlag != "" {
 		modelName := *vramFlag
-    logging.DebugLogger.Println("vRAM estimation flag detected")
+		logging.DebugLogger.Println("vRAM estimation flag detected")
 		if *vramFlag == "" {
 			fmt.Println("Error: Model ID or Ollama model name is required for vRAM estimation")
 			os.Exit(1)
-    }
+		}
 
 		logging.DebugLogger.Println("Generating VRAM estimation table")
 
@@ -167,7 +167,7 @@ func main() {
 		var err error
 
 		// Check if the input is an Ollama model name (contains a colon)
-    if strings.Contains(modelName, ":") {
+		if strings.Contains(modelName, ":") {
 			ollamaModelInfo, err = vramestimator.FetchOllamaModelInfo(cfg.OllamaAPIURL, modelName)
 			if err != nil {
 				fmt.Printf("Error fetching Ollama model info: %v\n", err)

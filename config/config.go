@@ -43,10 +43,12 @@ func getAPIUrl() string {
 		return apiUrl
 	}
 	if host := os.Getenv("OLLAMA_HOST"); host != "" {
-		if host[:7] != "http://" && host[:8] != "https://" {
-			host = "http://" + host
+		// Check if the host already starts with http:// or https://
+		if len(host) >= 7 && host[:7] == "http://" || len(host) >= 8 && host[:8] == "https://" {
+			return host
 		}
-		return host
+		// If not, prepend http://
+		return "http://" + host
 	}
 	return "http://127.0.0.1:11434"
 }
