@@ -10,21 +10,21 @@ makedepends=('go')
 optdepends=('ollama: ollama support.')
 provides=("$pkgname=$pkgver")
 conflicts=("$pkgname")
-source=("git+https://github.com/sammcj/$pkgname.git")
+source=("git+$url#tag=v$pkgver")
 b2sums=('SKIP')
 
 pkgver() {
-  cd "$_pkgname"
+  cd "$pkgname"
   git describe --tags --abbrev=0 | sed 's/^v//;s/-rc[0-9]\+-/-/;s/\([^-]*-g\)/r\1/;s/-/./g'
 }
 
 prepare() {
-  cd "$pkgname-$pkgver"
+  cd "$pkgname"
   mkdir -p build/
 }
 
 build() {
-  cd "$pkgname-$pkgver"
+  cd "$pkgname"
   export CGO_CPPFLAGS="${CPPFLAGS}"
   export CGO_CFLAGS="${CFLAGS}"
   export CGO_CXXFLAGS="${CXXFLAGS}"
@@ -34,11 +34,11 @@ build() {
 }
 
 check() {
-  cd "$pkgname-$pkgver"
+  cd "$pkgname"
   go test ./...
 }
 
 package() {
-  cd "$pkgname-$pkgver"
+  cd "$pkgname"
   install -Dm755 build/$pkgname "$pkgdir"/usr/bin/$pkgname
 }
