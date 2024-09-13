@@ -3,12 +3,12 @@ pkgdesc='Go manage your Ollama models'
 pkgver='1.27.6'
 pkgrel='1'
 arch=('x86_64')
-url='https://github.com/sammcj/gollama'
+url="https://github.com/sammcj/$pkgname"
 license=('MIT')
 depends=('glibc')
 makedepends=('go')
 optdepends=('ollama: ollama support.')
-source=("${pkgname}-${pkgver}.tar.gz::https://github.com/sammcj/gollama/archive/refs/tags/v${pkgver}.tar.gz")
+source=("${pkgname}-${pkgver}.tar.gz::${url}/archive/refs/tags/v${pkgver}.tar.gz")
 b2sums=('2b2d77d52e321b86010739f0828b9de1f585c3ca86d3bc30e818d4d3e7b317676dd7fa526e349557eed7eae9630f8fc2ce50b4fbd524c329b4935ab00d6af24a')
 
 prepare() {

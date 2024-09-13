@@ -4,14 +4,14 @@ pkgdesc='Go manage your Ollama models'
 pkgver=1.27.6.r0.g5c10f15
 pkgrel=1
 arch=('x86_64')
-url='https://github.com/sammcj/gollama'
+url="https://github.com/sammcj/$_pkgname"
 license=('MIT')
 depends=('glibc')
 makedepends=('go')
 optdepends=('ollama: ollama support.')
 provides=("$_pkgname=${pkgver/\.r*/}")
 conflicts=("$_pkgname")
-source=("git+https://github.com/sammcj/$_pkgname.git")
+source=("git+${url}.git")
 b2sums=('SKIP')
 
 pkgver() {
