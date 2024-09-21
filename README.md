@@ -131,6 +131,7 @@ Inspect (`i`)
 - `-H`: Shortcut for `-h http://localhost:11434` (connect to local Ollama API) **new**
 - `--vram`: Estimate vRAM usage for an existing (pulled) Ollama model name (e.g. `llama3.1:8b-instruct-q6_K`) huggingface model ID (e.g. `NousResearch/Hermes-2-Theta-Llama-3-8B`)
   - `--fits`: Available memory in GB for context calculation (e.g. `6` for 6GB)
+  - `--vram-to-nth`: Top context length to search for (e.g. `40k` or `40000`)
 
 ##### Simple model listing
 

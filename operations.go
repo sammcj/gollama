@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -760,4 +761,24 @@ func editModelfile(client *api.Client, modelName string) (string, error) {
 
 func isLocalhost(url string) bool {
 	return strings.Contains(url, "localhost") || strings.Contains(url, "127.0.0.1")
+}
+
+func parseContextSize(input string) (int, error) {
+	input = strings.ToLower(input)
+	multiplier := 1
+
+	if strings.HasSuffix(input, "k") {
+		multiplier = 1024
+		input = strings.TrimSuffix(input, "k")
+	} else if strings.HasSuffix(input, "m") {
+		multiplier = 1024 * 1024
+		input = strings.TrimSuffix(input, "m")
+	}
+
+	value, err := strconv.Atoi(input)
+	if err != nil {
+		return 0, fmt.Errorf("invalid context size: %s", input)
+	}
+
+	return value * multiplier, nil
 }
