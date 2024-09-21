@@ -352,7 +352,7 @@ func DownloadFile(url, filePath string, headers map[string]string) error {
 
 func GetHuggingFaceToken() string {
 	accessToken := os.Getenv("HUGGINGFACE_TOKEN")
-	if accessToken != "" {
+	if accessToken == "" {
 		accessToken = os.Getenv("HF_TOKEN")
 	}
 	if accessToken == "" {
