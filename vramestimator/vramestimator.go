@@ -173,45 +173,58 @@ func GetAvailableMemory() (float64, error) {
 }
 
 type OllamaModelInfo struct {
-	Details struct {
-		ParameterSize     string   `json:"parameter_size"`
-		QuantizationLevel string   `json:"quantization_level"`
-		Family            string   `json:"family"`
-		Families          []string `json:"families"`
-	} `json:"details"`
-	ModelInfo struct {
-		Architecture         string `json:"general.architecture"`
-		ParameterCount       int64  `json:"general.parameter_count"`
-		ContextLength        int    `json:"llama.context_length"`
-		AttentionHeadCount   int    `json:"llama.attention.head_count"`
-		AttentionHeadCountKV int    `json:"llama.attention.head_count_kv"`
-		EmbeddingLength      int    `json:"llama.embedding_length"`
-		FeedForwardLength    int    `json:"llama.feed_forward_length"`
-		RopeDimensionCount   int    `json:"llama.rope.dimension_count"`
-		VocabSize            int    `json:"llama.vocab_size"`
-	} `json:"model_info"`
+    Details struct {
+        ParameterSize     string   `json:"parameter_size"`
+        QuantizationLevel string   `json:"quantization_level"`
+        Family            string   `json:"family"`
+        Families          []string `json:"families"`
+    } `json:"details"`
+    ModelInfo map[string]interface{} `json:"model_info"`
+}
+
+func extractModelInfo(info map[string]interface{}, key string) (float64, bool) {
+    for k, v := range info {
+        if strings.HasSuffix(k, key) {
+            switch val := v.(type) {
+            case float64:
+                return val, true
+            case int64:
+                return float64(val), true
+            case int:
+                return float64(val), true
+            }
+        }
+    }
+    return 0, false
 }
 
 func FetchOllamaModelInfo(apiURL, modelName string) (*OllamaModelInfo, error) {
-	url := fmt.Sprintf("%s/api/show", apiURL)
-	payload := []byte(fmt.Sprintf(`{"name": "%s"}`, modelName))
+    url := fmt.Sprintf("%s/api/show", apiURL)
+    payload := []byte(fmt.Sprintf(`{"name": "%s"}`, modelName))
 
-	resp, err := http.Post(url, "application/json", bytes.NewBuffer(payload))
-	if err != nil {
-		return nil, fmt.Errorf("error making request to Ollama API: %v", err)
-	}
-	defer resp.Body.Close()
+    resp, err := http.Post(url, "application/json", bytes.NewBuffer(payload))
+    if err != nil {
+        return nil, fmt.Errorf("error making request to Ollama API: %v", err)
+    }
+    defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("ollama API returned non-OK status: %d", resp.StatusCode)
-	}
+    if resp.StatusCode != http.StatusOK {
+        return nil, fmt.Errorf("ollama API returned non-OK status: %d", resp.StatusCode)
+    }
 
-	var modelInfo OllamaModelInfo
-	if err := json.NewDecoder(resp.Body).Decode(&modelInfo); err != nil {
-		return nil, fmt.Errorf("error decoding Ollama API response: %v", err)
-	}
+    body, err := io.ReadAll(resp.Body)
+    if err != nil {
+        return nil, fmt.Errorf("error reading Ollama API response: %v", err)
+    }
 
-	return &modelInfo, nil
+    logging.DebugLogger.Printf("Raw Ollama API response: %s", string(body))
+
+    var modelInfo OllamaModelInfo
+    if err := json.Unmarshal(body, &modelInfo); err != nil {
+        return nil, fmt.Errorf("error decoding Ollama API response: %v", err)
+    }
+
+    return &modelInfo, nil
 }
 
 func EstimateVRAM(modelIdentifier, apiURL string, fitsVRAM float64) error {
@@ -438,92 +451,141 @@ func GetBPWValues(bpw float64, kvCacheQuant KVCacheQuantisation) BPWValues {
 
 // CalculateVRAM calculates the VRAM usage for a given model and configuration
 func CalculateVRAM(modelID string, bpw float64, context int, kvCacheQuant KVCacheQuantisation, accessToken string, ollamaModelInfo *OllamaModelInfo) (float64, error) {
-	logging.DebugLogger.Println("Calculating VRAM usage...")
+    logging.DebugLogger.Println("Calculating VRAM usage...")
 
-	var config ModelConfig
-	var err error
+    var config ModelConfig
+    var err error
 
-	if ollamaModelInfo != nil {
-		// Use Ollama model information
-		config = ModelConfig{
-			NumParams:             float64(ollamaModelInfo.ModelInfo.ParameterCount) / 1e9, // Convert to billions
-			MaxPositionEmbeddings: ollamaModelInfo.ModelInfo.ContextLength,
-			NumHiddenLayers:       0, // Not provided in Ollama API, might need to be inferred
-			HiddenSize:            ollamaModelInfo.ModelInfo.EmbeddingLength,
-			NumKeyValueHeads:      ollamaModelInfo.ModelInfo.AttentionHeadCountKV,
-			NumAttentionHeads:     ollamaModelInfo.ModelInfo.AttentionHeadCount,
-			IntermediateSize:      ollamaModelInfo.ModelInfo.FeedForwardLength,
-			VocabSize:             ollamaModelInfo.ModelInfo.VocabSize,
-		}
+    if ollamaModelInfo != nil {
+        // Use Ollama model information
+        paramCount, _ := extractModelInfo(ollamaModelInfo.ModelInfo, "parameter_count")
+        contextLength, _ := extractModelInfo(ollamaModelInfo.ModelInfo, "context_length")
+        blockCount, _ := extractModelInfo(ollamaModelInfo.ModelInfo, "block_count")
+        embeddingLength, _ := extractModelInfo(ollamaModelInfo.ModelInfo, "embedding_length")
+        headCountKV, _ := extractModelInfo(ollamaModelInfo.ModelInfo, "attention.head_count_kv")
+        headCount, _ := extractModelInfo(ollamaModelInfo.ModelInfo, "attention.head_count")
+        feedForwardLength, _ := extractModelInfo(ollamaModelInfo.ModelInfo, "feed_forward_length")
+        vocabSize, _ := extractModelInfo(ollamaModelInfo.ModelInfo, "vocab_size")
 
-		// Parse BPW from quantization level if not provided
-		if bpw == 0 {
-			bpw, err = ParseBPWOrQuant(ollamaModelInfo.Details.QuantizationLevel)
-			if err != nil {
-				return 0, fmt.Errorf("error parsing BPW from Ollama quantization level: %v", err)
-			}
-		}
-	} else {
-		// Use Hugging Face model information
-		config, err = GetModelConfig(modelID, accessToken)
-		if err != nil {
-			return 0, err
-		}
-	}
+        config = ModelConfig{
+            NumParams:             paramCount / 1e9, // Convert to billions
+            MaxPositionEmbeddings: int(contextLength),
+            NumHiddenLayers:       int(blockCount),
+            HiddenSize:            int(embeddingLength),
+            NumKeyValueHeads:      int(headCountKV),
+            NumAttentionHeads:     int(headCount),
+            IntermediateSize:      int(feedForwardLength),
+            VocabSize:             int(vocabSize),
+        }
 
-	bpwValues := GetBPWValues(bpw, kvCacheQuant)
+        // Estimate missing values
+        if config.HiddenSize == 0 {
+            config.HiddenSize = int(math.Sqrt(paramCount / 1000))
+        }
+        if config.NumHiddenLayers == 0 {
+            config.NumHiddenLayers = int(math.Round(config.NumParams * 1e9 / (12 * float64(config.HiddenSize) * float64(config.HiddenSize))))
+        }
+        if config.NumAttentionHeads == 0 {
+            config.NumAttentionHeads = config.HiddenSize / 64 // Assuming 64 dimension per head
+        }
+        if config.NumKeyValueHeads == 0 {
+            config.NumKeyValueHeads = config.NumAttentionHeads
+        }
+        if config.IntermediateSize == 0 {
+            config.IntermediateSize = 4 * config.HiddenSize
+        }
+        if config.VocabSize == 0 {
+            config.VocabSize = 32000 // A common default value
+        }
 
-	if context == 0 {
-		context = config.MaxPositionEmbeddings
-	}
+        // Parse BPW from quantization level if not provided
+        if bpw == 0 {
+            bpw, err = ParseBPWOrQuant(ollamaModelInfo.Details.QuantizationLevel)
+            if err != nil {
+                return 0, fmt.Errorf("error parsing BPW from Ollama quantization level: %v", err)
+            }
+        }
 
-	vram := CalculateVRAMRaw(config, bpwValues, context, 1, true)
-	return math.Round(vram*100) / 100, nil
+        logging.DebugLogger.Printf("Processed Ollama Model Config: %+v", config)
+    } else {
+        // Use Hugging Face model information
+        config, err = GetModelConfig(modelID, accessToken)
+        if err != nil {
+            return 0, err
+        }
+    }
+
+     bpwValues := GetBPWValues(bpw, kvCacheQuant)
+
+    if context == 0 {
+        if ollamaModelInfo != nil {
+            contextLength, found := extractModelInfo(ollamaModelInfo.ModelInfo, "context_length")
+            if found {
+                context = int(contextLength)
+            }
+        }
+        if context == 0 {
+            context = config.MaxPositionEmbeddings
+        }
+    }
+    if context == 0 {
+        context = 2048 // Default context if not provided
+    }
+
+    vram := CalculateVRAMRaw(config, bpwValues, context, 1, true)
+    return math.Round(vram*100) / 100, nil
 }
 
 // CalculateContext calculates the maximum context for a given memory constraint
 func CalculateContext(modelID string, memory, bpw float64, kvCacheQuant KVCacheQuantisation, accessToken string, ollamaModelInfo *OllamaModelInfo) (int, error) {
-	logging.DebugLogger.Println("Calculating context...")
+    logging.DebugLogger.Println("Calculating context...")
 
-	var maxContext int
-	if ollamaModelInfo != nil {
-		maxContext = ollamaModelInfo.ModelInfo.ContextLength
-	} else {
-		config, err := GetModelConfig(modelID, accessToken)
-		if err != nil {
-			return 0, err
-		}
-		maxContext = config.MaxPositionEmbeddings
-	}
+    var maxContext int
+    if ollamaModelInfo != nil {
+        contextLength, found := extractModelInfo(ollamaModelInfo.ModelInfo, "context_length")
+        if found {
+            maxContext = int(contextLength)
+        } else {
+            // If context_length is not found, use a default value or estimate
+            maxContext = 2048 // Default value, adjust as needed
+        }
+    } else {
+        config, err := GetModelConfig(modelID, accessToken)
+        if err != nil {
+            return 0, err
+        }
+        maxContext = config.MaxPositionEmbeddings
+    }
 
-	minContext := 512
-	low, high := minContext, maxContext
-	for low < high {
-		mid := (low + high + 1) / 2
-		vram, err := CalculateVRAM(modelID, bpw, mid, kvCacheQuant, accessToken, ollamaModelInfo)
-		if err != nil {
-			return 0, err
-		}
-		if vram > memory {
-			high = mid - 1
-		} else {
-			low = mid
-		}
-	}
+    // Rest of the function remains the same
+    minContext := 512
+    low, high := minContext, maxContext
+    for low < high {
+        mid := (low + high + 1) / 2
+        vram, err := CalculateVRAM(modelID, bpw, mid, kvCacheQuant, accessToken, ollamaModelInfo)
+        if err != nil {
+            return 0, err
+        }
+        if vram > memory {
+            high = mid - 1
+        } else {
+            low = mid
+        }
+    }
 
-	context := low
-	for context <= maxContext {
-		vram, err := CalculateVRAM(modelID, bpw, context, kvCacheQuant, accessToken, ollamaModelInfo)
-		if err != nil {
-			return 0, err
-		}
-		if vram >= memory {
-			break
-		}
-		context += 100
-	}
+    context := low
+    for context <= maxContext {
+        vram, err := CalculateVRAM(modelID, bpw, context, kvCacheQuant, accessToken, ollamaModelInfo)
+        if err != nil {
+            return 0, err
+        }
+        if vram >= memory {
+            break
+        }
+        context += 100
+    }
 
-	return context - 100, nil
+    return context - 100, nil
 }
 
 // CalculateBPW calculates the best BPW for a given memory and context constraint
