@@ -240,7 +240,7 @@ func EstimateVRAM(modelIdentifier, apiURL string, fitsVRAM float64) error {
 	}
 
 	// Generate the quantization table
-	table, err := GenerateQuantTable(modelIdentifier, "", fitsVRAM, ollamaModelInfo, 65536)
+	table, err := GenerateQuantTable(modelIdentifier, fitsVRAM, ollamaModelInfo, 65536)
 	if err != nil {
 		return fmt.Errorf("error generating quantization table: %v", err)
 	}
@@ -350,8 +350,25 @@ func DownloadFile(url, filePath string, headers map[string]string) error {
 	return err
 }
 
+func GetHuggingFaceToken() string {
+	accessToken := os.Getenv("HUGGINGFACE_TOKEN")
+	if accessToken == "" {
+		accessToken = os.Getenv("HF_TOKEN")
+	}
+	if accessToken == "" {
+		tokenPath := filepath.Join(os.Getenv("HOME"), ".huggingface/token")
+		if _, err := os.Stat(tokenPath); err == nil {
+			token, err := os.ReadFile(tokenPath)
+			if err == nil {
+				accessToken = strings.TrimSpace(string(token))
+			}
+		}
+	}
+	return accessToken
+}
+
 // GetModelConfig retrieves and parses the model configuration
-func GetModelConfig(modelID, accessToken string) (ModelConfig, error) {
+func GetModelConfig(modelID string) (ModelConfig, error) {
 	cacheMutex.RLock()
 	if config, ok := modelConfigCache[modelID]; ok {
 		cacheMutex.RUnlock()
@@ -367,6 +384,9 @@ func GetModelConfig(modelID, accessToken string) (ModelConfig, error) {
 	indexURL := fmt.Sprintf("https://huggingface.co/%s/raw/main/model.safetensors.index.json", modelID)
 
 	headers := make(map[string]string)
+
+	accessToken := GetHuggingFaceToken()
+
 	if accessToken != "" {
 		headers["Authorization"] = "Bearer " + accessToken
 	}
@@ -450,7 +470,7 @@ func GetBPWValues(bpw float64, kvCacheQuant KVCacheQuantisation) BPWValues {
 }
 
 // CalculateVRAM calculates the VRAM usage for a given model and configuration
-func CalculateVRAM(modelID string, bpw float64, context int, kvCacheQuant KVCacheQuantisation, accessToken string, ollamaModelInfo *OllamaModelInfo) (float64, error) {
+func CalculateVRAM(modelID string, bpw float64, context int, kvCacheQuant KVCacheQuantisation, ollamaModelInfo *OllamaModelInfo) (float64, error) {
 	logging.DebugLogger.Println("Calculating VRAM usage...")
 
 	var config ModelConfig
@@ -509,7 +529,7 @@ func CalculateVRAM(modelID string, bpw float64, context int, kvCacheQuant KVCach
 		logging.DebugLogger.Printf("Processed Ollama Model Config: %+v", config)
 	} else {
 		// Use Hugging Face model information
-		config, err = GetModelConfig(modelID, accessToken)
+		config, err = GetModelConfig(modelID)
 		if err != nil {
 			return 0, err
 		}
@@ -537,7 +557,7 @@ func CalculateVRAM(modelID string, bpw float64, context int, kvCacheQuant KVCach
 }
 
 // CalculateContext calculates the maximum context for a given memory constraint
-func CalculateContext(modelID string, memory, bpw float64, kvCacheQuant KVCacheQuantisation, accessToken string, ollamaModelInfo *OllamaModelInfo, topContext int) (int, error) {
+func CalculateContext(modelID string, memory, bpw float64, kvCacheQuant KVCacheQuantisation, ollamaModelInfo *OllamaModelInfo, topContext int) (int, error) {
 	logging.DebugLogger.Println("Calculating context...")
 
 	var maxContext int
@@ -550,7 +570,7 @@ func CalculateContext(modelID string, memory, bpw float64, kvCacheQuant KVCacheQ
 			maxContext = topContext
 		}
 	} else {
-		config, err := GetModelConfig(modelID, accessToken)
+		config, err := GetModelConfig(modelID)
 		if err != nil {
 			return 0, err
 		}
@@ -566,7 +586,7 @@ func CalculateContext(modelID string, memory, bpw float64, kvCacheQuant KVCacheQ
 	low, high := minContext, maxContext
 	for low < high {
 		mid := (low + high + 1) / 2
-		vram, err := CalculateVRAM(modelID, bpw, mid, kvCacheQuant, accessToken, ollamaModelInfo)
+		vram, err := CalculateVRAM(modelID, bpw, mid, kvCacheQuant, ollamaModelInfo)
 		if err != nil {
 			return 0, err
 		}
@@ -579,7 +599,7 @@ func CalculateContext(modelID string, memory, bpw float64, kvCacheQuant KVCacheQ
 
 	context := low
 	for context <= maxContext {
-		vram, err := CalculateVRAM(modelID, bpw, context, kvCacheQuant, accessToken, ollamaModelInfo)
+		vram, err := CalculateVRAM(modelID, bpw, context, kvCacheQuant, ollamaModelInfo)
 		if err != nil {
 			return 0, err
 		}
@@ -593,13 +613,13 @@ func CalculateContext(modelID string, memory, bpw float64, kvCacheQuant KVCacheQ
 }
 
 // CalculateBPW calculates the best BPW for a given memory and context constraint
-func CalculateBPW(modelID string, memory float64, context int, kvCacheQuant KVCacheQuantisation, quantType string, accessToken string, ollamaModelInfo *OllamaModelInfo) (interface{}, error) {
+func CalculateBPW(modelID string, memory float64, context int, kvCacheQuant KVCacheQuantisation, quantType string, ollamaModelInfo *OllamaModelInfo) (interface{}, error) {
 	logging.DebugLogger.Println("Calculating BPW...")
 
 	switch quantType {
 	case "exl2":
 		for _, bpw := range EXL2Options {
-			vram, err := CalculateVRAM(modelID, bpw, context, kvCacheQuant, accessToken, ollamaModelInfo)
+			vram, err := CalculateVRAM(modelID, bpw, context, kvCacheQuant, ollamaModelInfo)
 			if err != nil {
 				return nil, err
 			}
@@ -609,7 +629,7 @@ func CalculateBPW(modelID string, memory float64, context int, kvCacheQuant KVCa
 		}
 	case "gguf":
 		for name, bpw := range GGUFMapping {
-			vram, err := CalculateVRAM(modelID, bpw, context, kvCacheQuant, accessToken, ollamaModelInfo)
+			vram, err := CalculateVRAM(modelID, bpw, context, kvCacheQuant, ollamaModelInfo)
 			if err != nil {
 				return nil, err
 			}
@@ -691,7 +711,7 @@ func levenshteinDistance(s1, s2 string) int {
 	return d[m][n]
 }
 
-func GenerateQuantTable(modelID string, accessToken string, fitsVRAM float64, ollamaModelInfo *OllamaModelInfo, topContext int) (QuantResultTable, error) {
+func GenerateQuantTable(modelID string, fitsVRAM float64, ollamaModelInfo *OllamaModelInfo, topContext int) (QuantResultTable, error) {
 	if fitsVRAM == 0 {
 		var err error
 		fitsVRAM, err = GetAvailableMemory()
@@ -708,7 +728,7 @@ func GenerateQuantTable(modelID string, accessToken string, fitsVRAM float64, ol
 	contextSizes := generateContextSizes(topContext)
 
 	if ollamaModelInfo == nil {
-		_, err := GetModelConfig(modelID, accessToken)
+		_, err := GetModelConfig(modelID)
 		if err != nil {
 			return QuantResultTable{}, err
 		}
@@ -721,15 +741,15 @@ func GenerateQuantTable(modelID string, accessToken string, fitsVRAM float64, ol
 		result.Contexts = make(map[int]ContextVRAM)
 
 		for _, context := range contextSizes {
-			vramFP16, err := CalculateVRAM(modelID, bpw, context, KVCacheFP16, accessToken, ollamaModelInfo)
+			vramFP16, err := CalculateVRAM(modelID, bpw, context, KVCacheFP16, ollamaModelInfo)
 			if err != nil {
 				return QuantResultTable{}, err
 			}
-			vramQ8_0, err := CalculateVRAM(modelID, bpw, context, KVCacheQ8_0, accessToken, ollamaModelInfo)
+			vramQ8_0, err := CalculateVRAM(modelID, bpw, context, KVCacheQ8_0, ollamaModelInfo)
 			if err != nil {
 				return QuantResultTable{}, err
 			}
-			vramQ4_0, err := CalculateVRAM(modelID, bpw, context, KVCacheQ4_0, accessToken, ollamaModelInfo)
+			vramQ4_0, err := CalculateVRAM(modelID, bpw, context, KVCacheQ4_0, ollamaModelInfo)
 			if err != nil {
 				return QuantResultTable{}, err
 			}
