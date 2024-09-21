@@ -183,7 +183,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		table, err := vramestimator.GenerateQuantTable(modelName, os.Getenv("HUGGINGFACE_TOKEN"), fitsVRAM, ollamaModelInfo, topContext)
+		table, err := vramestimator.GenerateQuantTable(modelName, fitsVRAM, ollamaModelInfo, topContext)
 		if err != nil {
 			fmt.Printf("Error generating VRAM estimation table: %v\n", err)
 			os.Exit(1)
