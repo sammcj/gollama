@@ -92,7 +92,7 @@ var Version string // Version is set by the build system
 
 func main() {
 	if Version == "" {
-		Version = "1.27.6"
+		Version = "1.27.7"
 	}
 
 	cfg, err := config.LoadConfig()
@@ -122,6 +122,7 @@ func main() {
 	// vRAM estimation flags
 	flag.Float64Var(&fitsVRAM, "fits", 0, "Highlight quant sizes and context sizes that fit in this amount of vRAM (in GB)")
 	vramFlag := flag.String("vram", "", "Estimate vRAM usage - Model ID or Ollama model name")
+	topContextFlag := flag.String("vram-to-nth", "65536", "Top context length to search for (e.g., 65536, 32k, 2m)")
 
 	flag.Parse()
 
@@ -175,7 +176,14 @@ func main() {
 			}
 		}
 
-		table, err := vramestimator.GenerateQuantTable(modelName, os.Getenv("HUGGINGFACE_TOKEN"), fitsVRAM, ollamaModelInfo)
+		// Parse the top context size
+		topContext, err := parseContextSize(*topContextFlag)
+		if err != nil {
+			fmt.Printf("Error parsing top context size: %v\n", err)
+			os.Exit(1)
+		}
+
+		table, err := vramestimator.GenerateQuantTable(modelName, os.Getenv("HUGGINGFACE_TOKEN"), fitsVRAM, ollamaModelInfo, topContext)
 		if err != nil {
 			fmt.Printf("Error generating VRAM estimation table: %v\n", err)
 			os.Exit(1)

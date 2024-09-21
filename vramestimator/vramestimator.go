@@ -179,17 +179,23 @@ type OllamaModelInfo struct {
 		Family            string   `json:"family"`
 		Families          []string `json:"families"`
 	} `json:"details"`
-	ModelInfo struct {
-		Architecture         string `json:"general.architecture"`
-		ParameterCount       int64  `json:"general.parameter_count"`
-		ContextLength        int    `json:"llama.context_length"`
-		AttentionHeadCount   int    `json:"llama.attention.head_count"`
-		AttentionHeadCountKV int    `json:"llama.attention.head_count_kv"`
-		EmbeddingLength      int    `json:"llama.embedding_length"`
-		FeedForwardLength    int    `json:"llama.feed_forward_length"`
-		RopeDimensionCount   int    `json:"llama.rope.dimension_count"`
-		VocabSize            int    `json:"llama.vocab_size"`
-	} `json:"model_info"`
+	ModelInfo map[string]interface{} `json:"model_info"`
+}
+
+func extractModelInfo(info map[string]interface{}, key string) (float64, bool) {
+	for k, v := range info {
+		if strings.HasSuffix(k, key) {
+			switch val := v.(type) {
+			case float64:
+				return val, true
+			case int64:
+				return float64(val), true
+			case int:
+				return float64(val), true
+			}
+		}
+	}
+	return 0, false
 }
 
 func FetchOllamaModelInfo(apiURL, modelName string) (*OllamaModelInfo, error) {
@@ -206,8 +212,15 @@ func FetchOllamaModelInfo(apiURL, modelName string) (*OllamaModelInfo, error) {
 		return nil, fmt.Errorf("ollama API returned non-OK status: %d", resp.StatusCode)
 	}
 
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("error reading Ollama API response: %v", err)
+	}
+
+	logging.DebugLogger.Printf("Raw Ollama API response: %s", string(body))
+
 	var modelInfo OllamaModelInfo
-	if err := json.NewDecoder(resp.Body).Decode(&modelInfo); err != nil {
+	if err := json.Unmarshal(body, &modelInfo); err != nil {
 		return nil, fmt.Errorf("error decoding Ollama API response: %v", err)
 	}
 
@@ -227,7 +240,7 @@ func EstimateVRAM(modelIdentifier, apiURL string, fitsVRAM float64) error {
 	}
 
 	// Generate the quantization table
-	table, err := GenerateQuantTable(modelIdentifier, "", fitsVRAM, ollamaModelInfo)
+	table, err := GenerateQuantTable(modelIdentifier, "", fitsVRAM, ollamaModelInfo, 65536)
 	if err != nil {
 		return fmt.Errorf("error generating quantization table: %v", err)
 	}
@@ -445,15 +458,44 @@ func CalculateVRAM(modelID string, bpw float64, context int, kvCacheQuant KVCach
 
 	if ollamaModelInfo != nil {
 		// Use Ollama model information
+		paramCount, _ := extractModelInfo(ollamaModelInfo.ModelInfo, "parameter_count")
+		contextLength, _ := extractModelInfo(ollamaModelInfo.ModelInfo, "context_length")
+		blockCount, _ := extractModelInfo(ollamaModelInfo.ModelInfo, "block_count")
+		embeddingLength, _ := extractModelInfo(ollamaModelInfo.ModelInfo, "embedding_length")
+		headCountKV, _ := extractModelInfo(ollamaModelInfo.ModelInfo, "attention.head_count_kv")
+		headCount, _ := extractModelInfo(ollamaModelInfo.ModelInfo, "attention.head_count")
+		feedForwardLength, _ := extractModelInfo(ollamaModelInfo.ModelInfo, "feed_forward_length")
+		vocabSize, _ := extractModelInfo(ollamaModelInfo.ModelInfo, "vocab_size")
+
 		config = ModelConfig{
-			NumParams:             float64(ollamaModelInfo.ModelInfo.ParameterCount) / 1e9, // Convert to billions
-			MaxPositionEmbeddings: ollamaModelInfo.ModelInfo.ContextLength,
-			NumHiddenLayers:       0, // Not provided in Ollama API, might need to be inferred
-			HiddenSize:            ollamaModelInfo.ModelInfo.EmbeddingLength,
-			NumKeyValueHeads:      ollamaModelInfo.ModelInfo.AttentionHeadCountKV,
-			NumAttentionHeads:     ollamaModelInfo.ModelInfo.AttentionHeadCount,
-			IntermediateSize:      ollamaModelInfo.ModelInfo.FeedForwardLength,
-			VocabSize:             ollamaModelInfo.ModelInfo.VocabSize,
+			NumParams:             paramCount / 1e9, // Convert to billions
+			MaxPositionEmbeddings: int(contextLength),
+			NumHiddenLayers:       int(blockCount),
+			HiddenSize:            int(embeddingLength),
+			NumKeyValueHeads:      int(headCountKV),
+			NumAttentionHeads:     int(headCount),
+			IntermediateSize:      int(feedForwardLength),
+			VocabSize:             int(vocabSize),
+		}
+
+		// Estimate missing values
+		if config.HiddenSize == 0 {
+			config.HiddenSize = int(math.Sqrt(paramCount / 1000))
+		}
+		if config.NumHiddenLayers == 0 {
+			config.NumHiddenLayers = int(math.Round(config.NumParams * 1e9 / (12 * float64(config.HiddenSize) * float64(config.HiddenSize))))
+		}
+		if config.NumAttentionHeads == 0 {
+			config.NumAttentionHeads = config.HiddenSize / 64 // Assuming 64 dimension per head
+		}
+		if config.NumKeyValueHeads == 0 {
+			config.NumKeyValueHeads = config.NumAttentionHeads
+		}
+		if config.IntermediateSize == 0 {
+			config.IntermediateSize = 4 * config.HiddenSize
+		}
+		if config.VocabSize == 0 {
+			config.VocabSize = 32000 // A common default value
 		}
 
 		// Parse BPW from quantization level if not provided
@@ -463,6 +505,8 @@ func CalculateVRAM(modelID string, bpw float64, context int, kvCacheQuant KVCach
 				return 0, fmt.Errorf("error parsing BPW from Ollama quantization level: %v", err)
 			}
 		}
+
+		logging.DebugLogger.Printf("Processed Ollama Model Config: %+v", config)
 	} else {
 		// Use Hugging Face model information
 		config, err = GetModelConfig(modelID, accessToken)
@@ -474,7 +518,18 @@ func CalculateVRAM(modelID string, bpw float64, context int, kvCacheQuant KVCach
 	bpwValues := GetBPWValues(bpw, kvCacheQuant)
 
 	if context == 0 {
-		context = config.MaxPositionEmbeddings
+		if ollamaModelInfo != nil {
+			contextLength, found := extractModelInfo(ollamaModelInfo.ModelInfo, "context_length")
+			if found {
+				context = int(contextLength)
+			}
+		}
+		if context == 0 {
+			context = config.MaxPositionEmbeddings
+		}
+	}
+	if context == 0 {
+		context = 2048 // Default context if not provided
 	}
 
 	vram := CalculateVRAMRaw(config, bpwValues, context, 1, true)
@@ -482,18 +537,29 @@ func CalculateVRAM(modelID string, bpw float64, context int, kvCacheQuant KVCach
 }
 
 // CalculateContext calculates the maximum context for a given memory constraint
-func CalculateContext(modelID string, memory, bpw float64, kvCacheQuant KVCacheQuantisation, accessToken string, ollamaModelInfo *OllamaModelInfo) (int, error) {
+func CalculateContext(modelID string, memory, bpw float64, kvCacheQuant KVCacheQuantisation, accessToken string, ollamaModelInfo *OllamaModelInfo, topContext int) (int, error) {
 	logging.DebugLogger.Println("Calculating context...")
 
 	var maxContext int
 	if ollamaModelInfo != nil {
-		maxContext = ollamaModelInfo.ModelInfo.ContextLength
+		contextLength, found := extractModelInfo(ollamaModelInfo.ModelInfo, "context_length")
+		if found {
+			maxContext = int(contextLength)
+		} else {
+			// If context_length is not found, use the provided topContext
+			maxContext = topContext
+		}
 	} else {
 		config, err := GetModelConfig(modelID, accessToken)
 		if err != nil {
 			return 0, err
 		}
 		maxContext = config.MaxPositionEmbeddings
+	}
+
+	// Use the smaller of maxContext and topContext
+	if topContext < maxContext {
+		maxContext = topContext
 	}
 
 	minContext := 512
@@ -625,7 +691,7 @@ func levenshteinDistance(s1, s2 string) int {
 	return d[m][n]
 }
 
-func GenerateQuantTable(modelID string, accessToken string, fitsVRAM float64, ollamaModelInfo *OllamaModelInfo) (QuantResultTable, error) {
+func GenerateQuantTable(modelID string, accessToken string, fitsVRAM float64, ollamaModelInfo *OllamaModelInfo, topContext int) (QuantResultTable, error) {
 	if fitsVRAM == 0 {
 		var err error
 		fitsVRAM, err = GetAvailableMemory()
@@ -637,7 +703,9 @@ func GenerateQuantTable(modelID string, accessToken string, fitsVRAM float64, ol
 	}
 
 	table := QuantResultTable{ModelID: modelID, FitsVRAM: fitsVRAM}
-	contextSizes := []int{2048, 8192, 16384, 32768, 49152, 65536}
+
+	// Generate context sizes based on the topContext
+	contextSizes := generateContextSizes(topContext)
 
 	if ollamaModelInfo == nil {
 		_, err := GetModelConfig(modelID, accessToken)
@@ -682,12 +750,39 @@ func GenerateQuantTable(modelID string, accessToken string, fitsVRAM float64, ol
 	return table, nil
 }
 
+// generateContextSizes generates a slice of context sizes based on the topContext
+func generateContextSizes(topContext int) []int {
+	sizes := []int{2048, 8192}
+	current := 16384
+	for current <= topContext {
+		sizes = append(sizes, current)
+		current *= 2
+	}
+	if current/2 < topContext {
+		sizes = append(sizes, topContext)
+	}
+	return sizes
+}
+
 func PrintFormattedTable(table QuantResultTable) string {
 	var buf bytes.Buffer
 	tw := tablewriter.NewWriter(&buf)
 
+	// Get context sizes from the first result (assuming all results have the same context sizes)
+	var contextSizes []int
+	if len(table.Results) > 0 {
+		for context := range table.Results[0].Contexts {
+			contextSizes = append(contextSizes, context)
+		}
+		sort.Ints(contextSizes)
+	}
+
 	// Set table header
-	tw.SetHeader([]string{"Quant|Ctx", "BPW", "2K", "8K", "16K", "32K", "49K", "64K"})
+	header := []string{"Quant|Ctx", "BPW"}
+	for _, context := range contextSizes {
+		header = append(header, fmt.Sprintf("%dK", context/1024))
+	}
+	tw.SetHeader(header)
 
 	// Set table style
 	tw.SetBorders(tablewriter.Border{Left: true, Top: false, Right: true, Bottom: false})
@@ -696,12 +791,11 @@ func PrintFormattedTable(table QuantResultTable) string {
 	tw.SetRowSeparator("-")
 
 	// Set header colour to bright white
-	headerColours := make([]tablewriter.Colors, 8)
+	headerColours := make([]tablewriter.Colors, len(header))
 	for i := range headerColours {
 		headerColours[i] = tablewriter.Colors{tablewriter.FgHiWhiteColor}
 	}
 	tw.SetHeaderColor(headerColours...)
-	// set header row colours to bright white
 
 	// Prepare data rows
 	for _, result := range table.Results {
@@ -711,9 +805,12 @@ func PrintFormattedTable(table QuantResultTable) string {
 		}
 
 		// Add VRAM estimates for each context size
-		contextSizes := []int{2048, 8192, 16384, 32768, 49152, 65536}
 		for _, context := range contextSizes {
-			vram := result.Contexts[context]
+			vram, ok := result.Contexts[context]
+			if !ok {
+				row = append(row, "-")
+				continue
+			}
 
 			fp16Str := getColouredVRAM(vram.VRAM, fmt.Sprintf("%.1f", vram.VRAM), table.FitsVRAM)
 
@@ -724,8 +821,7 @@ func PrintFormattedTable(table QuantResultTable) string {
 				combinedStr := fmt.Sprintf("%s(%s,%s)", fp16Str, q8Str, q4Str)
 				row = append(row, combinedStr)
 			} else {
-				combinedStr := fp16Str
-				row = append(row, combinedStr)
+				row = append(row, fp16Str)
 			}
 		}
 
