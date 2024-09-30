@@ -50,7 +50,8 @@ It's in active development, so there are some bugs and missing features, however
 
 See also - [ingest](https://github.com/sammcj/ingest) for passing directories/repos of code to markdown formatted for LLMs.
 
-Gollama Intro (Podcast):
+Gollama Intro ("Podcast" Episode):
+
 <audio src="https://github.com/sammcj/smcleod_files/raw/refs/heads/master/audio/podcast-ep-sw/Podcast%20Episode%20-%20Gollama.mp3" controls preload></audio>
 
 ## Installation
