@@ -50,6 +50,9 @@ It's in active development, so there are some bugs and missing features, however
 
 See also - [ingest](https://github.com/sammcj/ingest) for passing directories/repos of code to markdown formatted for LLMs.
 
+Gollama Intro (Podcast):
+<audio src="https://github.com/sammcj/smcleod_files/raw/refs/heads/master/audio/podcast-ep-sw/Podcast%20Episode%20-%20Gollama.mp3" controls preload></audio>
+
 ## Installation
 
 From go:
@@ -357,3 +360,5 @@ Thank you to folks such as Matt Williams, Fahd Mirza and AI Code King for giving
 Copyright © 2024 Sam McLeod
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
+<script src="http://api.html5media.info/1.1.8/html5media.min.js"></script>
