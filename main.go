@@ -23,6 +23,7 @@ import (
 	"golang.org/x/term"
 
 	"github.com/sammcj/gollama/config"
+	"github.com/sammcj/gollama/ggufInfo"
 	"github.com/sammcj/gollama/logging"
 	"github.com/sammcj/gollama/vramestimator"
 )
@@ -123,6 +124,7 @@ func main() {
 	flag.Float64Var(&fitsVRAM, "fits", 0, "Highlight quant sizes and context sizes that fit in this amount of vRAM (in GB)")
 	vramFlag := flag.String("vram", "", "Estimate vRAM usage - Model ID or Ollama model name")
 	topContextFlag := flag.String("vram-to-nth", "65536", "Top context length to search for (e.g., 65536, 32k, 2m)")
+  ggufInfoFlag := flag.String("gguf-info", "", "Display information about a GGUF file")
 
 	flag.Parse()
 
@@ -354,6 +356,11 @@ func main() {
 		editModelfile(client, modelName)
 		os.Exit(0)
 	}
+
+  if *ggufInfoFlag != "" {
+    ggufInfo.GgufInfo(*ggufInfoFlag)
+    os.Exit(0)
+  }
 
 	// TUI App
 	l := list.New(items, NewItemDelegate(&app), width, height-5)
