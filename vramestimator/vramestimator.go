@@ -198,42 +198,53 @@ func extractModelInfo(info map[string]interface{}, key string) (float64, bool) {
 	return 0, false
 }
 
-func FetchOllamaModelInfo(apiURL, modelName string) (*OllamaModelInfo, error) {
-	url := fmt.Sprintf("%s/api/show", apiURL)
-	payload := []byte(fmt.Sprintf(`{"name": "%s"}`, modelName))
+func FetchOllamaModelInfo(apiURL, modelName string, apiKey string) (*OllamaModelInfo, error) {
+  url := fmt.Sprintf("%s/api/show", apiURL)
+  payload := []byte(fmt.Sprintf(`{"name": "%s"}`, modelName))
 
-	resp, err := http.Post(url, "application/json", bytes.NewBuffer(payload))
-	if err != nil {
-		return nil, fmt.Errorf("error making request to Ollama API: %v", err)
-	}
-	defer resp.Body.Close()
+  req, err := http.NewRequest("POST", url, bytes.NewBuffer(payload))
+  if err != nil {
+      return nil, fmt.Errorf("error creating request: %v", err)
+  }
 
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("ollama API returned non-OK status: %d", resp.StatusCode)
-	}
+  req.Header.Set("Content-Type", "application/json")
+  if apiKey != "" {
+      req.Header.Set("Authorization", "Bearer "+apiKey)
+  }
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("error reading Ollama API response: %v", err)
-	}
+  client := &http.Client{}
+  resp, err := client.Do(req)
+  if err != nil {
+      return nil, fmt.Errorf("error making request to Ollama API: %v", err)
+  }
+  defer resp.Body.Close()
 
-	logging.DebugLogger.Printf("Raw Ollama API response: %s", string(body))
+  if resp.StatusCode != http.StatusOK {
+      return nil, fmt.Errorf("ollama API returned non-OK status: %d", resp.StatusCode)
+  }
 
-	var modelInfo OllamaModelInfo
-	if err := json.Unmarshal(body, &modelInfo); err != nil {
-		return nil, fmt.Errorf("error decoding Ollama API response: %v", err)
-	}
+  body, err := io.ReadAll(resp.Body)
+  if err != nil {
+      return nil, fmt.Errorf("error reading Ollama API response: %v", err)
+  }
 
-	return &modelInfo, nil
+  logging.DebugLogger.Printf("Raw Ollama API response: %s", string(body))
+
+  var modelInfo OllamaModelInfo
+  if err := json.Unmarshal(body, &modelInfo); err != nil {
+      return nil, fmt.Errorf("error decoding Ollama API response: %v", err)
+  }
+
+  return &modelInfo, nil
 }
 
-func EstimateVRAM(modelIdentifier, apiURL string, fitsVRAM float64) error {
+func EstimateVRAM(modelIdentifier, apiURL string, fitsVRAM float64, apiKey string) error {
 	var ollamaModelInfo *OllamaModelInfo
 	var err error
 
 	// Check if the modelIdentifier is an Ollama model name
 	if strings.Contains(modelIdentifier, ":") {
-		ollamaModelInfo, err = FetchOllamaModelInfo(apiURL, modelIdentifier)
+    ollamaModelInfo, err = FetchOllamaModelInfo(apiURL, modelIdentifier, apiKey)
 		if err != nil {
 			return fmt.Errorf("error fetching Ollama model info: %v", err)
 		}

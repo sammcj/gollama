@@ -28,33 +28,34 @@ import (
 )
 
 type AppModel struct {
-	width             int
-	height            int
-	ollamaModelsDir   string
-	cfg               *config.Config
-	inspectedModel    Model
-	list              list.Model
-	models            []Model
-	selectedModels    []Model
-	confirmDeletion   bool
-	inspecting        bool
-	editing           bool
-	message           string
-	keys              KeyMap
-	client            *api.Client
-	lmStudioModelsDir string
-	noCleanup         bool
-	table             table.Model
-	filterInput       tea.Model
-	showTop           bool
-	progress          progress.Model
-	altScreenActive   bool
-	view              View
-	showProgress      bool
-	pullInput         textinput.Model
-	pulling           bool
-	pullProgress      float64
-	newModelPull      bool
+  width             int
+  height            int
+  ollamaModelsDir   string
+  cfg               *config.Config
+  apiKey            string
+  inspectedModel    Model
+  list              list.Model
+  models            []Model
+  selectedModels    []Model
+  confirmDeletion   bool
+  inspecting        bool
+  editing           bool
+  message           string
+  keys              KeyMap
+  client            *api.Client
+  lmStudioModelsDir string
+  noCleanup         bool
+  table             table.Model
+  filterInput       tea.Model
+  showTop           bool
+  progress          progress.Model
+  altScreenActive   bool
+  view              View
+  showProgress      bool
+  pullInput         textinput.Model
+  pulling           bool
+  pullProgress      float64
+  newModelPull      bool
 }
 
 // TODO: Refactor: we don't need unique message types for every single action
@@ -137,21 +138,33 @@ func main() {
 		*hostFlag = "http://localhost:11434"
 	}
 
+  // Check for API key in environment variable
+  if envAPIKey := os.Getenv("OLLAMA_API_KEY"); envAPIKey != "" {
+    cfg.OllamaAPIKey = envAPIKey
+  }
+
 	if *hostFlag != "" {
 		cfg.OllamaAPIURL = *hostFlag
 	}
 
 	// Initialise the API client
-	ctx := context.Background()
-	httpClient := &http.Client{}
-	url, err := url.Parse(cfg.OllamaAPIURL)
+  ctx := context.Background()
+  httpClient := &http.Client{}
+  url, err := url.Parse(cfg.OllamaAPIURL)
+  if err != nil {
+    message := fmt.Sprintf("Error parsing API URL: %v", err)
+    logging.ErrorLogger.Println(message)
+    fmt.Println(message)
+    os.Exit(1)
+  }
 
-	if err != nil {
-		message := fmt.Sprintf("Error parsing API URL: %v", err)
-		logging.ErrorLogger.Println(message)
-		fmt.Println(message)
-		os.Exit(1)
-	}
+  var client *api.Client
+  if cfg.OllamaAPIKey != "" {
+    // client = api.NewClientWithOpts(url, httpClient, api.WithToken(cfg.OllamaAPIKey)) // FIXME: The ollama API does not support authentication!
+    client = api.NewClient(url, httpClient)
+  } else {
+    client = api.NewClient(url, httpClient)
+  }
 
 	// Handle --vram flag
 	if *vramFlag != "" {
@@ -169,7 +182,7 @@ func main() {
 
 		// Check if the input is an Ollama model name (contains a colon)
 		if strings.Contains(modelName, ":") {
-			ollamaModelInfo, err = vramestimator.FetchOllamaModelInfo(cfg.OllamaAPIURL, modelName)
+			ollamaModelInfo, err = vramestimator.FetchOllamaModelInfo(cfg.OllamaAPIURL, modelName, cfg.OllamaAPIKey)
 			if err != nil {
 				fmt.Printf("Error fetching Ollama model info: %v\n", err)
 				os.Exit(1)
@@ -192,8 +205,6 @@ func main() {
 		fmt.Println(vramestimator.PrintFormattedTable(table))
 		os.Exit(0)
 	}
-
-	client := api.NewClient(url, httpClient)
 
 	resp, err := client.List(ctx)
 	if err != nil {

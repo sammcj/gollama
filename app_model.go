@@ -26,10 +26,11 @@ const (
 )
 
 func (m *AppModel) Init() tea.Cmd {
-	if m.showTop {
-		return m.startTopTicker()
-	}
-	return nil
+  m.apiKey = m.cfg.OllamaAPIKey
+  if m.showTop {
+      return m.startTopTicker()
+  }
+  return nil
 }
 
 func (m *AppModel) FilterValue() string {
