@@ -1,19 +1,19 @@
 module github.com/sammcj/gollama
 
-go 1.22.5
+go 1.23.2
 
 require (
 	github.com/charmbracelet/bubbles v0.20.0
 	github.com/charmbracelet/bubbletea v1.1.1
 	github.com/charmbracelet/lipgloss v0.13.0
 	github.com/fsnotify/fsnotify v1.7.0
-	github.com/natefinch/lumberjack v2.0.0+incompatible
+	github.com/natefinch/lumberjack v2.2.1+incompatible
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/ollama/ollama v0.3.11
 	github.com/rs/zerolog v1.33.0
 	github.com/shirou/gopsutil/v3 v3.24.5
 	github.com/spf13/viper v1.19.0
-	golang.org/x/term v0.24.0
+	golang.org/x/term v0.25.0
 )
 
 require (
