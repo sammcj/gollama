@@ -16,6 +16,9 @@ The application allows users to interactively select models, sort, filter, edit,
   - [Table of Contents](#table-of-contents)
   - [Features](#features)
   - [Installation](#installation)
+    - [go install (recommended)](#go-install-recommended)
+    - [curl](#curl)
+    - [Manually](#manually)
   - [Usage](#usage)
     - [Key Bindings](#key-bindings)
       - [Top](#top)
@@ -56,13 +59,21 @@ Gollama Intro ("Podcast" Episode):
 
 ## Installation
 
-From go:
+### go install (recommended)
 
 ```shell
 go install github.com/sammcj/gollama@HEAD
 ```
 
-From Github:
+### curl
+
+I don't recommend this method as it's not as easy to update, but you can use the following command:
+
+```shell
+curl -sL https://raw.githubusercontent.com/sammcj/gollama/refs/heads/main/scripts/install.sh | bash
+```
+
+### Manually
 
 Download the most recent release from the [releases page](https://github.com/sammcj/gollama/releases) and extract the binary to a directory in your PATH.
 
