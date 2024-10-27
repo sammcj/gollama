@@ -754,7 +754,7 @@ func (m *AppModel) View() string {
 			"Pulling model: %.0f%%\n%s\n%s",
 			m.pullProgress*100,
 			m.progress.ViewAs(m.pullProgress),
-			"Press Ctrl+C to cancel - Note there is currently bug where you might need to press a key (e.g. arrow key) to refresh the progress bar",
+			"Press Ctrl+C to cancel - Note there is currently bug where you might need to hold a key (e.g. arrow key) to refresh the progress bar",
 		)
 	}
 
