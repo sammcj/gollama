@@ -344,6 +344,13 @@ Please fork the repository and create a pull request with your changes.
                 </a>
             </td>
             <td align="center">
+                <a href="https://github.com/Br1ght0ne">
+                    <img src="https://avatars.githubusercontent.com/u/12615679?v=4" width="50;" alt="Br1ght0ne"/>
+                    <br />
+                    <sub><b>Oleksii Filonenko</b></sub>
+                </a>
+            </td>
+            <td align="center">
                 <a href="https://github.com/anrgct">
                     <img src="https://avatars.githubusercontent.com/u/16172523?v=4" width="50;" alt="anrgct"/>
                     <br />
