@@ -61,7 +61,7 @@ func NewKeyMap() *KeyMap {
 		SortByFamily:   key.NewBinding(key.WithKeys("f"), key.WithHelp("f", "^family")),
 		SortByModified: key.NewBinding(key.WithKeys("m"), key.WithHelp("m", "^modified")),
 		SortByName:     key.NewBinding(key.WithKeys("n"), key.WithHelp("n", "^name")),
-		SortByQuant:    key.NewBinding(key.WithKeys("k"), key.WithHelp("k", "^quant")),
+		SortByQuant:    key.NewBinding(key.WithKeys("K"), key.WithHelp("K", "^quant")),
 		SortBySize:     key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "^size")),
 		Top:            key.NewBinding(key.WithKeys("t"), key.WithHelp("t", "top")),
 		UnloadModels:   key.NewBinding(key.WithKeys("U"), key.WithHelp("U", "unload all")),
