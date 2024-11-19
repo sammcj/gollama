@@ -82,6 +82,7 @@ var colourMap = []string{
 
 // GGUFMapping maps GGUF quantisation types to their corresponding bits per weight
 var GGUFMapping = map[string]float64{
+	"F16":     16,
 	"Q8_0":    8.5,
 	"Q6_K":    6.59,
 	"Q5_K_L":  5.75,
@@ -107,6 +108,13 @@ var GGUFMapping = map[string]float64{
 	"IQ2_XS":  2.31,
 	"IQ2_XXS": 2.06,
 	"IQ1_S":   1.56,
+	"Q2":      3.35, // Alias for Q2_K
+	"Q3":      3.5,  // Alias for Q3_K_S
+	"Q4":      4.55, // Alias for Q4_0
+	"Q5":      5.54, // Alias for Q5_0
+	"Q6":      6.59, // Alias for Q6_K
+	"Q8":      8.5,  // Alias for Q8_0
+	"FP16":    16,   // Alias for F16
 }
 
 // EXL2Options contains the EXL2 quantisation options
@@ -116,6 +124,17 @@ var (
 	modelConfigCache = make(map[string]ModelConfig)
 	cacheMutex       sync.RWMutex
 )
+
+// Add description of vRAM estimation types at the top
+const vramDescription = `
+VRAM Estimation Format:
+For context sizes ≥ 16K: F16(Q8_0,Q4_0)
+- F16: Base model with FP16 KV cache
+- Q8_0: Model with Q8_0 KV cache quantization
+- Q4_0: Model with Q4_0 KV cache quantization
+
+For context sizes < 16K: Single F16 value shown
+`
 
 func init() {
 	for i := 6.0; i >= 2.0; i -= 0.05 {
@@ -784,11 +803,21 @@ func generateContextSizes(topContext int) []int {
 	return sizes
 }
 
+// PrintFormattedTable updates the table formatting with better descriptions
 func PrintFormattedTable(table QuantResultTable) string {
 	var buf bytes.Buffer
+
+	// Add the description header
+	headerStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#87CEEB")). // Light blue for better readability
+		Bold(true)
+
+	buf.WriteString(headerStyle.Render(vramDescription))
+	buf.WriteString("\n")
+
 	tw := tablewriter.NewWriter(&buf)
 
-	// Get context sizes from the first result (assuming all results have the same context sizes)
+	// Get context sizes from the first result
 	var contextSizes []int
 	if len(table.Results) > 0 {
 		for context := range table.Results[0].Contexts {
@@ -798,33 +827,39 @@ func PrintFormattedTable(table QuantResultTable) string {
 	}
 
 	// Set table header
-	header := []string{"Quant|Ctx", "BPW"}
+	header := []string{"QUANT", "BPW"}
 	for _, context := range contextSizes {
-		header = append(header, fmt.Sprintf("%dK", context/1024))
+		if context >= 1024 {
+			header = append(header, fmt.Sprintf("%dK", context/1024))
+		} else {
+			header = append(header, fmt.Sprintf("%d", context))
+		}
 	}
 	tw.SetHeader(header)
 
-	// Set table style
+	// Update table style for better readability
 	tw.SetBorders(tablewriter.Border{Left: true, Top: false, Right: true, Bottom: false})
 	tw.SetCenterSeparator("|")
 	tw.SetColumnSeparator("|")
 	tw.SetRowSeparator("-")
+	tw.SetAutoWrapText(false)
+	tw.SetAutoFormatHeaders(true)
 
-	// Set header colour to bright white
-	headerColours := make([]tablewriter.Colors, len(header))
-	for i := range headerColours {
-		headerColours[i] = tablewriter.Colors{tablewriter.FgHiWhiteColor}
+	// Enhanced header colors
+	headerColors := make([]tablewriter.Colors, len(header))
+	for i := range headerColors {
+		headerColors[i] = tablewriter.Colors{tablewriter.FgHiWhiteColor, tablewriter.Bold}
 	}
-	tw.SetHeaderColor(headerColours...)
+	tw.SetHeaderColor(headerColors...)
 
-	// Prepare data rows
+	// Prepare data rows with improved formatting
 	for _, result := range table.Results {
 		row := []string{
 			result.QuantType,
 			fmt.Sprintf("%.2f", result.BPW),
 		}
 
-		// Add VRAM estimates for each context size
+		// Add VRAM estimates for each context size with improved formatting
 		for _, context := range contextSizes {
 			vram, ok := result.Contexts[context]
 			if !ok {
@@ -837,7 +872,6 @@ func PrintFormattedTable(table QuantResultTable) string {
 			if context >= 16384 {
 				q8Str := getColouredVRAM(vram.VRAMQ8_0, fmt.Sprintf("%.1f", vram.VRAMQ8_0), table.FitsVRAM)
 				q4Str := getColouredVRAM(vram.VRAMQ4_0, fmt.Sprintf("%.1f", vram.VRAMQ4_0), table.FitsVRAM)
-
 				combinedStr := fmt.Sprintf("%s(%s,%s)", fp16Str, q8Str, q4Str)
 				row = append(row, combinedStr)
 			} else {
@@ -848,10 +882,57 @@ func PrintFormattedTable(table QuantResultTable) string {
 		tw.Append(row)
 	}
 
-	// Render the table
 	tw.Render()
 
-	return lipgloss.NewStyle().Foreground(lipgloss.Color("#ffffff")).Render(fmt.Sprintf("📊 VRAM Estimation for Model: %s\n\n%s", table.ModelID, buf.String()))
+	// Add model info and memory constraint
+	modelInfo := fmt.Sprintf("📊 VRAM Estimation for Model: %s", table.ModelID)
+	if table.FitsVRAM > 0 {
+		modelInfo += fmt.Sprintf(" (Memory Constraint: %.1f GB)", table.FitsVRAM)
+	}
+
+	return lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#ffffff")).
+		Render(fmt.Sprintf("%s\n\n%s", modelInfo, buf.String()))
+}
+
+// ParseModelIdentifier parses a model identifier into its base name and quantization level.
+// Handles both HuggingFace (contains "/") and Ollama (contains ":" or neither) formats.
+func ParseModelIdentifier(modelID string) (string, string, error) {
+	modelID = strings.TrimSpace(modelID)
+
+	// If empty, return error
+	if modelID == "" {
+		return "", "", fmt.Errorf("empty model identifier provided")
+	}
+
+	// If contains "/", treat as HuggingFace model
+	if strings.Contains(modelID, "/") {
+		return modelID, "", nil
+	}
+
+	// Otherwise, treat as Ollama model
+	// Split on ":" to separate model name from tag
+	parts := strings.Split(modelID, ":")
+	baseName := parts[0]
+	var quantLevel string
+
+	if len(parts) > 1 {
+		tag := parts[1]
+		// Extract quantization level from tag (e.g., "1.5b-q8_0" -> "q8_0")
+		tagParts := strings.Split(tag, "-")
+		for i := len(tagParts) - 1; i >= 0; i-- {
+			part := strings.ToUpper(tagParts[i])
+			// Check if this part starts with Q or IQ
+			if strings.HasPrefix(part, "Q") || strings.HasPrefix(part, "IQ") {
+				if _, exists := GGUFMapping[part]; exists {
+					quantLevel = part
+					break
+				}
+			}
+		}
+	}
+
+	return baseName, quantLevel, nil
 }
 
 func getColouredVRAM(vram float64, vramStr string, fitsVRAM float64) string {
