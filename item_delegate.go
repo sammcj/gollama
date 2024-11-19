@@ -66,7 +66,7 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, item list.Ite
 	idStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("254")).Faint(true)
 	sizeStyle := lipgloss.NewStyle().Foreground(sizeColour(model.Size))
 	familyStyle := lipgloss.NewStyle().Foreground(familyColour(model.Family, index))
-	quantStyle := lipgloss.NewStyle().Foreground(quantColour(model.quantizationLevel))
+	quantStyle := lipgloss.NewStyle().Foreground(quantColour(model.QuantizationLevel))
 	modifiedStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("254"))
 
 	if index == m.Index() {
@@ -95,7 +95,7 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, item list.Ite
 	// Ensure the text fits within the terminal width
 	name := wrapText(nameStyle.Width(nameWidth).Render(truncate(model.Name, nameWidth)), nameWidth)
 	size := wrapText(sizeStyle.Width(sizeWidth).Render(fmt.Sprintf("%.2fGB", model.Size)), sizeWidth)
-	quant := wrapText(quantStyle.Width(quantWidth).Render(truncate(model.quantizationLevel, quantWidth)), quantWidth)
+	quant := wrapText(quantStyle.Width(quantWidth).Render(truncate(model.QuantizationLevel, quantWidth)), quantWidth)
 	family := wrapText(familyStyle.Width(familyWidth).Render(model.Family), familyWidth)
 	modified := wrapText(modifiedStyle.Width(modifiedWidth).Render(model.Modified.Format("2006-01-02")), modifiedWidth)
 	id := wrapText(idStyle.Width(idWidth).Render(model.ID), idWidth)

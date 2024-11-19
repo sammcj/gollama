@@ -457,7 +457,7 @@ func (m *AppModel) handleSortByQuantKey() (tea.Model, tea.Cmd) {
 	logging.DebugLogger.Println("SortByQuant key matched")
 	m.cfg.SortOrder = "quant"
 	sort.Slice(m.models, func(i, j int) bool {
-		return m.models[i].quantizationLevel < m.models[j].quantizationLevel
+		return m.models[i].QuantizationLevel < m.models[j].QuantizationLevel
 	})
 	m.refreshList()
 	return m, nil
@@ -801,7 +801,7 @@ func (m *AppModel) inspectModelView(model Model) string {
 		{"Name", model.Name},
 		{"ID", model.ID},
 		{"Size (GB)", fmt.Sprintf("%.2f", model.Size)},
-		{"quantisation Level", model.quantizationLevel},
+		{"quantisation Level", model.QuantizationLevel},
 		{"Modified", model.Modified.Format("2006-01-02")},
 		{"Family", model.Family},
 	}

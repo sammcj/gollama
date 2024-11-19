@@ -24,7 +24,7 @@ func parseAPIResponse(resp *api.ListResponse) []Model {
 			Name:              modelName,
 			ID:                truncate(modelResp.Digest, 7),                  // Truncate the ID
 			Size:              float64(modelResp.Size) / (1024 * 1024 * 1024), // Convert bytes to GB
-			quantizationLevel: modelResp.Details.QuantizationLevel,
+			QuantizationLevel: modelResp.Details.QuantizationLevel,
 			Family:            modelResp.Details.Family,
 			Modified:          modelResp.ModifiedAt,
 		}
@@ -153,7 +153,7 @@ func listModels(models []Model) {
 	for _, model := range models {
 		names = append(names, model.Name)
 		sizes = append(sizes, fmt.Sprintf("%.2fGB", model.Size))
-		quants = append(quants, model.quantizationLevel)
+		quants = append(quants, model.QuantizationLevel)
 		families = append(families, model.Family)
 		modifieds = append(modifieds, model.Modified.Format("2006-01-02"))
 		ids = append(ids, model.ID)
@@ -179,7 +179,7 @@ func listModels(models []Model) {
 		id := lipgloss.NewStyle().Foreground(lipgloss.Color("254")).Faint(true).Render(ids[index])
 		size := lipgloss.NewStyle().Foreground(sizeColour(model.Size)).Render(sizes[index])
 		family := lipgloss.NewStyle().Foreground(familyColour(model.Family, 0)).Render(families[index])
-		quant := lipgloss.NewStyle().Foreground(quantColour(model.quantizationLevel)).Render(quants[index])
+		quant := lipgloss.NewStyle().Foreground(quantColour(model.QuantizationLevel)).Render(quants[index])
 		modified := lipgloss.NewStyle().Foreground(lipgloss.Color("254")).Render(modifieds[index])
 
 		row := fmt.Sprintf("%-*s %-*s %-*s %-*s %-*s %-*s", nameWidth, name, sizeWidth, size, quantWidth, quant, familyWidth, family, modifiedWidth, modified, idWidth, id)

@@ -10,7 +10,7 @@ type Model struct {
 	Name              string
 	ID                string
 	Size              float64
-	quantizationLevel string
+	QuantizationLevel string
 	Modified          time.Time
 	Selected          bool
 	Family            string
@@ -24,7 +24,7 @@ func (m Model) SelectedStr() string {
 }
 
 func (m Model) Description() string {
-	return fmt.Sprintf("ID: %s, Size: %.2f GB, Quant: %s, Modified: %s", m.ID, m.Size, m.quantizationLevel, m.Modified.Format("2006-01-02"))
+	return fmt.Sprintf("ID: %s, Size: %.2f GB, Quant: %s, Modified: %s", m.ID, m.Size, m.QuantizationLevel, m.Modified.Format("2006-01-02"))
 }
 
 func (m Model) FilterValue() string {
