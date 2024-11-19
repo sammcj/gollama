@@ -130,8 +130,8 @@ const vramDescription = `
 VRAM Estimation Format:
 For context sizes ≥ 16K: F16(Q8_0,Q4_0)
 - F16: Base model with FP16 KV cache
-- Q8_0: Model with Q8_0 KV cache quantization
-- Q4_0: Model with Q4_0 KV cache quantization
+- Q8_0: Model with Q8_0 KV cache quantisation
+- Q4_0: Model with Q4_0 KV cache quantisation
 
 For context sizes < 16K: Single F16 value shown
 `
@@ -194,7 +194,7 @@ func GetAvailableMemory() (float64, error) {
 type OllamaModelInfo struct {
 	Details struct {
 		ParameterSize     string   `json:"parameter_size"`
-		QuantizationLevel string   `json:"quantization_level"`
+		QuantizationLevel string   `json:"quantisation_level"`
 		Family            string   `json:"family"`
 		Families          []string `json:"families"`
 	} `json:"details"`
@@ -258,10 +258,10 @@ func EstimateVRAM(modelIdentifier, apiURL string, fitsVRAM float64) error {
 		}
 	}
 
-	// Generate the quantization table
+	// Generate the quantisation table
 	table, err := GenerateQuantTable(modelIdentifier, fitsVRAM, ollamaModelInfo, 65536)
 	if err != nil {
-		return fmt.Errorf("error generating quantization table: %v", err)
+		return fmt.Errorf("error generating quantisation table: %v", err)
 	}
 
 	// Print the formatted table
@@ -537,11 +537,11 @@ func CalculateVRAM(modelID string, bpw float64, context int, kvCacheQuant KVCach
 			config.VocabSize = 32000 // A common default value
 		}
 
-		// Parse BPW from quantization level if not provided
+		// Parse BPW from quantisation level if not provided
 		if bpw == 0 {
 			bpw, err = ParseBPWOrQuant(ollamaModelInfo.Details.QuantizationLevel)
 			if err != nil {
-				return 0, fmt.Errorf("error parsing BPW from Ollama quantization level: %v", err)
+				return 0, fmt.Errorf("error parsing BPW from Ollama quantisation level: %v", err)
 			}
 		}
 
@@ -895,7 +895,7 @@ func PrintFormattedTable(table QuantResultTable) string {
 		Render(fmt.Sprintf("%s\n\n%s", modelInfo, buf.String()))
 }
 
-// ParseModelIdentifier parses a model identifier into its base name and quantization level.
+// ParseModelIdentifier parses a model identifier into its base name and quantisation level.
 // Handles both HuggingFace (contains "/") and Ollama (contains ":" or neither) formats.
 func ParseModelIdentifier(modelID string) (string, string, error) {
 	modelID = strings.TrimSpace(modelID)
@@ -918,7 +918,7 @@ func ParseModelIdentifier(modelID string) (string, string, error) {
 
 	if len(parts) > 1 {
 		tag := parts[1]
-		// Extract quantization level from tag (e.g., "1.5b-q8_0" -> "q8_0")
+		// Extract quantisation level from tag (e.g., "1.5b-q8_0" -> "q8_0")
 		tagParts := strings.Split(tag, "-")
 		for i := len(tagParts) - 1; i >= 0; i-- {
 			part := strings.ToUpper(tagParts[i])

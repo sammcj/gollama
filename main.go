@@ -124,7 +124,7 @@ func main() {
 	vramFlag := flag.String("vram", "", "Model to estimate VRAM usage for (e.g., 'qwen2:q4_0' or 'meta-llama/Llama-2-7b')")
 	fitsVRAMFlag := flag.Float64("fits", 0, "Target VRAM constraint in GB (default: auto-detect)")
 	contextFlag := flag.String("context", "", "Maximum context length (e.g., '32k' or '128k')")
-	quantFlag := flag.String("quant", "", "Specific quantization level (e.g., 'Q4_0', 'Q5_K_M')")
+	quantFlag := flag.String("quant", "", "Specific quantisation level (e.g., 'Q4_0', 'Q5_K_M')")
 	vramToNthFlag := flag.String("vram-to-nth", "65536", "Top context length to search for (e.g., 65536, 32k, 2m)")
 
 	flag.Parse()
@@ -159,7 +159,7 @@ func main() {
 		modelName := *vramFlag
 		logging.DebugLogger.Printf("Processing vRAM estimation for model: %s", modelName)
 
-		// Parse the model identifier and quantization level
+		// Parse the model identifier and quantisation level
 		baseModel, quantLevel, err := vramestimator.ParseModelIdentifier(modelName)
 		if err != nil {
 			fmt.Printf("Error parsing model identifier: %v\n", err)
@@ -168,9 +168,9 @@ func main() {
 
 		logging.DebugLogger.Printf("Parsed model identifier: base=%s, quant=%s", baseModel, quantLevel)
 
-		// Override quantization level if specified via flag
+		// Override quantisation level if specified via flag
 		if *quantFlag != "" {
-			logging.DebugLogger.Printf("Overriding quantization level from flag: %s", *quantFlag)
+			logging.DebugLogger.Printf("Overriding quantisation level from flag: %s", *quantFlag)
 			quantLevel = *quantFlag
 		}
 
@@ -198,10 +198,10 @@ func main() {
 
 		logging.DebugLogger.Printf("Using context size %d from --%s", topContext, contextSource)
 
-		// If a specific quantization level is provided, verify it exists
+		// If a specific quantisation level is provided, verify it exists
 		if quantLevel != "" {
 			if _, exists := vramestimator.GGUFMapping[strings.ToUpper(quantLevel)]; !exists {
-				fmt.Printf("Warning: Unknown quantization level '%s'. Available levels:\n", quantLevel)
+				fmt.Printf("Warning: Unknown quantisation level '%s'. Available levels:\n", quantLevel)
 				var levels []string
 				for level := range vramestimator.GGUFMapping {
 					levels = append(levels, level)

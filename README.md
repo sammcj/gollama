@@ -149,7 +149,7 @@ Inspect (`i`)
   - HuggingFace models (e.g. `NousResearch/Hermes-2-Theta-Llama-3-8B`)
   - `--fits`: Available memory in GB for context calculation (e.g. `6` for 6GB)
   - `--vram-to-nth` or `--context`: Maximum context length to analyze (e.g. `32k` or `128k`)
-  - `--quant`: Override quantization level (e.g. `Q4_0`, `Q5_K_M`)
+  - `--quant`: Override quantisation level (e.g. `Q4_0`, `Q5_K_M`)
 
 ##### Simple model listing
 
