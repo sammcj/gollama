@@ -845,12 +845,12 @@ func PrintFormattedTable(table QuantResultTable) string {
 	tw.SetAutoWrapText(false)
 	tw.SetAutoFormatHeaders(true)
 
-	// Enhanced header colors
-	headerColors := make([]tablewriter.Colors, len(header))
-	for i := range headerColors {
-		headerColors[i] = tablewriter.Colors{tablewriter.FgHiWhiteColor, tablewriter.Bold}
+	// Enhanced header colours
+	headerColours := make([]tablewriter.Colors, len(header))
+	for i := range headerColours {
+		headerColours[i] = tablewriter.Colors{tablewriter.FgHiWhiteColor, tablewriter.Bold}
 	}
-	tw.SetHeaderColor(headerColors...)
+	tw.SetHeaderColor(headerColours...)
 
 	// Prepare data rows with improved formatting
 	for _, result := range table.Results {
