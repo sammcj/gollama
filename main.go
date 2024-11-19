@@ -131,8 +131,6 @@ func main() {
 		os.Exit(0)
 	}
 
-	os.Setenv("EDITOR", cfg.Editor)
-
 	if *localHostFlag {
 		*hostFlag = "http://localhost:11434"
 	}
