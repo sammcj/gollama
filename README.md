@@ -144,9 +144,12 @@ Inspect (`i`)
 - `-v`: Print the version and exit
 - `-h`, or `--host`: Specify the host for the Ollama API
 - `-H`: Shortcut for `-h http://localhost:11434` (connect to local Ollama API) **new**
-- `--vram`: Estimate vRAM usage for an existing (pulled) Ollama model name (e.g. `llama3.1:8b-instruct-q6_K`) huggingface model ID (e.g. `NousResearch/Hermes-2-Theta-Llama-3-8B`)
+- `--vram`: Estimate vRAM usage for a model. Accepts:
+  - Ollama models (e.g. `llama3.1:8b-instruct-q6_K`, `qwen2:14b-q4_0`)
+  - HuggingFace models (e.g. `NousResearch/Hermes-2-Theta-Llama-3-8B`)
   - `--fits`: Available memory in GB for context calculation (e.g. `6` for 6GB)
-  - `--vram-to-nth`: Top context length to search for (e.g. `40k` or `40000`)
+  - `--vram-to-nth` or `--context`: Maximum context length to analyze (e.g. `32k` or `128k`)
+  - `--quant`: Override quantisation level (e.g. `Q4_0`, `Q5_K_M`)
 
 ##### Simple model listing
 

@@ -801,7 +801,7 @@ func (m *AppModel) inspectModelView(model Model) string {
 		{"Name", model.Name},
 		{"ID", model.ID},
 		{"Size (GB)", fmt.Sprintf("%.2f", model.Size)},
-		{"Quantization Level", model.QuantizationLevel},
+		{"quantisation Level", model.QuantizationLevel},
 		{"Modified", model.Modified.Format("2006-01-02")},
 		{"Family", model.Family},
 	}

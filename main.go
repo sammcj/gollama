@@ -120,9 +120,12 @@ func main() {
 	localHostFlag := flag.Bool("H", false, "Shortcut to connect to http://localhost:11434")
 	editFlag := flag.Bool("e", false, "Edit a model's modelfile")
 	// vRAM estimation flags
-	flag.Float64Var(&fitsVRAM, "fits", 0, "Highlight quant sizes and context sizes that fit in this amount of vRAM (in GB)")
-	vramFlag := flag.String("vram", "", "Estimate vRAM usage - Model ID or Ollama model name")
-	topContextFlag := flag.String("vram-to-nth", "65536", "Top context length to search for (e.g., 65536, 32k, 2m)")
+	// flag.Float64Var(&fitsVRAM, "fits", 0, "Highlight quant sizes and context sizes that fit in this amount of vRAM (in GB)")
+	vramFlag := flag.String("vram", "", "Model to estimate VRAM usage for (e.g., 'qwen2:q4_0' or 'meta-llama/Llama-2-7b')")
+	fitsVRAMFlag := flag.Float64("fits", 0, "Target VRAM constraint in GB (default: auto-detect)")
+	contextFlag := flag.String("context", "", "Maximum context length (e.g., '32k' or '128k')")
+	quantFlag := flag.String("quant", "", "Specific quantisation level (e.g., 'Q4_0', 'Q5_K_M')")
+	vramToNthFlag := flag.String("vram-to-nth", "65536", "Top context length to search for (e.g., 65536, 32k, 2m)")
 
 	flag.Parse()
 
@@ -154,34 +157,78 @@ func main() {
 	// Handle --vram flag
 	if *vramFlag != "" {
 		modelName := *vramFlag
-		logging.DebugLogger.Println("vRAM estimation flag detected")
-		if *vramFlag == "" {
-			fmt.Println("Error: Model ID or Ollama model name is required for vRAM estimation")
+		logging.DebugLogger.Printf("Processing vRAM estimation for model: %s", modelName)
+
+		// Parse the model identifier and quantisation level
+		baseModel, quantLevel, err := vramestimator.ParseModelIdentifier(modelName)
+		if err != nil {
+			fmt.Printf("Error parsing model identifier: %v\n", err)
 			os.Exit(1)
 		}
 
-		logging.DebugLogger.Println("Generating VRAM estimation table")
+		logging.DebugLogger.Printf("Parsed model identifier: base=%s, quant=%s", baseModel, quantLevel)
 
-		var ollamaModelInfo *vramestimator.OllamaModelInfo
-		var err error
+		// Override quantisation level if specified via flag
+		if *quantFlag != "" {
+			logging.DebugLogger.Printf("Overriding quantisation level from flag: %s", *quantFlag)
+			quantLevel = *quantFlag
+		}
 
-		// Check if the input is an Ollama model name (contains a colon)
-		if strings.Contains(modelName, ":") {
-			ollamaModelInfo, err = vramestimator.FetchOllamaModelInfo(cfg.OllamaAPIURL, modelName)
-			if err != nil {
-				fmt.Printf("Error fetching Ollama model info: %v\n", err)
+		var isHuggingFaceModel = strings.Contains(baseModel, "/")
+		var isOllamaModel = !isHuggingFaceModel
+
+		// Parse the context size
+		var topContext int
+		var contextSource string
+		if *contextFlag != "" && *contextFlag != "65536" {
+			topContext, err = parseContextSize(*contextFlag)
+			contextSource = "context"
+		} else if *vramToNthFlag != "" {
+			topContext, err = parseContextSize(*vramToNthFlag)
+			contextSource = "vram-to-nth"
+		} else {
+			topContext = 65536
+			contextSource = "default"
+		}
+
+		if err != nil {
+			fmt.Printf("Error parsing context size from --%s flag: %v\n", contextSource, err)
+			os.Exit(1)
+		}
+
+		logging.DebugLogger.Printf("Using context size %d from --%s", topContext, contextSource)
+
+		// If a specific quantisation level is provided, verify it exists
+		if quantLevel != "" {
+			if _, exists := vramestimator.GGUFMapping[strings.ToUpper(quantLevel)]; !exists {
+				fmt.Printf("Warning: Unknown quantisation level '%s'. Available levels:\n", quantLevel)
+				var levels []string
+				for level := range vramestimator.GGUFMapping {
+					levels = append(levels, level)
+				}
+				sort.Strings(levels)
+				for _, level := range levels {
+					fmt.Printf("  - %s\n", level)
+				}
 				os.Exit(1)
 			}
 		}
 
-		// Parse the top context size
-		topContext, err := parseContextSize(*topContextFlag)
-		if err != nil {
-			fmt.Printf("Error parsing top context size: %v\n", err)
-			os.Exit(1)
+		// Fetch model information from appropriate source
+		var ollamaModelInfo *vramestimator.OllamaModelInfo
+		if isOllamaModel {
+			logging.DebugLogger.Printf("Fetching model info from Ollama API for %s", baseModel)
+			ollamaModelInfo, err = vramestimator.FetchOllamaModelInfo(cfg.OllamaAPIURL, modelName)
+			if err != nil {
+				fmt.Printf("Error: Could not fetch Ollama model info: %v\n", err)
+				os.Exit(1)
+			}
+		} else {
+			logging.DebugLogger.Printf("Using HuggingFace model ID: %s", baseModel)
 		}
 
-		table, err := vramestimator.GenerateQuantTable(modelName, fitsVRAM, ollamaModelInfo, topContext)
+		// Generate and display the table
+		table, err := vramestimator.GenerateQuantTable(baseModel, *fitsVRAMFlag, ollamaModelInfo, topContext)
 		if err != nil {
 			fmt.Printf("Error generating VRAM estimation table: %v\n", err)
 			os.Exit(1)
