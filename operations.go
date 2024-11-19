@@ -690,43 +690,46 @@ func unloadModel(client *api.Client, modelName string) (string, error) {
 	return modelName, nil
 }
 
+// editModelfile opens the modelfile in the user's editor and updates the model on the server with the new content
 func editModelfile(client *api.Client, modelName string) (string, error) {
-	if client == nil {
-		return "", fmt.Errorf("error: Client is nil")
-	}
-	ctx := context.Background()
+  if client == nil {
+      return "", fmt.Errorf("error: Client is nil")
+  }
+  ctx := context.Background()
 
-	// Fetch the current modelfile from the server
-	showResp, err := client.Show(ctx, &api.ShowRequest{Name: modelName})
-	if err != nil {
-		return "", fmt.Errorf("error fetching modelfile for %s: %v", modelName, err)
-	}
-	modelfileContent := showResp.Modelfile
+  // Fetch the current modelfile from the server
+  showResp, err := client.Show(ctx, &api.ShowRequest{Name: modelName})
+  if err != nil {
+      return "", fmt.Errorf("error fetching modelfile for %s: %v", modelName, err)
+  }
+  modelfileContent := showResp.Modelfile
 
-	if os.Getenv("EDITOR") == "" {
-		os.Setenv("EDITOR", "vim")
-	}
+  // Get editor from environment or config
+  editor := getEditor()
+  if editor == "" {
+      editor = "vim" // Default fallback
+  }
 
-	logging.DebugLogger.Printf("Editing modelfile for model: %s\n", modelName)
+  logging.DebugLogger.Printf("Using editor: %s for model: %s\n", editor, modelName)
 
-	// Write the fetched content to a temporary file
-	tempDir := os.TempDir()
-	newModelfilePath := filepath.Join(tempDir, fmt.Sprintf("%s_modelfile.txt", modelName))
-	err = os.WriteFile(newModelfilePath, []byte(modelfileContent), 0644)
-	if err != nil {
-		return "", fmt.Errorf("error writing modelfile to temp file: %v", err)
-	}
-	defer os.Remove(newModelfilePath)
+  // Write the fetched content to a temporary file
+  tempDir := os.TempDir()
+  newModelfilePath := filepath.Join(tempDir, fmt.Sprintf("%s_modelfile.txt", modelName))
+  err = os.WriteFile(newModelfilePath, []byte(modelfileContent), 0644)
+  if err != nil {
+      return "", fmt.Errorf("error writing modelfile to temp file: %v", err)
+  }
+  defer os.Remove(newModelfilePath)
 
-	// Open the local modelfile in the editor
-	cmd := exec.Command(os.Getenv("EDITOR"), newModelfilePath)
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	err = cmd.Run()
-	if err != nil {
-		return "", fmt.Errorf("error running editor: %v", err)
-	}
+  // Open the local modelfile in the editor
+  cmd := exec.Command(editor, newModelfilePath)
+  cmd.Stdin = os.Stdin
+  cmd.Stdout = os.Stdout
+  cmd.Stderr = os.Stderr
+  err = cmd.Run()
+  if err != nil {
+      return "", fmt.Errorf("error running editor: %v", err)
+  }
 
 	// Read the edited content from the local file
 	newModelfileContent, err := os.ReadFile(newModelfilePath)
@@ -781,4 +784,21 @@ func parseContextSize(input string) (int, error) {
 	}
 
 	return value * multiplier, nil
+}
+
+// getEditor returns the users editor
+func getEditor() string {
+  // First check environment variable
+  if editor := os.Getenv("EDITOR"); editor != "" {
+      return editor
+  }
+
+  // Then check config
+  cfg, err := config.LoadConfig()
+  if err != nil {
+      logging.ErrorLogger.Printf("Error loading config for editor: %v\n", err)
+      return ""
+  }
+
+  return cfg.Editor
 }
