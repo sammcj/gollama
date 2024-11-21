@@ -11,11 +11,11 @@ assignees: sammcj
 
 ## Description
 
-<!-- A clear and concise description of what the bug is. -->
+<!-- A clear, concise description of what the bug is. -->
 
 ## How to reproduce
 
-<!-- A clear and concise description of what you did to reproduce the bug. -->
+<!-- A clear, concise description of what you did to reproduce the bug. -->
 
 ## Screenshots / Logs
 
@@ -23,14 +23,20 @@ assignees: sammcj
 
 ## Environment
 
-If applicable, add screenshots to help explain your problem.
+- macOS version: <!-- (e.g. output of `sw_vers`) -->
+or
+- Linux distribution: <!-- (e.g. output of `cat /etc/os-release`) -->
+- Install source: <!-- (Downloaded from releases / Go get / Built from source) -->
+- Go version: <!-- (Output of `go version`) -->
 
-- OS and version:
-- Install source: (Downloaded from releases / Go get / Built from source)
-- Go version: (Output of `go version`)
+<!-- If applicable, add screenshots to help explain your problem. -->
 
 ## Can you contribute?
 
 - [ ] I will attempt to implement a fix for this bug
 
 <!-- It's ok if not, but it's always great to have contributors! -->
+
+## How did you find out about Gollama?
+
+<!-- (e.g. Reddit, GitHub search, Youtube etc.) -->
