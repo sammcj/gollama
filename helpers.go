@@ -135,11 +135,26 @@ func listModels(models []Model) {
 		os.Exit(1)
 	}
 
+  if len(models) == 0 {
+    fmt.Println("No models available to display.")
+    return
+  }
+
 	stripString := cfg.StripString
 	nameWidth, sizeWidth, quantWidth, modifiedWidth, idWidth, familyWidth := calculateColumnWidthsTerminal()
 
-	// align the header with the columns (length of stripString is subtracted from the name width to ensure alignment with the other columns)
-	header := fmt.Sprintf("%-*s %-*s %-*s %-*s %-*s %-*s", nameWidth-len(stripString), "Name", sizeWidth, "Size", quantWidth, "Quant", familyWidth, "Family", modifiedWidth, "Modified", idWidth, "ID")
+	// Add extra spacing between columns
+	colSpacing := 2
+	longestNameAllowed := 60
+
+	// Create the header with proper padding and alignment
+	header := fmt.Sprintf("%-*s%-*s%-*s%-*s%-*s%-*s",
+		nameWidth, "Name",
+		sizeWidth+colSpacing, "Size",
+		quantWidth+colSpacing, "Quant",
+		familyWidth+colSpacing, "Family",
+		modifiedWidth+colSpacing, "Modified",
+		idWidth, "ID")
 
 	// if stripString is set, replace the model name with the stripped string
 	if stripString != "" {
@@ -149,23 +164,48 @@ func listModels(models []Model) {
 	}
 
 	// Prepare columns for padding
-	var names, sizes, quants, families, modifieds, ids []string
+	var names, sizes, quants, families, modified, ids []string
+	var longestName int
 	for _, model := range models {
+		if len(model.Name) > longestName {
+			longestName = len(model.Name)
+		}
+		// truncate long names
+		if len(model.Name) > longestNameAllowed {
+			model.Name = model.Name[:longestNameAllowed] + "..."
+		}
 		names = append(names, model.Name)
 		sizes = append(sizes, fmt.Sprintf("%.2fGB", model.Size))
 		quants = append(quants, model.QuantizationLevel)
 		families = append(families, model.Family)
-		modifieds = append(modifieds, model.Modified.Format("2006-01-02"))
+		modified = append(modified, model.Modified.Format("2006-01-02"))
 		ids = append(ids, model.ID)
 	}
 
-	// Pad columns to ensure alignment
-	names = padColumn(names)
-	sizes = padColumn(sizes)
-	quants = padColumn(quants)
-	families = padColumn(families)
-	modifieds = padColumn(modifieds)
-	ids = padColumn(ids)
+	// Calculate maximum width for each column
+	maxNameWidth := nameWidth
+	maxSizeWidth := sizeWidth + colSpacing
+	maxQuantWidth := quantWidth + colSpacing
+	maxFamilyWidth := familyWidth + colSpacing
+	maxModifiedWidth := modifiedWidth + colSpacing
+	maxIdWidth := idWidth
+
+	// Pad columns to ensure alignment with calculated widths
+	for i := range names {
+		names[i] = fmt.Sprintf("%-*s", maxNameWidth, names[i])
+		sizes[i] = fmt.Sprintf("%-*s", maxSizeWidth, sizes[i])
+		quants[i] = fmt.Sprintf("%-*s", maxQuantWidth, quants[i])
+		families[i] = fmt.Sprintf("%-*s", maxFamilyWidth, families[i])
+		modified[i] = fmt.Sprintf("%-*s", maxModifiedWidth, modified[i])
+		// if the longest name is more than longestNameAllowed characters, don't display the model sha
+		if longestName > longestNameAllowed {
+			ids[i] = ""
+			// remove the ID header
+			header = fmt.Sprintf("%-*s%-*s%-*s%-*s%-*s", nameWidth, "Name", sizeWidth+colSpacing, "Size", quantWidth+colSpacing, "Quant", familyWidth+colSpacing, "Family", modifiedWidth, "Modified")
+		} else {
+			ids[i] = fmt.Sprintf("%-*s", maxIdWidth, ids[i])
+		}
+	}
 
 	// Print the header
 	fmt.Println(lipgloss.NewStyle().Foreground(lipgloss.Color("12")).Render(header))
@@ -180,31 +220,20 @@ func listModels(models []Model) {
 		size := lipgloss.NewStyle().Foreground(sizeColour(model.Size)).Render(sizes[index])
 		family := lipgloss.NewStyle().Foreground(familyColour(model.Family, 0)).Render(families[index])
 		quant := lipgloss.NewStyle().Foreground(quantColour(model.QuantizationLevel)).Render(quants[index])
-		modified := lipgloss.NewStyle().Foreground(lipgloss.Color("254")).Render(modifieds[index])
+		modified := lipgloss.NewStyle().Foreground(lipgloss.Color("254")).Render(modified[index])
 
-		row := fmt.Sprintf("%-*s %-*s %-*s %-*s %-*s %-*s", nameWidth, name, sizeWidth, size, quantWidth, quant, familyWidth, family, modifiedWidth, modified, idWidth, id)
+		row := fmt.Sprintf("%-*s%-*s%-*s%-*s%-*s%-*s",
+			maxNameWidth, name,
+			maxSizeWidth, size,
+			maxQuantWidth, quant,
+			maxFamilyWidth, family,
+			maxModifiedWidth, modified,
+			maxIdWidth, id)
 		modelList = append(modelList, row)
 	}
 
-	// Print the models
+	// Print the models with proper spacing
 	for _, row := range modelList {
-		fmt.Println(row)
+		fmt.Printf("%s\n", row)
 	}
-}
-
-// padColumn takes a slice of strings and pads them with spaces to the maximum width of all the values in that column.
-func padColumn(column []string) []string {
-	max := 0
-	for _, value := range column {
-		if len(value) > max {
-			max = len(value)
-		}
-	}
-
-	paddedColumn := make([]string, len(column))
-	for i, value := range column {
-		padding := strings.Repeat(" ", max-len(value))
-		paddedColumn[i] = wrapText(value+padding, max)
-	}
-	return paddedColumn
 }
