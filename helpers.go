@@ -135,6 +135,11 @@ func listModels(models []Model) {
 		os.Exit(1)
 	}
 
+  if len(models) == 0 {
+    fmt.Println("No models available to display.")
+    return
+  }
+
 	stripString := cfg.StripString
 	nameWidth, sizeWidth, quantWidth, modifiedWidth, idWidth, familyWidth := calculateColumnWidthsTerminal()
 
