@@ -128,91 +128,107 @@ func calculateColumnWidthsTerminal() (nameWidth, sizeWidth, quantWidth, modified
 }
 
 func listModels(models []Model) {
-  // read the config file to see if the user wants to strip a string from the model name
-  cfg, err := config.LoadConfig()
-  if err != nil {
-      fmt.Println("Error loading config:", err)
-      os.Exit(1)
-  }
+	// read the config file to see if the user wants to strip a string from the model name
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		fmt.Println("Error loading config:", err)
+		os.Exit(1)
+	}
 
-  stripString := cfg.StripString
-  nameWidth, sizeWidth, quantWidth, modifiedWidth, idWidth, familyWidth := calculateColumnWidthsTerminal()
+	stripString := cfg.StripString
+	nameWidth, sizeWidth, quantWidth, modifiedWidth, idWidth, familyWidth := calculateColumnWidthsTerminal()
 
-  // Add extra spacing between columns
-  colSpacing := 3
+	// Add extra spacing between columns
+	colSpacing := 2
+	longestNameAllowed := 60
 
-  // Create the header with proper padding and alignment
-  header := fmt.Sprintf("%-*s%-*s%-*s%-*s%-*s%-*s",
-      nameWidth, "Name",
-      sizeWidth+colSpacing, "Size",
-      quantWidth+colSpacing, "Quant",
-      familyWidth+colSpacing, "Family",
-      modifiedWidth+colSpacing, "Modified",
-      idWidth, "ID")
+	// Create the header with proper padding and alignment
+	header := fmt.Sprintf("%-*s%-*s%-*s%-*s%-*s%-*s",
+		nameWidth, "Name",
+		sizeWidth+colSpacing, "Size",
+		quantWidth+colSpacing, "Quant",
+		familyWidth+colSpacing, "Family",
+		modifiedWidth+colSpacing, "Modified",
+		idWidth, "ID")
 
-  // if stripString is set, replace the model name with the stripped string
-  if stripString != "" {
-      for i, model := range models {
-          models[i].Name = strings.Replace(model.Name, stripString, "", 1)
-      }
-  }
+	// if stripString is set, replace the model name with the stripped string
+	if stripString != "" {
+		for i, model := range models {
+			models[i].Name = strings.Replace(model.Name, stripString, "", 1)
+		}
+	}
 
-  // Prepare columns for padding
-  var names, sizes, quants, families, modifieds, ids []string
-  for _, model := range models {
-      names = append(names, model.Name)
-      sizes = append(sizes, fmt.Sprintf("%.2fGB", model.Size))
-      quants = append(quants, model.QuantizationLevel)
-      families = append(families, model.Family)
-      modifieds = append(modifieds, model.Modified.Format("2006-01-02"))
-      ids = append(ids, model.ID)
-  }
+	// Prepare columns for padding
+	var names, sizes, quants, families, modified, ids []string
+	var longestName int
+	for _, model := range models {
+		if len(model.Name) > longestName {
+			longestName = len(model.Name)
+		}
+		// truncate long names
+		if len(model.Name) > longestNameAllowed {
+			model.Name = model.Name[:longestNameAllowed] + "..."
+		}
+		names = append(names, model.Name)
+		sizes = append(sizes, fmt.Sprintf("%.2fGB", model.Size))
+		quants = append(quants, model.QuantizationLevel)
+		families = append(families, model.Family)
+		modified = append(modified, model.Modified.Format("2006-01-02"))
+		ids = append(ids, model.ID)
+	}
 
-  // Calculate maximum width for each column
-  maxNameWidth := nameWidth
-  maxSizeWidth := sizeWidth + colSpacing
-  maxQuantWidth := quantWidth + colSpacing
-  maxFamilyWidth := familyWidth + colSpacing
-  maxModifiedWidth := modifiedWidth + colSpacing
-  maxIdWidth := idWidth
+	// Calculate maximum width for each column
+	maxNameWidth := nameWidth
+	maxSizeWidth := sizeWidth + colSpacing
+	maxQuantWidth := quantWidth + colSpacing
+	maxFamilyWidth := familyWidth + colSpacing
+	maxModifiedWidth := modifiedWidth + colSpacing
+	maxIdWidth := idWidth
 
-  // Pad columns to ensure alignment with calculated widths
-  for i := range names {
-      names[i] = fmt.Sprintf("%-*s", maxNameWidth, names[i])
-      sizes[i] = fmt.Sprintf("%-*s", maxSizeWidth, sizes[i])
-      quants[i] = fmt.Sprintf("%-*s", maxQuantWidth, quants[i])
-      families[i] = fmt.Sprintf("%-*s", maxFamilyWidth, families[i])
-      modifieds[i] = fmt.Sprintf("%-*s", maxModifiedWidth, modifieds[i])
-      ids[i] = fmt.Sprintf("%-*s", maxIdWidth, ids[i])
-  }
+	// Pad columns to ensure alignment with calculated widths
+	for i := range names {
+		names[i] = fmt.Sprintf("%-*s", maxNameWidth, names[i])
+		sizes[i] = fmt.Sprintf("%-*s", maxSizeWidth, sizes[i])
+		quants[i] = fmt.Sprintf("%-*s", maxQuantWidth, quants[i])
+		families[i] = fmt.Sprintf("%-*s", maxFamilyWidth, families[i])
+		modified[i] = fmt.Sprintf("%-*s", maxModifiedWidth, modified[i])
+		// if the longest name is more than longestNameAllowed characters, don't display the model sha
+		if longestName > longestNameAllowed {
+			ids[i] = ""
+			// remove the ID header
+			header = fmt.Sprintf("%-*s%-*s%-*s%-*s%-*s", nameWidth, "Name", sizeWidth+colSpacing, "Size", quantWidth+colSpacing, "Quant", familyWidth+colSpacing, "Family", modifiedWidth, "Modified")
+		} else {
+			ids[i] = fmt.Sprintf("%-*s", maxIdWidth, ids[i])
+		}
+	}
 
-  // Print the header
-  fmt.Println(lipgloss.NewStyle().Foreground(lipgloss.Color("12")).Render(header))
+	// Print the header
+	fmt.Println(lipgloss.NewStyle().Foreground(lipgloss.Color("12")).Render(header))
 
-  modelList := []string{}
+	modelList := []string{}
 
-  for index, model := range models {
-      // colourise the model properties
-      nameColours := []lipgloss.Color{lipgloss.Color("#FFFFFF"), lipgloss.Color("#818BA9")}
-      name := lipgloss.NewStyle().Foreground(nameColours[index%len(nameColours)]).Render(names[index])
-      id := lipgloss.NewStyle().Foreground(lipgloss.Color("254")).Faint(true).Render(ids[index])
-      size := lipgloss.NewStyle().Foreground(sizeColour(model.Size)).Render(sizes[index])
-      family := lipgloss.NewStyle().Foreground(familyColour(model.Family, 0)).Render(families[index])
-      quant := lipgloss.NewStyle().Foreground(quantColour(model.QuantizationLevel)).Render(quants[index])
-      modified := lipgloss.NewStyle().Foreground(lipgloss.Color("254")).Render(modifieds[index])
+	for index, model := range models {
+		// colourise the model properties
+		nameColours := []lipgloss.Color{lipgloss.Color("#FFFFFF"), lipgloss.Color("#818BA9")}
+		name := lipgloss.NewStyle().Foreground(nameColours[index%len(nameColours)]).Render(names[index])
+		id := lipgloss.NewStyle().Foreground(lipgloss.Color("254")).Faint(true).Render(ids[index])
+		size := lipgloss.NewStyle().Foreground(sizeColour(model.Size)).Render(sizes[index])
+		family := lipgloss.NewStyle().Foreground(familyColour(model.Family, 0)).Render(families[index])
+		quant := lipgloss.NewStyle().Foreground(quantColour(model.QuantizationLevel)).Render(quants[index])
+		modified := lipgloss.NewStyle().Foreground(lipgloss.Color("254")).Render(modified[index])
 
-      row := fmt.Sprintf("%-*s%-*s%-*s%-*s%-*s%-*s",
-          maxNameWidth, name,
-          maxSizeWidth, size,
-          maxQuantWidth, quant,
-          maxFamilyWidth, family,
-          maxModifiedWidth, modified,
-          maxIdWidth, id)
-      modelList = append(modelList, row)
-  }
+		row := fmt.Sprintf("%-*s%-*s%-*s%-*s%-*s%-*s",
+			maxNameWidth, name,
+			maxSizeWidth, size,
+			maxQuantWidth, quant,
+			maxFamilyWidth, family,
+			maxModifiedWidth, modified,
+			maxIdWidth, id)
+		modelList = append(modelList, row)
+	}
 
-  // Print the models with proper spacing
-  for _, row := range modelList {
-      fmt.Printf("%s\n", row)
-  }
+	// Print the models with proper spacing
+	for _, row := range modelList {
+		fmt.Printf("%s\n", row)
+	}
 }
