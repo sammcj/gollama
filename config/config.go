@@ -79,6 +79,10 @@ func LoadConfig() (Config, error) {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
 			// Config file not found; create it
 			if err := CreateDefaultConfig(); err != nil {
+				// if the file already exists - return it, otherwise throw an error
+				if _, err := os.Stat(getConfigPath()); err == nil {
+					return LoadConfig()
+				}
 				return Config{}, fmt.Errorf("failed to create default config: %w", err)
 			}
 		} else {
