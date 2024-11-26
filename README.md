@@ -23,6 +23,7 @@ The application allows users to interactively select models, sort, filter, edit,
     - [Key Bindings](#key-bindings)
       - [Top](#top)
       - [Inspect](#inspect)
+      - [Link](#link)
       - [Command-line Options](#command-line-options)
   - [Configuration](#configuration)
   - [Installation and build from source](#installation-and-build-from-source)
@@ -132,9 +133,7 @@ Inspect (`i`)
 
 Link (`l`) and Link All (`L`)
 
-**Please note Link and Link All will only work when running with Administrator on Windows!**
-
-![](screenshots/link.png)
+Note: Requires Admin privileges if you're running Windows.
 
 #### Command-line Options
 
