@@ -20,6 +20,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/olekukonko/tablewriter"
 	"github.com/sammcj/gollama/logging"
+	"github.com/sammcj/gollama/utils"
 	"github.com/shirou/gopsutil/v3/mem"
 )
 
@@ -375,7 +376,7 @@ func GetHuggingFaceToken() string {
 		accessToken = os.Getenv("HF_TOKEN")
 	}
 	if accessToken == "" {
-		tokenPath := filepath.Join(os.Getenv("HOME"), ".huggingface/token")
+		tokenPath := filepath.Join(utils.GetHomeDir(), ".huggingface/token")
 		if _, err := os.Stat(tokenPath); err == nil {
 			token, err := os.ReadFile(tokenPath)
 			if err == nil {
@@ -395,7 +396,7 @@ func GetModelConfig(modelID string) (ModelConfig, error) {
 	}
 	cacheMutex.RUnlock()
 
-	baseDir := filepath.Join(os.Getenv("HOME"), ".cache/huggingface/hub", modelID)
+	baseDir := filepath.Join(utils.GetHomeDir(), ".cache/huggingface/hub", modelID)
 	configPath := filepath.Join(baseDir, "config.json")
 	indexPath := filepath.Join(baseDir, "model.safetensors.index.json")
 

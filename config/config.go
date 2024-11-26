@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
-	"github.com/sammcj/gollama/logging"
+	"github.com/sammcj/gollama/utils"
 	"github.com/spf13/viper"
 )
 
@@ -72,7 +72,8 @@ func CreateDefaultConfig() error {
 func LoadConfig() (Config, error) {
 	viper.SetConfigName("config")
 	viper.SetConfigType("json")
-	viper.AddConfigPath(filepath.Join(os.Getenv("HOME"), ".config", "gollama"))
+	// Dir of config file
+	viper.AddConfigPath(utils.GetConfigDir())
 
 	// Read the config file
 	if err := viper.ReadInConfig(); err != nil {
@@ -80,7 +81,7 @@ func LoadConfig() (Config, error) {
 			// Config file not found; create it
 			if err := CreateDefaultConfig(); err != nil {
 				// if the file already exists - return it, otherwise throw an error
-				if _, err := os.Stat(getConfigPath()); err == nil {
+				if _, err := os.Stat(utils.GetConfigPath()); err == nil {
 					return LoadConfig()
 				}
 				return Config{}, fmt.Errorf("failed to create default config: %w", err)
@@ -88,8 +89,8 @@ func LoadConfig() (Config, error) {
 		} else {
 			// if the config file is borked, recreate it and let the user know
 			if err := CreateDefaultConfig(); err != nil {
-				backupPath := getConfigPath() + ".borked." + time.Now().Format("2006-01-02")
-				if err := os.Rename(getConfigPath(), backupPath); err != nil {
+				backupPath := utils.GetConfigPath() + ".borked." + time.Now().Format("2006-01-02")
+				if err := os.Rename(utils.GetConfigPath(), backupPath); err != nil {
 					return Config{}, fmt.Errorf("failed to rename config file: %w", err)
 				}
 				if err := CreateDefaultConfig(); err != nil {
@@ -119,7 +120,7 @@ func SaveConfig(config Config) error {
 		viper.Set("sort_order", config.SortOrder)
 	}
 
-	configPath := getConfigPath()
+	configPath := utils.GetConfigPath()
 	if err := os.MkdirAll(filepath.Dir(configPath), 0755); err != nil {
 		return fmt.Errorf("failed to create config directory: %w", err)
 	}
@@ -140,13 +141,4 @@ func (c *Config) SaveIfModified() error {
 
 func (c *Config) SetModified() {
 	c.modified = true
-}
-
-// getConfigPath returns the path to the configuration JSON file.
-func getConfigPath() string {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		logging.ErrorLogger.Printf("Failed to get user home directory: %v\n", err)
-	}
-	return filepath.Join(homeDir, ".config", "gollama", "config.json")
 }

@@ -19,6 +19,7 @@ import (
 	"github.com/ollama/ollama/api"
 	"github.com/sammcj/gollama/config"
 	"github.com/sammcj/gollama/logging"
+	"github.com/sammcj/gollama/utils"
 )
 
 func runModel(model string, cfg *config.Config) tea.Cmd {
@@ -584,7 +585,7 @@ func copyModelfile(modelName, newModelName string, client *api.Client) (string, 
 
 	output := []byte(resp.Modelfile)
 
-	err = os.MkdirAll(filepath.Join(os.Getenv("HOME"), ".config", "gollama", "modelfiles"), os.ModePerm)
+	err = os.MkdirAll(filepath.Join(utils.GetHomeDir(), ".config", "gollama", "modelfiles"), os.ModePerm)
 	if err != nil {
 		logging.ErrorLogger.Printf("Error creating modelfiles directory: %v\n", err)
 		return "", err
@@ -594,7 +595,7 @@ func copyModelfile(modelName, newModelName string, client *api.Client) (string, 
 	newModelName = strings.ReplaceAll(newModelName, "/", "-")
 	newModelName = strings.ReplaceAll(newModelName, ":", "-")
 
-	newModelfilePath := filepath.Join(os.Getenv("HOME"), ".config", "gollama", "modelfiles", newModelName+".modelfile")
+	newModelfilePath := filepath.Join(utils.GetHomeDir(), ".config", "gollama", "modelfiles", newModelName+".modelfile")
 
 	err = os.WriteFile(newModelfilePath, output, 0644)
 	if err != nil {
