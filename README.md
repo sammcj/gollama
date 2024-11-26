@@ -361,6 +361,13 @@ Please fork the repository and create a pull request with your changes.
                 </a>
             </td>
             <td align="center">
+                <a href="https://github.com/southwolf">
+                    <img src="https://avatars.githubusercontent.com/u/150648?v=4" width="50;" alt="southwolf"/>
+                    <br />
+                    <sub><b>SouthWolf</b></sub>
+                </a>
+            </td>
+            <td align="center">
                 <a href="https://github.com/anrgct">
                     <img src="https://avatars.githubusercontent.com/u/16172523?v=4" width="50;" alt="anrgct"/>
                     <br />
