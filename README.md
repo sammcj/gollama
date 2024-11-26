@@ -128,6 +128,14 @@ Inspect (`i`)
 
 ![](screenshots/gollama-inspect.png)
 
+#### Link
+
+Link (`l`) and Link All (`L`)
+
+**Please note Link and Link All will only work when running with Administrator on Windows!**
+
+![](screenshots/link.png)
+
 #### Command-line Options
 
 - `-l`: List all available Ollama models and exit

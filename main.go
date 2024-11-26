@@ -24,6 +24,7 @@ import (
 
 	"github.com/sammcj/gollama/config"
 	"github.com/sammcj/gollama/logging"
+	"github.com/sammcj/gollama/utils"
 	"github.com/sammcj/gollama/vramestimator"
 )
 
@@ -309,10 +310,10 @@ func main() {
 	}
 
 	if *ollamaDirFlag == "" {
-		app.ollamaModelsDir = filepath.Join(os.Getenv("HOME"), ".ollama", "models")
+		app.ollamaModelsDir = filepath.Join(utils.GetHomeDir(), ".ollama", "models")
 	}
 	if *lmStudioDirFlag == "" {
-		app.lmStudioModelsDir = filepath.Join(os.Getenv("HOME"), ".cache", "lm-studio", "models")
+		app.lmStudioModelsDir = filepath.Join(utils.GetHomeDir(), ".cache", "lm-studio", "models")
 	}
 
 	if *listFlag {
@@ -345,13 +346,16 @@ func main() {
 		for _, model := range models {
 			// if cfg.LMStudioFilePaths is empty, use the default path in the user's home directory / .cache / lm-studio / models
 			if cfg.LMStudioFilePaths == "" {
-				cfg.LMStudioFilePaths = filepath.Join(os.Getenv("HOME"), ".cache", "lm-studio", "models")
+				cfg.LMStudioFilePaths = filepath.Join(utils.GetHomeDir(), ".cache", "lm-studio", "models")
 			}
 			message, err := linkModel(model.Name, cfg.LMStudioFilePaths, false, client)
 			logging.InfoLogger.Println(message)
 			fmt.Printf("Linking model %s to %s\n", model.Name, cfg.LMStudioFilePaths)
 			if err != nil {
 				logging.ErrorLogger.Printf("Error linking model %s: %v\n", model.Name, err)
+				fmt.Println("Error: Linking models failed. Please check if you are running without Administrator on Windows.")
+				fmt.Printf("Error detail: %v\n", err)
+				os.Exit(1)
 			} else {
 				logging.InfoLogger.Printf("Model %s linked\n", model.Name)
 			}
