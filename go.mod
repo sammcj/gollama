@@ -14,6 +14,7 @@ require (
 	github.com/ollama/ollama v0.4.2
 	github.com/rs/zerolog v1.33.0
 	github.com/shirou/gopsutil/v3 v3.24.5
+	github.com/shirou/gopsutil/v4 v4.24.10
 	github.com/spf13/viper v1.19.0
 	golang.org/x/term v0.26.0
 )
