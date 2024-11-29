@@ -1,6 +1,6 @@
 module github.com/sammcj/gollama
 
-go 1.21.0
+go 1.23.3
 
 toolchain go1.23.3
 
@@ -9,7 +9,7 @@ require (
 	github.com/charmbracelet/bubbletea v1.2.2
 	github.com/charmbracelet/lipgloss v1.0.0
 	github.com/fsnotify/fsnotify v1.8.0
-	github.com/natefinch/lumberjack v2.0.0+incompatible
+	github.com/natefinch/lumberjack v2.2.1+incompatible
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/ollama/ollama v0.4.2
 	github.com/rs/zerolog v1.33.0
