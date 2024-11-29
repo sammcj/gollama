@@ -1,6 +1,6 @@
 module github.com/sammcj/gollama
 
-go 1.22.8
+go 1.21.0
 
 toolchain go1.23.3
 
