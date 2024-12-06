@@ -56,6 +56,8 @@ type AppModel struct {
 	pulling           bool
 	pullProgress      float64
 	newModelPull      bool
+  comparingModelfile bool
+  modelfileDiffs    []ModelfileDiff
 }
 
 // TODO: Refactor: we don't need unique message types for every single action

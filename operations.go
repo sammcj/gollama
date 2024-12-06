@@ -260,30 +260,35 @@ func getModelPath(modelName string, client *api.Client) (string, error) {
 	return "", fmt.Errorf(message, modelName)
 }
 
-func getModelParams(modelName string, client *api.Client) (map[string][]string, error) {
-	logging.InfoLogger.Printf("Getting parameters for model: %s\n", modelName)
-	ctx := context.Background()
-	req := &api.ShowRequest{Name: modelName}
-	resp, err := client.Show(ctx, req)
-	if err != nil {
-		logging.ErrorLogger.Printf("Error getting parameters for model %s: %v\n", modelName, err)
-		return nil, err
-	}
-	output := []byte(resp.Modelfile)
-	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
-	// loop through all lines and for each line containing PARAMETER <key> <value> add the key value pair to the map
-	params := make(map[string][]string)
-	for _, line := range lines {
-		if strings.HasPrefix(line, "PARAMETER") {
-			logging.DebugLogger.Printf("Found parameter line: %s\n", line)
-			parts := strings.Split(line, " ")
-			key := parts[1]
-			value := strings.Join(parts[2:], " ")
-			params[key] = append(params[key], value)
-			logging.DebugLogger.Printf("Added parameter: %s: %s\n", key, value)
-		}
-	}
-	return params, nil
+func getModelParams(modelName string, client *api.Client) (map[string]string, string, error) {
+  logging.InfoLogger.Printf("Getting parameters for model: %s\n", modelName)
+  ctx := context.Background()
+  req := &api.ShowRequest{Name: modelName}
+  resp, err := client.Show(ctx, req)
+  if err != nil {
+      logging.ErrorLogger.Printf("Error getting parameters for model %s: %v\n", modelName, err)
+      return nil, "", err
+  }
+  output := []byte(resp.Modelfile)
+  lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+  params := make(map[string]string)
+  var template string
+
+  for _, line := range lines {
+      if strings.HasPrefix(line, "TEMPLATE") {
+          // Extract the TEMPLATE content
+          template = strings.TrimPrefix(line, "TEMPLATE ")
+          template = strings.Trim(template, "\"")
+      } else if strings.HasPrefix(line, "PARAMETER") {
+          parts := strings.SplitN(line, " ", 2)
+          if len(parts) == 2 {
+              key := parts[1]
+              value := strings.TrimSpace(parts[1])
+              params[key] = value
+          }
+      }
+  }
+  return params, template, nil
 }
 
 func cleanBrokenSymlinks(lmStudioModelsDir string) {
