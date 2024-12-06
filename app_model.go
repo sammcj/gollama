@@ -70,6 +70,17 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return m, nil
 				}
 			}
+			if m.comparingModelfile {
+				switch msg.String() {
+				case "q", "esc":
+					m.comparingModelfile = false
+					return m, nil
+				}
+			}
+			switch {
+			case key.Matches(msg, m.keys.CompareModelfile):
+				return m.handleCompareModelfile()
+			}
 		case pullSuccessMsg:
 			return m.handlePullSuccessMsg(msg)
 		case pullErrorMsg:
@@ -250,6 +261,8 @@ func (m *AppModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleTopKey()
 	case key.Matches(msg, m.keys.Help):
 		return m.handleHelpKey()
+  case key.Matches(msg, m.keys.CompareModelfile):
+    return m.handleCompareModelfile()
 	default:
 		m.list, cmd = m.list.Update(msg)
 		return m, cmd
@@ -730,16 +743,17 @@ func (m *AppModel) View() string {
 	if m.view == TopView {
 		return m.topView()
 	}
-
 	if m.confirmDeletion {
 		return m.confirmDeletionView()
 	}
-
 	if m.inspecting {
 		return m.inspectModelView(m.inspectedModel)
 	}
 	if m.filtering() {
 		return m.filterView()
+	}
+	if m.comparingModelfile {
+		return m.modelfileDiffView()
 	}
 
 	if m.pulling {
@@ -791,7 +805,7 @@ func (m *AppModel) inspectModelView(model Model) string {
 	}
 
 	// Use getModelParams to get the model parameters and add them to the rows
-	modelParams, err := getModelParams(model.Name, m.client)
+	modelParams, _, err := getModelParams(model.Name, m.client)
 	if err != nil {
 		logging.ErrorLogger.Printf("Error getting model parameters: %v\n", err)
 	}
@@ -808,7 +822,7 @@ func (m *AppModel) inspectModelView(model Model) string {
 
 	// getModelParams returns a map of model parameters, so we need to iterate over the map and add the parameters to the rows
 	for key, value := range modelParams {
-		rows = append(rows, []string{key, strings.Join(value, ", ")})
+		rows = append(rows, []string{key, value})
 	}
 
 	// Log the rows to ensure they are being populated correctly
