@@ -80,6 +80,15 @@ Download the most recent release from the [releases page](https://github.com/sam
 
 e.g. `zip -d gollama*.zip -d gollama && mv gollama /usr/local/bin`
 
+### if "command not found: gollama"
+
+If you see this error, add environment variables to `.zshrc` or `.bashrc`.
+
+```shell
+echo 'export PATH=$PATH:$HOME/go/bin' >> ~/.zshrc
+source ~/.zshrc
+```
+
 ## Usage
 
 To run the `gollama` application, use the following command:
