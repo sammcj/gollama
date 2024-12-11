@@ -86,6 +86,7 @@ If you see this error, add environment variables to `.zshrc` or `.bashrc`.
 
 ```shell
 echo 'export PATH=$PATH:$HOME/go/bin' >> ~/.zshrc
+source ~/.zshrc
 ```
 
 ## Usage
