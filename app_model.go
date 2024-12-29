@@ -328,14 +328,16 @@ func (m *AppModel) handleProgressMsg(msg progressMsg) (tea.Model, tea.Cmd) {
 func (m *AppModel) handleHelpKey() (tea.Model, tea.Cmd) {
 	logging.DebugLogger.Println("Help key matched")
 	if m.view == HelpView {
-		m.message = ""
 		m.view = MainView
-		m.refreshList()
-		m.clearScreen()
-		return m, nil
+		m.message = ""
+		return m, tea.Batch(
+			tea.ClearScreen,
+			func() tea.Msg {
+				return tea.WindowSizeMsg{Width: m.width, Height: m.height}
+			},
+		)
 	}
 	m.view = HelpView
-	m.message = m.printFullHelp()
 	return m, nil
 }
 
@@ -740,49 +742,53 @@ func (m *AppModel) ToggleTop() (*AppModel, tea.Cmd) {
 }
 
 func (m *AppModel) View() string {
-	if m.view == TopView {
+	switch m.view {
+	case TopView:
 		return m.topView()
-	}
-	if m.confirmDeletion {
-		return m.confirmDeletionView()
-	}
-	if m.inspecting {
-		return m.inspectModelView(m.inspectedModel)
-	}
-	if m.filtering() {
-		return m.filterView()
-	}
-	if m.comparingModelfile {
-		return m.modelfileDiffView()
-	}
+	case HelpView:
+		return m.printFullHelp()
+	default:
+		if m.confirmDeletion {
+			return m.confirmDeletionView()
+		}
+		if m.inspecting {
+			return m.inspectModelView(m.inspectedModel)
+		}
+		if m.filtering() {
+			return m.filterView()
+		}
+		if m.comparingModelfile {
+			return m.modelfileDiffView()
+		}
 
-	if m.pulling {
-		if m.newModelPull && m.pullProgress == 0 {
+		if m.pulling {
+			if m.newModelPull && m.pullProgress == 0 {
+				return fmt.Sprintf(
+					"%s\n%s",
+					"Enter model name to pull:",
+					m.pullInput.View(),
+				)
+			}
 			return fmt.Sprintf(
-				"%s\n%s",
-				"Enter model name to pull:",
-				m.pullInput.View(),
+				"Pulling model: %.0f%%\n%s\n%s",
+				m.pullProgress*100,
+				m.progress.ViewAs(m.pullProgress),
+				"Press Ctrl+C to cancel - Note there is currently bug where you might need to hold a key (e.g. arrow key) to refresh the progress bar",
 			)
 		}
-		return fmt.Sprintf(
-			"Pulling model: %.0f%%\n%s\n%s",
-			m.pullProgress*100,
-			m.progress.ViewAs(m.pullProgress),
-			"Press Ctrl+C to cancel - Note there is currently bug where you might need to hold a key (e.g. arrow key) to refresh the progress bar",
-		)
+
+		view := m.list.View()
+
+		if m.message != "" && m.view != HelpView {
+			view += "\n\n" + lipgloss.NewStyle().Foreground(lipgloss.Color("205")).Render(m.message)
+		}
+
+		if m.showProgress {
+			view += "\n" + m.progress.View()
+		}
+
+		return view
 	}
-
-	view := m.list.View()
-
-	if m.message != "" {
-		view += "\n\n" + lipgloss.NewStyle().Foreground(lipgloss.Color("205")).Render(m.message)
-	}
-
-	if m.showProgress {
-		view += "\n" + m.progress.View()
-	}
-
-	return view
 }
 
 func (m *AppModel) confirmDeletionView() string {
