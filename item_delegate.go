@@ -34,9 +34,17 @@ func (d itemDelegate) Update(msg tea.Msg, m *list.Model) tea.Cmd {
 			if ok {
 				logging.DebugLogger.Printf("Delegate toggling selection for model: %s (before: %v)\n", i.Name, i.Selected)
 				i.Selected = !i.Selected
+
+				// Update the item in the filtered list
 				m.SetItem(m.Index(), i)
-				// Update the main model list
-				d.appModel.models[m.Index()] = i
+
+				// Update the main model list by name match
+				for idx, model := range d.appModel.models {
+					if model.Name == i.Name {
+						d.appModel.models[idx] = i
+						break
+					}
+				}
 				logging.DebugLogger.Printf("Updated main model list for model: %s (after: %v)\n", i.Name, i.Selected)
 			}
 			return nil
@@ -79,7 +87,19 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, item list.Ite
 		idStyle = idStyle.Foreground(lipgloss.Color("225")).BorderLeft(true).PaddingLeft(-2).PaddingRight(-2)
 	}
 
-	if model.Selected {
+	// Check if the model is selected in both filtered and unfiltered states
+	isSelected := model.Selected
+	if d.appModel.list.FilterState() == list.Filtering || d.appModel.list.FilterState() == list.FilterApplied {
+		// When filtering, also check the main models list to ensure selection state is accurate
+		for _, m := range d.appModel.models {
+			if m.Name == model.Name && m.Selected {
+				isSelected = true
+				break
+			}
+		}
+	}
+
+	if isSelected {
 		// de-indent to allow for selection border
 		selectedStyle := lipgloss.NewStyle().Background(lipgloss.Color("92")).Bold(true).Italic(true)
 		nameStyle = nameStyle.Inherit(selectedStyle)

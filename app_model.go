@@ -275,23 +275,36 @@ func (m *AppModel) handleSpaceKey() (tea.Model, tea.Cmd) {
 		logging.DebugLogger.Printf("Toggling selection for model: %s (before: %v)\n", item.Name, item.Selected)
 		item.Selected = !item.Selected
 
-		// Update the item in the list's items
-		items := m.list.Items()
-		for i, listItem := range items {
+		// Update both the filtered and unfiltered lists
+		filteredItems := m.list.Items()
+		for i, listItem := range filteredItems {
 			if model, ok := listItem.(Model); ok && model.Name == item.Name {
-				items[i] = item
-				break
+				filteredItems[i] = item
 			}
 		}
 
-		m.list.SetItems(items)
-
-		// Find the index of the actual item in the full list and update it
+		// Always update the main model list
 		for i, model := range m.models {
 			if model.Name == item.Name {
 				m.models[i] = item
-				break
 			}
+		}
+
+		// Update the items in the list
+		m.list.SetItems(filteredItems)
+
+		// If filtering is active, force a refresh of the view
+		if m.list.FilterState() == list.Filtering || m.list.FilterState() == list.FilterApplied {
+			// Store current cursor position
+			currentIndex := m.list.Index()
+
+			// Force a view refresh by temporarily clearing and reapplying items
+			tempItems := m.list.Items()
+			m.list.SetItems(nil)
+			m.list.SetItems(tempItems)
+
+			// Restore cursor position
+			m.list.Select(currentIndex)
 		}
 
 		logging.DebugLogger.Printf("Toggled selection for model: %s (after: %v)\n", item.Name, item.Selected)
