@@ -57,7 +57,7 @@ func NewKeyMap() *KeyMap {
 		LinkModel:        key.NewBinding(key.WithKeys("l"), key.WithHelp("l", "link (L=all)")),
 		PushModel:        key.NewBinding(key.WithKeys("P"), key.WithHelp("P", "push")),
 		PullModel:        key.NewBinding(key.WithKeys("p"), key.WithHelp("p", "pull")),
-		PullNewModel:     key.NewBinding(key.WithKeys("g"), key.WithHelp("g", "get")),
+		PullNewModel:     key.NewBinding(key.WithKeys("ctrl+p"), key.WithHelp("ctrl+p", "pull new model")),
 		Quit:             key.NewBinding(key.WithKeys("q")),
 		RunModel:         key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "run")),
 		SortByFamily:     key.NewBinding(key.WithKeys("f"), key.WithHelp("f", "^family")),

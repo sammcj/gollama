@@ -19,6 +19,7 @@ The application allows users to interactively select models, sort, filter, edit,
     - [go install (recommended)](#go-install-recommended)
     - [curl](#curl)
     - [Manually](#manually)
+    - [if "command not found: gollama"](#if-command-not-found-gollama)
   - [Usage](#usage)
     - [Key Bindings](#key-bindings)
       - [Top](#top)
@@ -110,11 +111,11 @@ echo "alias g=gollama" >> ~/.zshrc
 - `i`: Inspect model
 - `t`: Top (show running models)
 - `D`: Delete model
-- `e`: Edit model **new**
+- `e`: Edit model
 - `c`: Copy model
 - `U`: Unload all models
-- `p`: Pull an existing model **new**
-- `g`: Pull (get) new model **new**
+- `p`: Pull an existing model
+- `ctrl+p`: Pull (get) new model
 - `P`: Push model
 - `n`: Sort by name
 - `s`: Sort by size
@@ -159,7 +160,7 @@ Note: Requires Admin privileges if you're running Windows.
 - `-u`: Unload all running models
 - `-v`: Print the version and exit
 - `-h`, or `--host`: Specify the host for the Ollama API
-- `-H`: Shortcut for `-h http://localhost:11434` (connect to local Ollama API) **new**
+- `-H`: Shortcut for `-h http://localhost:11434` (connect to local Ollama API)
 - `--vram`: Estimate vRAM usage for a model. Accepts:
   - Ollama models (e.g. `llama3.1:8b-instruct-q6_K`, `qwen2:14b-q4_0`)
   - HuggingFace models (e.g. `NousResearch/Hermes-2-Theta-Llama-3-8B`)
