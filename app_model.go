@@ -87,9 +87,17 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.handlePullErrorMsg(msg)
 		case progressMsg:
 			if m.pullProgress < 1.0 {
-				m.pullProgress = msg.progress
-				return m, m.updateProgressCmd()
+				return m, tea.Batch(
+					m.updateProgressCmd(),
+					func() tea.Msg {
+						return progressMsg{
+							modelName: msg.modelName,
+							progress:  m.pullProgress,
+						}
+					},
+				)
 			}
+			return m, nil
 		}
 	}
 	switch msg := msg.(type) {
@@ -412,7 +420,7 @@ func (m *AppModel) handlePullErrorMsg(msg pullErrorMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m *AppModel) updateProgressCmd() tea.Cmd {
-	return tea.Tick(time.Millisecond*100, func(t time.Time) tea.Msg {
+	return tea.Tick(time.Second, func(t time.Time) tea.Msg {
 		return progressMsg{
 			modelName: m.pullInput.Value(),
 			progress:  m.pullProgress,

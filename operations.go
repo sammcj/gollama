@@ -96,22 +96,54 @@ func (m *AppModel) startPullModel(modelName string) tea.Cmd {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		req := &api.PullRequest{Name: modelName}
-		err := m.client.Pull(ctx, req, func(resp api.ProgressResponse) error {
-			if !m.pulling {
-				return context.Canceled
-			}
-			m.pullProgress = float64(resp.Completed) / float64(resp.Total)
-			return nil
-		})
+		progressChan := make(chan float64)
+		errChan := make(chan error)
 
-		if err == context.Canceled {
-			return pullErrorMsg{fmt.Errorf("pull cancelled")}
+		go func() {
+			req := &api.PullRequest{Name: modelName}
+			err := m.client.Pull(ctx, req, func(resp api.ProgressResponse) error {
+				if !m.pulling {
+					return context.Canceled
+				}
+				progress := float64(resp.Completed) / float64(resp.Total)
+				m.pullProgress = progress
+				progressChan <- progress
+				return nil
+			})
+
+			if err == context.Canceled {
+				errChan <- fmt.Errorf("pull cancelled")
+				return
+			}
+			if err != nil {
+				errChan <- err
+				return
+			}
+			close(progressChan)
+		}()
+
+		// Start a ticker to send progress updates
+		ticker := time.NewTicker(time.Second)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case err := <-errChan:
+				if err != nil {
+					return pullErrorMsg{err}
+				}
+				return pullSuccessMsg{modelName}
+			case <-ticker.C:
+				return progressMsg{
+					modelName: modelName,
+					progress:  m.pullProgress,
+				}
+			case progress := <-progressChan:
+				if progress >= 1.0 {
+					return pullSuccessMsg{modelName}
+				}
+			}
 		}
-		if err != nil {
-			return pullErrorMsg{err}
-		}
-		return pullSuccessMsg{modelName}
 	}
 }
 
