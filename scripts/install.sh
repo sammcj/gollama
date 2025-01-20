@@ -8,7 +8,7 @@ ARCH=$(uname -m | tr '[:upper:]' '[:lower:]')
 OS=$(uname -s | tr '[:upper:]' '[:lower:]')
 
 # Map architecture to short form
-case $arch in
+case $ARCH in
     x86_64)
         SHORT_ARCH="amd64"
         ;;
