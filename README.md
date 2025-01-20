@@ -357,6 +357,13 @@ Please fork the repository and create a pull request with your changes.
                 </a>
             </td>
             <td align="center">
+                <a href="https://github.com/DenisBalan">
+                    <img src="https://avatars.githubusercontent.com/u/33955091?v=4" width="50;" alt="DenisBalan"/>
+                    <br />
+                    <sub><b>Denis Balan</b></sub>
+                </a>
+            </td>
+            <td align="center">
                 <a href="https://github.com/josekasna">
                     <img src="https://avatars.githubusercontent.com/u/138180151?v=4" width="50;" alt="josekasna"/>
                     <br />
@@ -377,6 +384,8 @@ Please fork the repository and create a pull request with your changes.
                     <sub><b>Oleksii Filonenko</b></sub>
                 </a>
             </td>
+		</tr>
+		<tr>
             <td align="center">
                 <a href="https://github.com/southwolf">
                     <img src="https://avatars.githubusercontent.com/u/150648?v=4" width="50;" alt="southwolf"/>
@@ -384,8 +393,6 @@ Please fork the repository and create a pull request with your changes.
                     <sub><b>SouthWolf</b></sub>
                 </a>
             </td>
-		</tr>
-		<tr>
             <td align="center">
                 <a href="https://github.com/anrgct">
                     <img src="https://avatars.githubusercontent.com/u/16172523?v=4" width="50;" alt="anrgct"/>
