@@ -7,6 +7,19 @@ INSTALL_PATH="${INSTALL_PATH:-$INSTALL_DIR/gollama}"
 ARCH=$(uname -m | tr '[:upper:]' '[:lower:]')
 OS=$(uname -s | tr '[:upper:]' '[:lower:]')
 
+# Map architecture to short form
+case $ARCH in
+    x86_64)
+        SHORT_ARCH="amd64"
+        ;;
+    aarch64)
+        SHORT_ARCH="arm64"
+        ;;
+    *)
+        SHORT_ARCH="unknown"
+        ;;
+esac
+
 # Ensure the user is not root
 if [ "$EUID" -eq 0 ]; then
   echo "Please do not run as root"
@@ -21,7 +34,7 @@ echo "Downloading gollama ${VER} for ${OS}-${ARCH}..."
 if [ "${OS}" == "darwin" ]; then
   URL="https://github.com/sammcj/gollama/releases/download/$VER/gollama-macos.zip"
 else
-  URL="https://github.com/sammcj/gollama/releases/download/$VER/gollama-${OS}-${ARCH}.zip"
+  URL="https://github.com/sammcj/gollama/releases/download/$VER/gollama-${OS}-${SHORT_ARCH}.zip"
 fi
 
 wget -q --show-progress -O /tmp/gollama.zip "${URL}"
