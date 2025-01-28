@@ -400,6 +400,13 @@ Please fork the repository and create a pull request with your changes.
                     <sub><b>anrgct</b></sub>
                 </a>
             </td>
+            <td align="center">
+                <a href="https://github.com/fuho">
+                    <img src="https://avatars.githubusercontent.com/u/539452?v=4" width="50;" alt="fuho"/>
+                    <br />
+                    <sub><b>ondrej</b></sub>
+                </a>
+            </td>
 		</tr>
 	<tbody>
 </table>
