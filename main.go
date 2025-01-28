@@ -315,7 +315,7 @@ func main() {
 		app.ollamaModelsDir = filepath.Join(utils.GetHomeDir(), ".ollama", "models")
 	}
 	if *lmStudioDirFlag == "" {
-		app.lmStudioModelsDir = filepath.Join(utils.GetHomeDir(), ".cache", "lm-studio", "models")
+		app.lmStudioModelsDir = filepath.Join(utils.GetHomeDir(), ".lmstudio", "models")
 	}
 
 	if *listFlag {
@@ -346,9 +346,9 @@ func main() {
 		}
 		// link all models
 		for _, model := range models {
-			// if cfg.LMStudioFilePaths is empty, use the default path in the user's home directory / .cache / lm-studio / models
+			// if cfg.LMStudioFilePaths is empty, use the default path in the user's home directory / .lmstudio / models
 			if cfg.LMStudioFilePaths == "" {
-				cfg.LMStudioFilePaths = filepath.Join(utils.GetHomeDir(), ".cache", "lm-studio", "models")
+				cfg.LMStudioFilePaths = filepath.Join(utils.GetHomeDir(), ".lmstudio", "models")
 			}
 			message, err := linkModel(model.Name, cfg.LMStudioFilePaths, false, client)
 			logging.InfoLogger.Println(message)
