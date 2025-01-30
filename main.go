@@ -389,16 +389,24 @@ func main() {
 		}
 
 		fmt.Printf("Found %d LM Studio models\n", len(models))
+		var successCount, failCount int
 
 		for _, model := range models {
 			fmt.Printf("Linking model %s... ", model.Name)
 			if err := lmstudio.LinkModelToOllama(model); err != nil {
 				logging.ErrorLogger.Printf("Error linking model %s: %v\n", model.Name, err)
 				fmt.Printf("failed: %v\n", err)
+				failCount++
 				continue
 			}
 			logging.InfoLogger.Printf("Model %s linked successfully\n", model.Name)
 			fmt.Println("success!")
+			successCount++
+		}
+
+		fmt.Printf("\nSummary: %d models linked successfully, %d failed\n", successCount, failCount)
+		if failCount > 0 {
+			os.Exit(1)
 		}
 		os.Exit(0)
 	}
