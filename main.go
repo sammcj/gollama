@@ -8,7 +8,9 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 
@@ -29,35 +31,35 @@ import (
 )
 
 type AppModel struct {
-	width             int
-	height            int
-	ollamaModelsDir   string
-	cfg               *config.Config
-	inspectedModel    Model
-	list              list.Model
-	models            []Model
-	selectedModels    []Model
-	confirmDeletion   bool
-	inspecting        bool
-	editing           bool
-	message           string
-	keys              KeyMap
-	client            *api.Client
-	lmStudioModelsDir string
-	noCleanup         bool
-	table             table.Model
-	filterInput       tea.Model
-	showTop           bool
-	progress          progress.Model
-	altScreenActive   bool
-	view              View
-	showProgress      bool
-	pullInput         textinput.Model
-	pulling           bool
-	pullProgress      float64
-	newModelPull      bool
-  comparingModelfile bool
-  modelfileDiffs    []ModelfileDiff
+	width              int
+	height             int
+	ollamaModelsDir    string
+	cfg                *config.Config
+	inspectedModel     Model
+	list               list.Model
+	models             []Model
+	selectedModels     []Model
+	confirmDeletion    bool
+	inspecting         bool
+	editing            bool
+	message            string
+	keys               KeyMap
+	client             *api.Client
+	lmStudioModelsDir  string
+	noCleanup          bool
+	table              table.Model
+	filterInput        tea.Model
+	showTop            bool
+	progress           progress.Model
+	altScreenActive    bool
+	view               View
+	showProgress       bool
+	pullInput          textinput.Model
+	pulling            bool
+	pullProgress       float64
+	newModelPull       bool
+	comparingModelfile bool
+	modelfileDiffs     []ModelfileDiff
 }
 
 // TODO: Refactor: we don't need unique message types for every single action
@@ -93,6 +95,134 @@ type View int
 var fitsVRAM float64
 var Version string // Version is set by the build system
 
+type LMStudioModel struct {
+	Name     string
+	Path     string
+	FileType string // e.g., "gguf", "bin", etc.
+}
+
+func scanLMStudioModels(dirPath string) ([]LMStudioModel, error) {
+	var models []LMStudioModel
+
+	err := filepath.Walk(dirPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Skip directories
+		if info.IsDir() {
+			return nil
+		}
+
+		// Check for model file extensions
+		ext := strings.ToLower(filepath.Ext(path))
+		if ext == ".gguf" || ext == ".bin" {
+			name := strings.TrimSuffix(filepath.Base(path), ext)
+			models = append(models, LMStudioModel{
+				Name:     name,
+				Path:     path,
+				FileType: strings.TrimPrefix(ext, "."),
+			})
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("error scanning directory: %w", err)
+	}
+
+	return models, nil
+}
+
+func getOllamaModelDir() string {
+	// Ollama's default model directory locations
+	homeDir := utils.GetHomeDir()
+	if runtime.GOOS == "darwin" {
+		return filepath.Join(homeDir, ".ollama", "models")
+	} else if runtime.GOOS == "linux" {
+		return "/usr/share/ollama/models"
+	}
+	// Add Windows path if needed
+	return filepath.Join(homeDir, ".ollama", "models")
+}
+
+func modelExists(modelName string) bool {
+	cmd := exec.Command("ollama", "list")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return false
+	}
+	return strings.Contains(string(output), modelName)
+}
+
+func createModelfile(modelName string, modelPath string) error {
+	modelfilePath := filepath.Join(filepath.Dir(modelPath), fmt.Sprintf("Modelfile.%s", modelName))
+
+	// Check if Modelfile already exists
+	if _, err := os.Stat(modelfilePath); err == nil {
+		return nil
+	}
+
+	modelfileContent := fmt.Sprintf(`FROM %s
+PARAMETER temperature 0.7
+PARAMETER top_k 40
+PARAMETER top_p 0.4
+PARAMETER repeat_penalty 1.1
+PARAMETER repeat_last_n 64
+PARAMETER seed 0
+PARAMETER stop "Human:" "Assistant:"
+TEMPLATE """
+{{.Prompt}}
+Assistant: """
+SYSTEM """You are a helpful AI assistant."""
+`, filepath.Base(modelPath))
+
+	return os.WriteFile(modelfilePath, []byte(modelfileContent), 0644)
+}
+
+func linkModelToOllama(model LMStudioModel) error {
+	ollamaDir := getOllamaModelDir()
+
+	// Create Ollama models directory if it doesn't exist
+	if err := os.MkdirAll(ollamaDir, 0755); err != nil {
+		return fmt.Errorf("failed to create Ollama models directory: %w", err)
+	}
+
+	targetPath := filepath.Join(ollamaDir, filepath.Base(model.Path))
+
+	// Create symlink for model file
+	if err := os.Symlink(model.Path, targetPath); err != nil {
+		if !os.IsExist(err) {
+			return fmt.Errorf("failed to create symlink: %w", err)
+		}
+	}
+
+	// Check if model is already registered with Ollama
+	if modelExists(model.Name) {
+		return nil
+	}
+
+	// Create model-specific Modelfile
+	modelfilePath := filepath.Join(filepath.Dir(targetPath), fmt.Sprintf("Modelfile.%s", model.Name))
+	if err := createModelfile(model.Name, targetPath); err != nil {
+		return fmt.Errorf("failed to create Modelfile: %w", err)
+	}
+
+	cmd := exec.Command("ollama", "create", model.Name, "-f", modelfilePath)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to create Ollama model: %s\n%w", string(output), err)
+	}
+
+	// Clean up the Modelfile after successful creation
+	if err := os.Remove(modelfilePath); err != nil {
+		logging.ErrorLogger.Printf("Warning: Could not remove temporary Modelfile %s: %v\n", modelfilePath, err)
+	}
+
+	return nil
+}
+
 func main() {
 	if Version == "" {
 		Version = "1.28.0"
@@ -111,7 +241,8 @@ func main() {
 	}
 
 	listFlag := flag.Bool("l", false, "List all available Ollama models and exit")
-	linkFlag := flag.Bool("L", false, "Link a model to a specific name")
+	linkFlag := flag.Bool("L", false, "Link Ollama models to LM Studio (default: false)")
+	linkLMStudioFlag := flag.Bool("link-lmstudio", false, "Link LM Studio models to Ollama")
 	ollamaDirFlag := flag.String("ollama-dir", cfg.OllamaAPIKey, "Custom Ollama models directory")
 	lmStudioDirFlag := flag.String("lm-dir", cfg.LMStudioFilePaths, "Custom LM Studio models directory")
 	noCleanupFlag := flag.Bool("no-cleanup", false, "Don't cleanup broken symlinks")
@@ -344,12 +475,14 @@ func main() {
 			fmt.Println("Error: Linking models is only supported on localhost")
 			os.Exit(1)
 		}
+
+		// if cfg.LMStudioFilePaths is empty, use the default path in the user's home directory / .lmstudio / models
+		if cfg.LMStudioFilePaths == "" {
+			cfg.LMStudioFilePaths = filepath.Join(utils.GetHomeDir(), ".lmstudio", "models")
+		}
+
 		// link all models
 		for _, model := range models {
-			// if cfg.LMStudioFilePaths is empty, use the default path in the user's home directory / .lmstudio / models
-			if cfg.LMStudioFilePaths == "" {
-				cfg.LMStudioFilePaths = filepath.Join(utils.GetHomeDir(), ".lmstudio", "models")
-			}
 			message, err := linkModel(model.Name, cfg.LMStudioFilePaths, false, client)
 			logging.InfoLogger.Println(message)
 			fmt.Printf("Linking model %s to %s\n", model.Name, cfg.LMStudioFilePaths)
@@ -361,6 +494,40 @@ func main() {
 			} else {
 				logging.InfoLogger.Printf("Model %s linked\n", model.Name)
 			}
+		}
+		os.Exit(0)
+	}
+
+	if *linkLMStudioFlag {
+		if cfg.LMStudioFilePaths == "" {
+			cfg.LMStudioFilePaths = filepath.Join(utils.GetHomeDir(), ".lmstudio", "models")
+		}
+
+		fmt.Printf("Scanning for LM Studio models in: %s\n", cfg.LMStudioFilePaths)
+
+		models, err := scanLMStudioModels(cfg.LMStudioFilePaths)
+		if err != nil {
+			logging.ErrorLogger.Printf("Error scanning LM Studio models: %v\n", err)
+			fmt.Printf("Failed to scan LM Studio models directory: %v\n", err)
+			os.Exit(1)
+		}
+
+		if len(models) == 0 {
+			fmt.Println("No LM Studio models found")
+			os.Exit(0)
+		}
+
+		fmt.Printf("Found %d LM Studio models\n", len(models))
+
+		for _, model := range models {
+			fmt.Printf("Linking model %s... ", model.Name)
+			if err := linkModelToOllama(model); err != nil {
+				logging.ErrorLogger.Printf("Error linking model %s: %v\n", model.Name, err)
+				fmt.Printf("failed: %v\n", err)
+				continue
+			}
+			logging.InfoLogger.Printf("Model %s linked successfully\n", model.Name)
+			fmt.Println("success!")
 		}
 		os.Exit(0)
 	}
