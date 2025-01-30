@@ -141,14 +141,18 @@ Inspect (`i`)
 
 #### Link
 
-Link (`l`) and Link All (`L`)
+Link (`l`), Link All (`L`) and Link in the reverse direction: (`link-lmstudio`)
 
-Note: Requires Admin privileges if you're running Windows.
+When linking models to LM Studio, Gollama creates a Modelfile with the template from LM-Studio and a set of default parameters that you can adjust.
+
+Note: Linking requires admin privileges if you're running Windows.
 
 #### Command-line Options
 
 - `-l`: List all available Ollama models and exit
 - `-L`: Link all available Ollama models to LM Studio and exit
+- `-link-lmstudio`: Link all available LM Studio models to Ollama and exit
+- `--dry-run`: Show what would be linked without making any changes (use with -link-lmstudio or -L)
 - `-s <search term>`: Search for models by name
   - OR operator (`'term1|term2'`) returns models that match either term
   - AND operator (`'term1&term2'`) returns models that match both terms
@@ -357,6 +361,13 @@ Please fork the repository and create a pull request with your changes.
                 </a>
             </td>
             <td align="center">
+                <a href="https://github.com/DenisBalan">
+                    <img src="https://avatars.githubusercontent.com/u/33955091?v=4" width="50;" alt="DenisBalan"/>
+                    <br />
+                    <sub><b>Denis Balan</b></sub>
+                </a>
+            </td>
+            <td align="center">
                 <a href="https://github.com/josekasna">
                     <img src="https://avatars.githubusercontent.com/u/138180151?v=4" width="50;" alt="josekasna"/>
                     <br />
@@ -377,6 +388,8 @@ Please fork the repository and create a pull request with your changes.
                     <sub><b>Oleksii Filonenko</b></sub>
                 </a>
             </td>
+		</tr>
+		<tr>
             <td align="center">
                 <a href="https://github.com/southwolf">
                     <img src="https://avatars.githubusercontent.com/u/150648?v=4" width="50;" alt="southwolf"/>
@@ -384,13 +397,18 @@ Please fork the repository and create a pull request with your changes.
                     <sub><b>SouthWolf</b></sub>
                 </a>
             </td>
-		</tr>
-		<tr>
             <td align="center">
                 <a href="https://github.com/anrgct">
                     <img src="https://avatars.githubusercontent.com/u/16172523?v=4" width="50;" alt="anrgct"/>
                     <br />
                     <sub><b>anrgct</b></sub>
+                </a>
+            </td>
+            <td align="center">
+                <a href="https://github.com/fuho">
+                    <img src="https://avatars.githubusercontent.com/u/539452?v=4" width="50;" alt="fuho"/>
+                    <br />
+                    <sub><b>ondrej</b></sub>
                 </a>
             </td>
 		</tr>

@@ -23,41 +23,42 @@ import (
 	"golang.org/x/term"
 
 	"github.com/sammcj/gollama/config"
+	"github.com/sammcj/gollama/lmstudio"
 	"github.com/sammcj/gollama/logging"
 	"github.com/sammcj/gollama/utils"
 	"github.com/sammcj/gollama/vramestimator"
 )
 
 type AppModel struct {
-	width             int
-	height            int
-	ollamaModelsDir   string
-	cfg               *config.Config
-	inspectedModel    Model
-	list              list.Model
-	models            []Model
-	selectedModels    []Model
-	confirmDeletion   bool
-	inspecting        bool
-	editing           bool
-	message           string
-	keys              KeyMap
-	client            *api.Client
-	lmStudioModelsDir string
-	noCleanup         bool
-	table             table.Model
-	filterInput       tea.Model
-	showTop           bool
-	progress          progress.Model
-	altScreenActive   bool
-	view              View
-	showProgress      bool
-	pullInput         textinput.Model
-	pulling           bool
-	pullProgress      float64
-	newModelPull      bool
-  comparingModelfile bool
-  modelfileDiffs    []ModelfileDiff
+	width              int
+	height             int
+	ollamaModelsDir    string
+	cfg                *config.Config
+	inspectedModel     Model
+	list               list.Model
+	models             []Model
+	selectedModels     []Model
+	confirmDeletion    bool
+	inspecting         bool
+	editing            bool
+	message            string
+	keys               KeyMap
+	client             *api.Client
+	lmStudioModelsDir  string
+	noCleanup          bool
+	table              table.Model
+	filterInput        tea.Model
+	showTop            bool
+	progress           progress.Model
+	altScreenActive    bool
+	view               View
+	showProgress       bool
+	pullInput          textinput.Model
+	pulling            bool
+	pullProgress       float64
+	newModelPull       bool
+	comparingModelfile bool
+	modelfileDiffs     []ModelfileDiff
 }
 
 // TODO: Refactor: we don't need unique message types for every single action
@@ -111,7 +112,9 @@ func main() {
 	}
 
 	listFlag := flag.Bool("l", false, "List all available Ollama models and exit")
-	linkFlag := flag.Bool("L", false, "Link a model to a specific name")
+	linkFlag := flag.Bool("L", false, "Link Ollama models to LM Studio")
+	linkLMStudioFlag := flag.Bool("link-lmstudio", false, "Link LM Studio models to Ollama")
+	dryRunFlag := flag.Bool("dry-run", false, "Show what would be linked without making any changes (use with -L or -link-lmstudio)")
 	ollamaDirFlag := flag.String("ollama-dir", cfg.OllamaAPIKey, "Custom Ollama models directory")
 	lmStudioDirFlag := flag.String("lm-dir", cfg.LMStudioFilePaths, "Custom LM Studio models directory")
 	noCleanupFlag := flag.Bool("no-cleanup", false, "Don't cleanup broken symlinks")
@@ -315,7 +318,7 @@ func main() {
 		app.ollamaModelsDir = filepath.Join(utils.GetHomeDir(), ".ollama", "models")
 	}
 	if *lmStudioDirFlag == "" {
-		app.lmStudioModelsDir = filepath.Join(utils.GetHomeDir(), ".cache", "lm-studio", "models")
+		app.lmStudioModelsDir = filepath.Join(utils.GetHomeDir(), ".lmstudio", "models")
 	}
 
 	if *listFlag {
@@ -344,23 +347,81 @@ func main() {
 			fmt.Println("Error: Linking models is only supported on localhost")
 			os.Exit(1)
 		}
+
+		// if cfg.LMStudioFilePaths is empty, use the default path in the user's home directory / .lmstudio / models
+		if cfg.LMStudioFilePaths == "" {
+			cfg.LMStudioFilePaths = filepath.Join(utils.GetHomeDir(), ".lmstudio", "models")
+		}
+
+		prefix := ""
+		if *dryRunFlag {
+			prefix = "[DRY RUN] "
+			fmt.Printf("%sWould link Ollama models to LM Studio\n", prefix)
+		}
+
 		// link all models
 		for _, model := range models {
-			// if cfg.LMStudioFilePaths is empty, use the default path in the user's home directory / .cache / lm-studio / models
-			if cfg.LMStudioFilePaths == "" {
-				cfg.LMStudioFilePaths = filepath.Join(utils.GetHomeDir(), ".cache", "lm-studio", "models")
+			message, err := linkModel(model.Name, cfg.LMStudioFilePaths, false, *dryRunFlag, client)
+			if message != "" {
+				logging.InfoLogger.Println(message)
+				fmt.Printf("%s%s\n", prefix, message)
 			}
-			message, err := linkModel(model.Name, cfg.LMStudioFilePaths, false, client)
-			logging.InfoLogger.Println(message)
-			fmt.Printf("Linking model %s to %s\n", model.Name, cfg.LMStudioFilePaths)
 			if err != nil {
 				logging.ErrorLogger.Printf("Error linking model %s: %v\n", model.Name, err)
-				fmt.Println("Error: Linking models failed. Please check if you are running without Administrator on Windows.")
+				fmt.Printf("Error: Linking models failed. Please check if you are running without Administrator on Windows.\n")
 				fmt.Printf("Error detail: %v\n", err)
 				os.Exit(1)
-			} else {
-				logging.InfoLogger.Printf("Model %s linked\n", model.Name)
 			}
+		}
+		os.Exit(0)
+	}
+
+	if *linkLMStudioFlag {
+		if cfg.LMStudioFilePaths == "" {
+			cfg.LMStudioFilePaths = filepath.Join(utils.GetHomeDir(), ".lmstudio", "models")
+		}
+
+		fmt.Printf("Scanning for LM Studio models in: %s\n", cfg.LMStudioFilePaths)
+
+		models, err := lmstudio.ScanModels(cfg.LMStudioFilePaths)
+		if err != nil {
+			logging.ErrorLogger.Printf("Error scanning LM Studio models: %v\n", err)
+			fmt.Printf("Failed to scan LM Studio models directory: %v\n", err)
+			os.Exit(1)
+		}
+
+		if len(models) == 0 {
+			fmt.Println("No LM Studio models found")
+			os.Exit(0)
+		}
+
+		prefix := ""
+		if *dryRunFlag {
+			prefix = "[DRY RUN] "
+		}
+		fmt.Printf("%sFound %d LM Studio models\n", prefix, len(models))
+		var successCount, failCount int
+
+		for _, model := range models {
+			fmt.Printf("%sProcessing model %s... ", prefix, model.Name)
+			if err := lmstudio.LinkModelToOllama(model, *dryRunFlag, cfg.OllamaAPIURL); err != nil {
+				logging.ErrorLogger.Printf("Error linking model %s: %v\n", model.Name, err)
+				fmt.Printf("failed: %v\n", err)
+				failCount++
+				continue
+			}
+			logging.InfoLogger.Printf("Model %s linked successfully\n", model.Name)
+			fmt.Println("success!")
+			successCount++
+		}
+
+		if *dryRunFlag {
+			fmt.Printf("\n[DRY RUN] Summary: Would link %d models, %d would fail\n", successCount, failCount)
+		} else {
+			fmt.Printf("\nSummary: %d models linked successfully, %d failed\n", successCount, failCount)
+		}
+		if failCount > 0 {
+			os.Exit(1)
 		}
 		os.Exit(0)
 	}
