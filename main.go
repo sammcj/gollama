@@ -91,12 +91,11 @@ type genericMsg struct {
 
 type View int
 
-var fitsVRAM float64
 var Version string // Version is set by the build system
 
 func main() {
 	if Version == "" {
-		Version = "1.28.0"
+		Version = "1.28.8"
 	}
 
 	cfg, err := config.LoadConfig()
