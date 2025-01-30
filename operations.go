@@ -666,9 +666,17 @@ func openEditor(filePath string) tea.Cmd {
 
 func createModelFromModelfile(modelName, modelfilePath string, client *api.Client) error {
 	ctx := context.Background()
+	// First read the modelfile content
+	content, err := os.ReadFile(modelfilePath)
+	if err != nil {
+		return fmt.Errorf("error reading modelfile %s: %v", modelfilePath, err)
+	}
+
 	req := &api.CreateRequest{
-		Name:      modelName,
-		Modelfile: modelfilePath,
+		Model: modelName,
+		Files: map[string]string{
+			"modelfile": string(content),
+		},
 	}
 	// TODO: complete progress bar
 	// progressResponse := func(resp api.ProgressResponse) error {
@@ -681,7 +689,7 @@ func createModelFromModelfile(modelName, modelfilePath string, client *api.Clien
 
 	// 	return nil
 	// }
-	err := client.Create(ctx, req, nil) //TODO: add working progress bar
+	err = client.Create(ctx, req, nil) //TODO: add working progress bar
 	if err != nil {
 		logging.ErrorLogger.Printf("Error creating model from modelfile %s: %v\n", modelfilePath, err)
 		return fmt.Errorf("error creating model from modelfile %s: %v", modelfilePath, err)
@@ -788,8 +796,10 @@ func editModelfile(client *api.Client, modelName string) (string, error) {
 
 	// Update the model on the server with the new modelfile content
 	createReq := &api.CreateRequest{
-		Name:      modelName,
-		Modelfile: string(newModelfileContent),
+		Model: modelName,
+		Files: map[string]string{
+			"modelfile": string(newModelfileContent),
+		},
 	}
 
 	err = client.Create(ctx, createReq, func(resp api.ProgressResponse) error {
