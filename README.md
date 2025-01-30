@@ -368,6 +368,13 @@ Please fork the repository and create a pull request with your changes.
                 </a>
             </td>
             <td align="center">
+                <a href="https://github.com/erg">
+                    <img src="https://avatars.githubusercontent.com/u/27430?v=4" width="50;" alt="erg"/>
+                    <br />
+                    <sub><b>Doug Coleman</b></sub>
+                </a>
+            </td>
+            <td align="center">
                 <a href="https://github.com/josekasna">
                     <img src="https://avatars.githubusercontent.com/u/138180151?v=4" width="50;" alt="josekasna"/>
                     <br />
@@ -381,6 +388,8 @@ Please fork the repository and create a pull request with your changes.
                     <sub><b>Jose Roberto Almaraz</b></sub>
                 </a>
             </td>
+		</tr>
+		<tr>
             <td align="center">
                 <a href="https://github.com/Br1ght0ne">
                     <img src="https://avatars.githubusercontent.com/u/12615679?v=4" width="50;" alt="Br1ght0ne"/>
@@ -388,8 +397,6 @@ Please fork the repository and create a pull request with your changes.
                     <sub><b>Oleksii Filonenko</b></sub>
                 </a>
             </td>
-		</tr>
-		<tr>
             <td align="center">
                 <a href="https://github.com/southwolf">
                     <img src="https://avatars.githubusercontent.com/u/150648?v=4" width="50;" alt="southwolf"/>
