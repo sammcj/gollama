@@ -141,14 +141,18 @@ Inspect (`i`)
 
 #### Link
 
-Link (`l`) and Link All (`L`)
+Link (`l`), Link All (`L`) and Link in the reverse direction: (`link-lmstudio`)
 
-Note: Requires Admin privileges if you're running Windows.
+When linking models to LM Studio, Gollama creates a Modelfile with the template from LM-Studio and a set of default parameters that you can adjust.
+
+Note: Linking requires admin privileges if you're running Windows.
 
 #### Command-line Options
 
 - `-l`: List all available Ollama models and exit
 - `-L`: Link all available Ollama models to LM Studio and exit
+- `-link-lmstudio`: Link all available LM Studio models to Ollama and exit
+- `--dry-run`: Show what would be linked without making any changes (use with -link-lmstudio or -L)
 - `-s <search term>`: Search for models by name
   - OR operator (`'term1|term2'`) returns models that match either term
   - AND operator (`'term1&term2'`) returns models that match both terms

@@ -594,7 +594,7 @@ func (m *AppModel) handleLinkModelKey() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	if item, ok := m.list.SelectedItem().(Model); ok {
-		message, err := linkModel(item.Name, m.lmStudioModelsDir, m.noCleanup, m.client)
+		message, err := linkModel(item.Name, m.lmStudioModelsDir, m.noCleanup, false, m.client)
 		if err != nil {
 			m.message = fmt.Sprintf("Error linking model: %v", err)
 		} else if message != "" {
@@ -615,7 +615,7 @@ func (m *AppModel) handleLinkAllModelsKey() (tea.Model, tea.Cmd) {
 	}
 	var messages []string
 	for _, model := range m.models {
-		message, err := linkModel(model.Name, m.lmStudioModelsDir, m.noCleanup, m.client)
+		message, err := linkModel(model.Name, m.lmStudioModelsDir, m.noCleanup, false, m.client)
 		if err != nil {
 			messages = append(messages, fmt.Sprintf("Error linking model %s: %v", model.Name, err))
 		} else if message != "" {

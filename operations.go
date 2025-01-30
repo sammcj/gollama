@@ -177,7 +177,7 @@ func (m *AppModel) pullModelCmd(modelName string) tea.Cmd {
 	}
 }
 
-func linkModel(modelName, lmStudioModelsDir string, noCleanup bool, client *api.Client) (string, error) {
+func linkModel(modelName, lmStudioModelsDir string, noCleanup bool, dryRun bool, client *api.Client) (string, error) {
 	modelPath, err := getModelPath(modelName, client)
 	if err != nil {
 		return "", fmt.Errorf("error getting model path for %s: %v", modelName, err)
@@ -250,25 +250,31 @@ func linkModel(modelName, lmStudioModelsDir string, noCleanup bool, client *api.
 		return fmt.Sprintf("Removed duplicated model directory %s", lmStudioModelDir), nil
 	}
 
-	// Create the symlink
-	err = os.MkdirAll(lmStudioModelDir, os.ModePerm)
-	if err != nil {
-		message := "failed to create directory %s: %v"
-		logging.ErrorLogger.Printf(message+"\n", lmStudioModelDir, err)
-		return "", fmt.Errorf(message, lmStudioModelDir, err)
+	if dryRun {
+		message := "[DRY RUN] Would create directory %s and symlink %s to %s"
+		logging.InfoLogger.Printf(message+"\n", lmStudioModelDir, modelName, lmStudioModelPath)
+		return fmt.Sprintf(message, lmStudioModelDir, modelName, lmStudioModelPath), nil
+	} else {
+		// Create the symlink
+		err = os.MkdirAll(lmStudioModelDir, os.ModePerm)
+		if err != nil {
+			message := "failed to create directory %s: %v"
+			logging.ErrorLogger.Printf(message+"\n", lmStudioModelDir, err)
+			return "", fmt.Errorf(message, lmStudioModelDir, err)
+		}
+		err = os.Symlink(modelPath, lmStudioModelPath)
+		if err != nil {
+			message := "failed to symlink %s: %v"
+			logging.ErrorLogger.Printf(message+"\n", modelName, err)
+			return "", fmt.Errorf(message, modelName, err)
+		}
+		if !noCleanup {
+			cleanBrokenSymlinks(lmStudioModelsDir)
+		}
+		message := "Symlinked %s to %s"
+		logging.InfoLogger.Printf(message+"\n", modelName, lmStudioModelPath)
+		return "", nil
 	}
-	err = os.Symlink(modelPath, lmStudioModelPath)
-	if err != nil {
-		message := "failed to symlink %s: %v"
-		logging.ErrorLogger.Printf(message+"\n", modelName, err)
-		return "", fmt.Errorf(message, modelName, err)
-	}
-	if !noCleanup {
-		cleanBrokenSymlinks(lmStudioModelsDir)
-	}
-	message := "Symlinked %s to %s"
-	logging.InfoLogger.Printf(message+"\n", modelName, lmStudioModelPath)
-	return "", nil
 }
 
 func getModelPath(modelName string, client *api.Client) (string, error) {
