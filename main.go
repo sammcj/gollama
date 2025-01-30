@@ -112,8 +112,9 @@ func main() {
 	}
 
 	listFlag := flag.Bool("l", false, "List all available Ollama models and exit")
-	linkFlag := flag.Bool("L", false, "Link Ollama models to LM Studio (default: false)")
+	linkFlag := flag.Bool("L", false, "Link Ollama models to LM Studio")
 	linkLMStudioFlag := flag.Bool("link-lmstudio", false, "Link LM Studio models to Ollama")
+	dryRunFlag := flag.Bool("dry-run", false, "Show what would be linked without making any changes (use with -L or -link-lmstudio)")
 	ollamaDirFlag := flag.String("ollama-dir", cfg.OllamaAPIKey, "Custom Ollama models directory")
 	lmStudioDirFlag := flag.String("lm-dir", cfg.LMStudioFilePaths, "Custom LM Studio models directory")
 	noCleanupFlag := flag.Bool("no-cleanup", false, "Don't cleanup broken symlinks")
@@ -352,18 +353,24 @@ func main() {
 			cfg.LMStudioFilePaths = filepath.Join(utils.GetHomeDir(), ".lmstudio", "models")
 		}
 
+		prefix := ""
+		if *dryRunFlag {
+			prefix = "[DRY RUN] "
+			fmt.Printf("%sWould link Ollama models to LM Studio\n", prefix)
+		}
+
 		// link all models
 		for _, model := range models {
-			message, err := linkModel(model.Name, cfg.LMStudioFilePaths, false, client)
-			logging.InfoLogger.Println(message)
-			fmt.Printf("Linking model %s to %s\n", model.Name, cfg.LMStudioFilePaths)
+			message, err := linkModel(model.Name, cfg.LMStudioFilePaths, false, *dryRunFlag, client)
+			if message != "" {
+				logging.InfoLogger.Println(message)
+				fmt.Printf("%s%s\n", prefix, message)
+			}
 			if err != nil {
 				logging.ErrorLogger.Printf("Error linking model %s: %v\n", model.Name, err)
-				fmt.Println("Error: Linking models failed. Please check if you are running without Administrator on Windows.")
+				fmt.Printf("Error: Linking models failed. Please check if you are running without Administrator on Windows.\n")
 				fmt.Printf("Error detail: %v\n", err)
 				os.Exit(1)
-			} else {
-				logging.InfoLogger.Printf("Model %s linked\n", model.Name)
 			}
 		}
 		os.Exit(0)
@@ -388,12 +395,16 @@ func main() {
 			os.Exit(0)
 		}
 
-		fmt.Printf("Found %d LM Studio models\n", len(models))
+		prefix := ""
+		if *dryRunFlag {
+			prefix = "[DRY RUN] "
+		}
+		fmt.Printf("%sFound %d LM Studio models\n", prefix, len(models))
 		var successCount, failCount int
 
 		for _, model := range models {
-			fmt.Printf("Linking model %s... ", model.Name)
-			if err := lmstudio.LinkModelToOllama(model); err != nil {
+			fmt.Printf("%sProcessing model %s... ", prefix, model.Name)
+			if err := lmstudio.LinkModelToOllama(model, *dryRunFlag, cfg.OllamaAPIURL); err != nil {
 				logging.ErrorLogger.Printf("Error linking model %s: %v\n", model.Name, err)
 				fmt.Printf("failed: %v\n", err)
 				failCount++
@@ -404,7 +415,11 @@ func main() {
 			successCount++
 		}
 
-		fmt.Printf("\nSummary: %d models linked successfully, %d failed\n", successCount, failCount)
+		if *dryRunFlag {
+			fmt.Printf("\n[DRY RUN] Summary: Would link %d models, %d would fail\n", successCount, failCount)
+		} else {
+			fmt.Printf("\nSummary: %d models linked successfully, %d failed\n", successCount, failCount)
+		}
 		if failCount > 0 {
 			os.Exit(1)
 		}

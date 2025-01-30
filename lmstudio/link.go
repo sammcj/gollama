@@ -20,23 +20,37 @@ type Model struct {
 }
 
 // ModelfileTemplate contains the default template for creating Modelfiles
-const ModelfileTemplate = `FROM {{.ModelPath}}
-PARAMETER temperature 0.7
-PARAMETER top_k 40
-PARAMETER top_p 0.4
-PARAMETER repeat_penalty 1.1
-PARAMETER repeat_last_n 64
-PARAMETER seed 0
-PARAMETER stop "Human:" "Assistant:"
+// TODO: Make the default Modelfile template configurable
+const ModelfileTemplate = `### MODEL IMPORTED FROM LM-STUDIO BY GOLLAMA ###
+
+# Tune the below inference, model load parameters and template to your needs
+# The template and stop parameters are currently set to the default for models that use the ChatML format
+# If required update these match the prompt format your model expects
+# You can look at existing similar models on the Ollama model hub for examples
+# See https://github.com/ollama/ollama/blob/main/docs/modelfile.md for a complete reference
+
+FROM {{.ModelPath}}
+
+### Model Load Parameters ###
+PARAMETER num_ctx 4096
+
+### Inference Parameters ####
+PARAMETER temperature 0.4
+PARAMETER top_p 0.6
+
+### Chat Template Parameters ###
+
 TEMPLATE """
 {{.Prompt}}
-Assistant: """
-SYSTEM """You are a helpful AI assistant."""
+"""
+
+PARAMETER stop "<|im_start|>"
+PARAMETER stop "<|im_end|>"
 `
 
 type ModelfileData struct {
 	ModelPath string
-	Prompt    string
+  Prompt string
 }
 
 // ScanModels scans the given directory for LM Studio model files
@@ -55,8 +69,11 @@ func ScanModels(dirPath string) ([]Model, error) {
 			return walkErr
 		}
 
-		// Skip directories
-		if info.IsDir() {
+		// Skip directories and symlinks
+		if info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+			if info.Mode()&os.ModeSymlink != 0 {
+				logging.DebugLogger.Printf("Skipping symlinked model: %s\n", path)
+			}
 			return nil
 		}
 
@@ -135,8 +152,8 @@ func createModelfile(modelName string, modelPath string) error {
 	}
 
 	data := ModelfileData{
-		ModelPath: filepath.Base(modelPath),
-		Prompt:    "{{.Prompt}}", // Preserve this as a template variable for Ollama
+		ModelPath: modelPath, // Use full path instead of just the base name
+    Prompt: "{{.Prompt}}", // Preserve this as a template variable for Ollama
 	}
 
 	file, err := os.OpenFile(modelfilePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
@@ -145,26 +162,44 @@ func createModelfile(modelName string, modelPath string) error {
 	}
 	defer file.Close()
 
+	logging.DebugLogger.Printf("Creating Modelfile at: %s with model path: %s", modelfilePath, data.ModelPath)
+
 	if err := tmpl.Execute(file, data); err != nil {
 		return fmt.Errorf("failed to write Modelfile template: %w", err)
+	}
+
+	// Log the content of the created Modelfile for debugging
+	content, err := os.ReadFile(modelfilePath)
+	if err != nil {
+		logging.ErrorLogger.Printf("Warning: Could not read back Modelfile for verification: %v", err)
+	} else {
+		logging.DebugLogger.Printf("Created Modelfile content:\n%s", string(content))
 	}
 
 	return nil
 }
 
 // LinkModelToOllama links an LM Studio model to Ollama
-func LinkModelToOllama(model Model) error {
+// If dryRun is true, it will only print what would happen without making any changes
+func LinkModelToOllama(model Model, dryRun bool, ollamaHost string) error {
+	// Check if we're connecting to a local Ollama instance
+	if !utils.IsLocalhost(ollamaHost) {
+		return fmt.Errorf("linking LM Studio models to Ollama is only supported when connecting to a local Ollama instance (got %s)", ollamaHost)
+	}
+
 	ollamaDir := GetOllamaModelDir()
 
-	// Create Ollama models directory if it doesn't exist
-	if err := os.MkdirAll(ollamaDir, 0755); err != nil {
+	if dryRun {
+		logging.InfoLogger.Printf("[DRY RUN] Would create Ollama models directory at: %s", ollamaDir)
+	} else if err := os.MkdirAll(ollamaDir, 0755); err != nil {
 		return fmt.Errorf("failed to create Ollama models directory: %w", err)
 	}
 
 	targetPath := filepath.Join(ollamaDir, filepath.Base(model.Path))
 
-	// Create symlink for model file
-	if err := os.Symlink(model.Path, targetPath); err != nil {
+	if dryRun {
+		logging.InfoLogger.Printf("[DRY RUN] Would create symlink from %s to %s", model.Path, targetPath)
+	} else if err := os.Symlink(model.Path, targetPath); err != nil {
 		if os.IsExist(err) {
 			logging.InfoLogger.Printf("Symlink already exists for %s at %s", model.Name, targetPath)
 		} else {
@@ -173,24 +208,34 @@ func LinkModelToOllama(model Model) error {
 	}
 
 	// Check if model is already registered with Ollama
-	if modelExists(model.Name) {
+	if !dryRun && modelExists(model.Name) {
 		return nil
 	}
 
 	// Create model-specific Modelfile
 	modelfilePath := filepath.Join(filepath.Dir(targetPath), fmt.Sprintf("Modelfile.%s", model.Name))
+	if dryRun {
+		logging.InfoLogger.Printf("[DRY RUN] Would create Modelfile at: %s", modelfilePath)
+		logging.InfoLogger.Printf("[DRY RUN] Would create Ollama model: %s using Modelfile", model.Name)
+		return nil
+	}
+
 	if err := createModelfile(model.Name, targetPath); err != nil {
 		return fmt.Errorf("failed to create Modelfile for %s: %w", model.Name, err)
 	}
 
 	// Create the model in Ollama
+	logging.DebugLogger.Printf("Creating Ollama model %s using Modelfile at: %s", model.Name, modelfilePath)
 	cmd := exec.Command("ollama", "create", model.Name, "-f", modelfilePath)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
+		// Log the error output for debugging
+		logging.ErrorLogger.Printf("Ollama create command output: %s", string(output))
 		// Clean up Modelfile on failure
 		os.Remove(modelfilePath)
 		return fmt.Errorf("failed to create Ollama model %s: %s - %w", model.Name, string(output), err)
 	}
+	logging.DebugLogger.Printf("Successfully created Ollama model %s", model.Name)
 
 	// Clean up the Modelfile after successful creation
 	if err := os.Remove(modelfilePath); err != nil {
