@@ -8,9 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"strings"
 
@@ -25,6 +23,7 @@ import (
 	"golang.org/x/term"
 
 	"github.com/sammcj/gollama/config"
+	"github.com/sammcj/gollama/lmstudio"
 	"github.com/sammcj/gollama/logging"
 	"github.com/sammcj/gollama/utils"
 	"github.com/sammcj/gollama/vramestimator"
@@ -94,134 +93,6 @@ type View int
 
 var fitsVRAM float64
 var Version string // Version is set by the build system
-
-type LMStudioModel struct {
-	Name     string
-	Path     string
-	FileType string // e.g., "gguf", "bin", etc.
-}
-
-func scanLMStudioModels(dirPath string) ([]LMStudioModel, error) {
-	var models []LMStudioModel
-
-	err := filepath.Walk(dirPath, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		// Skip directories
-		if info.IsDir() {
-			return nil
-		}
-
-		// Check for model file extensions
-		ext := strings.ToLower(filepath.Ext(path))
-		if ext == ".gguf" || ext == ".bin" {
-			name := strings.TrimSuffix(filepath.Base(path), ext)
-			models = append(models, LMStudioModel{
-				Name:     name,
-				Path:     path,
-				FileType: strings.TrimPrefix(ext, "."),
-			})
-		}
-
-		return nil
-	})
-
-	if err != nil {
-		return nil, fmt.Errorf("error scanning directory: %w", err)
-	}
-
-	return models, nil
-}
-
-func getOllamaModelDir() string {
-	// Ollama's default model directory locations
-	homeDir := utils.GetHomeDir()
-	if runtime.GOOS == "darwin" {
-		return filepath.Join(homeDir, ".ollama", "models")
-	} else if runtime.GOOS == "linux" {
-		return "/usr/share/ollama/models"
-	}
-	// Add Windows path if needed
-	return filepath.Join(homeDir, ".ollama", "models")
-}
-
-func modelExists(modelName string) bool {
-	cmd := exec.Command("ollama", "list")
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return false
-	}
-	return strings.Contains(string(output), modelName)
-}
-
-func createModelfile(modelName string, modelPath string) error {
-	modelfilePath := filepath.Join(filepath.Dir(modelPath), fmt.Sprintf("Modelfile.%s", modelName))
-
-	// Check if Modelfile already exists
-	if _, err := os.Stat(modelfilePath); err == nil {
-		return nil
-	}
-
-	modelfileContent := fmt.Sprintf(`FROM %s
-PARAMETER temperature 0.7
-PARAMETER top_k 40
-PARAMETER top_p 0.4
-PARAMETER repeat_penalty 1.1
-PARAMETER repeat_last_n 64
-PARAMETER seed 0
-PARAMETER stop "Human:" "Assistant:"
-TEMPLATE """
-{{.Prompt}}
-Assistant: """
-SYSTEM """You are a helpful AI assistant."""
-`, filepath.Base(modelPath))
-
-	return os.WriteFile(modelfilePath, []byte(modelfileContent), 0644)
-}
-
-func linkModelToOllama(model LMStudioModel) error {
-	ollamaDir := getOllamaModelDir()
-
-	// Create Ollama models directory if it doesn't exist
-	if err := os.MkdirAll(ollamaDir, 0755); err != nil {
-		return fmt.Errorf("failed to create Ollama models directory: %w", err)
-	}
-
-	targetPath := filepath.Join(ollamaDir, filepath.Base(model.Path))
-
-	// Create symlink for model file
-	if err := os.Symlink(model.Path, targetPath); err != nil {
-		if !os.IsExist(err) {
-			return fmt.Errorf("failed to create symlink: %w", err)
-		}
-	}
-
-	// Check if model is already registered with Ollama
-	if modelExists(model.Name) {
-		return nil
-	}
-
-	// Create model-specific Modelfile
-	modelfilePath := filepath.Join(filepath.Dir(targetPath), fmt.Sprintf("Modelfile.%s", model.Name))
-	if err := createModelfile(model.Name, targetPath); err != nil {
-		return fmt.Errorf("failed to create Modelfile: %w", err)
-	}
-
-	cmd := exec.Command("ollama", "create", model.Name, "-f", modelfilePath)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("failed to create Ollama model: %s\n%w", string(output), err)
-	}
-
-	// Clean up the Modelfile after successful creation
-	if err := os.Remove(modelfilePath); err != nil {
-		logging.ErrorLogger.Printf("Warning: Could not remove temporary Modelfile %s: %v\n", modelfilePath, err)
-	}
-
-	return nil
-}
 
 func main() {
 	if Version == "" {
@@ -505,7 +376,7 @@ func main() {
 
 		fmt.Printf("Scanning for LM Studio models in: %s\n", cfg.LMStudioFilePaths)
 
-		models, err := scanLMStudioModels(cfg.LMStudioFilePaths)
+		models, err := lmstudio.ScanModels(cfg.LMStudioFilePaths)
 		if err != nil {
 			logging.ErrorLogger.Printf("Error scanning LM Studio models: %v\n", err)
 			fmt.Printf("Failed to scan LM Studio models directory: %v\n", err)
@@ -521,7 +392,7 @@ func main() {
 
 		for _, model := range models {
 			fmt.Printf("Linking model %s... ", model.Name)
-			if err := linkModelToOllama(model); err != nil {
+			if err := lmstudio.LinkModelToOllama(model); err != nil {
 				logging.ErrorLogger.Printf("Error linking model %s: %v\n", model.Name, err)
 				fmt.Printf("failed: %v\n", err)
 				continue
