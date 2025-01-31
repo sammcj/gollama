@@ -2,6 +2,8 @@ module github.com/sammcj/gollama
 
 go 1.23.4
 
+toolchain go1.23.5
+
 require (
 	github.com/charmbracelet/bubbles v0.20.0
 	github.com/charmbracelet/bubbletea v1.2.4
