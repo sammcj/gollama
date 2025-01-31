@@ -28,7 +28,7 @@ type Config struct {
 var defaultConfig = Config{
 	Columns:           []string{"Name", "Size", "Quant", "Family", "Modified", "ID"},
 	OllamaAPIKey:      "",
-	OllamaAPIURL:      getAPIUrl(),
+	OllamaAPIURL:      "", // Empty by default, will be determined at runtime
 	LMStudioFilePaths: "",
 	LogLevel:          "info",
 	SortOrder:         "modified",
@@ -47,7 +47,22 @@ func getAPIUrl() string {
 		if len(host) >= 7 && host[:7] == "http://" || len(host) >= 8 && host[:8] == "https://" {
 			return host
 		}
-		// If not, prepend http://
+
+		// Check if the host includes a port number
+		hasPort := false
+		for _, c := range host {
+			if c == ':' {
+				hasPort = true
+				break
+			}
+		}
+
+		// If no port is specified, append the default Ollama port
+		if !hasPort {
+			host = host + ":11434"
+		}
+
+		// Prepend http:// if not already present
 		return "http://" + host
 	}
 	return "http://127.0.0.1:11434"
@@ -104,7 +119,26 @@ func LoadConfig() (Config, error) {
 	}
 
 	var config Config
-	config.OllamaAPIURL = viper.GetString("ollama_api_url")
+
+	// Handle API URL with proper priority:
+	// 1. OLLAMA_API_URL env var
+	// 2. OLLAMA_HOST env var
+	// 3. Config file value (if set by user)
+	// 4. Default URL
+	if apiUrl := os.Getenv("OLLAMA_API_URL"); apiUrl != "" {
+		config.OllamaAPIURL = apiUrl
+	} else if host := os.Getenv("OLLAMA_HOST"); host != "" {
+		// Use the getAPIUrl function to properly format the host
+		config.OllamaAPIURL = getAPIUrl()
+	} else {
+		// Only use config file value if it's not empty
+		if configUrl := viper.GetString("ollama_api_url"); configUrl != "" {
+			config.OllamaAPIURL = configUrl
+		} else {
+			config.OllamaAPIURL = "http://127.0.0.1:11434"
+		}
+	}
+
 	config.LogLevel = viper.GetString("log_level")
 
 	viper.OnConfigChange(func(e fsnotify.Event) {

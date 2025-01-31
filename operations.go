@@ -764,14 +764,40 @@ func editModelfile(client *api.Client, modelName string) (string, error) {
 
 	logging.DebugLogger.Printf("Using editor: %s for model: %s\n", editor, modelName)
 
-	// Write the fetched content to a temporary file
-	tempDir := os.TempDir()
-	newModelfilePath := filepath.Join(tempDir, fmt.Sprintf("%s_modelfile.txt", modelName))
-	err = os.WriteFile(newModelfilePath, []byte(modelfileContent), 0644)
+	// Create a sanitized version of the model name for the temp file
+	sanitizedName := strings.Map(func(r rune) rune {
+		switch {
+		case r >= 'a' && r <= 'z':
+			return r
+		case r >= 'A' && r <= 'Z':
+			return r
+		case r >= '0' && r <= '9':
+			return r
+		case r == '-' || r == '_':
+			return r
+		default:
+			return '_'
+		}
+	}, modelName)
+
+	// Create a temporary file with a proper prefix
+	tempFile, err := os.CreateTemp("", fmt.Sprintf("gollama_%s_*.modelfile", sanitizedName))
+	if err != nil {
+		return "", fmt.Errorf("error creating temp file: %v", err)
+	}
+	newModelfilePath := tempFile.Name()
+	defer os.Remove(newModelfilePath)
+
+	// Write the content to the temp file
+	_, err = tempFile.Write([]byte(modelfileContent))
 	if err != nil {
 		return "", fmt.Errorf("error writing modelfile to temp file: %v", err)
 	}
-	defer os.Remove(newModelfilePath)
+
+	// Close the file before the editor opens it
+	if err := tempFile.Close(); err != nil {
+		return "", fmt.Errorf("error closing temp file: %v", err)
+	}
 
 	// Open the local modelfile in the editor
 	cmd := exec.Command(editor, newModelfilePath)
@@ -794,24 +820,71 @@ func editModelfile(client *api.Client, modelName string) (string, error) {
 		return fmt.Sprintf("No changes made to model %s", modelName), nil
 	}
 
-	// Update the model on the server with the new modelfile content
+	// Get the original modelfile content to preserve the FROM directive if needed
+	originalShowResp, err := client.Show(ctx, &api.ShowRequest{Name: modelName})
+	if err != nil {
+		return "", fmt.Errorf("error fetching original modelfile: %v", err)
+	}
+
+	// Extract the original FROM and TYPE directives
+	originalLines := strings.Split(strings.TrimSpace(originalShowResp.Modelfile), "\n")
+	var originalFrom, originalType string
+	for _, line := range originalLines {
+		trimmedLine := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmedLine, "FROM") {
+			originalFrom = trimmedLine
+			logging.DebugLogger.Printf("Original FROM directive: %s\n", originalFrom)
+		} else if strings.HasPrefix(trimmedLine, "TYPE") {
+			originalType = trimmedLine
+			logging.DebugLogger.Printf("Original TYPE directive: %s\n", originalType)
+		}
+	}
+
+	if originalFrom == "" {
+		return "", fmt.Errorf("error: could not find FROM directive in original modelfile")
+	}
+
+	// Determine model type from name if not found in original modelfile
+	if originalType == "" {
+		parts := strings.Split(modelName, ":")
+		baseType := parts[0]
+		if strings.Contains(baseType, "/") {
+			baseType = strings.Split(baseType, "/")[1]
+		}
+		originalType = fmt.Sprintf("TYPE %s", baseType)
+		logging.DebugLogger.Printf("Generated TYPE directive: %s\n", originalType)
+	}
+
+	// Extract the base model name from the original FROM directive
+	baseModelName := strings.TrimSpace(strings.TrimPrefix(originalFrom, "FROM"))
+	if strings.Contains(baseModelName, "/root/.ollama/models/blobs/") {
+		// If it's a blob path, extract the model name from the original model name
+		parts := strings.Split(modelName, ":")
+		baseModelName = parts[0]
+	}
+	logging.DebugLogger.Printf("Using base model: %s\n", baseModelName)
+
+	// Create the update request
 	createReq := &api.CreateRequest{
 		Model: modelName,
+		From:  baseModelName,
 		Files: map[string]string{
 			"modelfile": string(newModelfileContent),
 		},
 	}
 
+	// Update the model
+	logging.DebugLogger.Printf("Updating model %s with base model %s\n", modelName, baseModelName)
 	err = client.Create(ctx, createReq, func(resp api.ProgressResponse) error {
-		logging.InfoLogger.Printf("Create progress: %s\n", resp.Status)
+		logging.InfoLogger.Printf("Update progress: %s\n", resp.Status)
 		return nil
 	})
 	if err != nil {
-		return "", fmt.Errorf("error updating model with new modelfile: %v", err)
+		return "", fmt.Errorf("error updating model: %v", err)
 	}
 
-	// log to the console if we're not in a tea app
-	fmt.Printf("Model %s updated successfully\n", modelName)
+	// Log success and return
+	logging.InfoLogger.Printf("Model %s updated successfully\n", modelName)
 
 	return fmt.Sprintf("Model %s updated successfully, Press 'q' to return to the models list", modelName), nil
 }
