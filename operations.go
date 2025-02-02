@@ -755,7 +755,8 @@ func editModelfile(client *api.Client, modelName string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("error fetching modelfile for %s: %v", modelName, err)
 	}
-	modelfileContent := showResp.Modelfile
+
+	logging.DebugLogger.Printf("Editing modelfile for: %s\n", modelName)
 
 	// Unload the model first to prevent conflicts
 	if _, err := unloadModel(client, modelName); err != nil {
@@ -773,8 +774,8 @@ func editModelfile(client *api.Client, modelName string) (string, error) {
 
 	// Write the fetched content to a temporary file
 	tempDir := os.TempDir()
-	newModelfilePath := filepath.Join(tempDir, fmt.Sprintf("%s_modelfile.txt", modelName))
-	err = os.WriteFile(newModelfilePath, []byte(modelfileContent), 0644)
+	newModelfilePath := filepath.Join(tempDir, fmt.Sprintf("%s.modelfile", modelName))
+	err = os.WriteFile(newModelfilePath, []byte(showResp.Modelfile), 0644)
 	if err != nil {
 		return "", fmt.Errorf("error writing modelfile to temp file: %v", err)
 	}
@@ -796,73 +797,46 @@ func editModelfile(client *api.Client, modelName string) (string, error) {
 		return "", fmt.Errorf("error reading edited modelfile: %v", err)
 	}
 
-	// Parse and validate modelfile content
-	modelfileStr := string(newModelfileContent)
-	lines := strings.Split(modelfileStr, "\n")
-	hasValidFrom := false
-	fromValue := ""
+	// Basic validation that FROM directive exists
+	lines := strings.Split(string(newModelfileContent), "\n")
+	var hasValidFrom bool
+
 	for _, line := range lines {
 		trimmedLine := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmedLine, "FROM") {
+		if strings.HasPrefix(trimmedLine, "#") || trimmedLine == "" {
+			continue
+		}
+if strings.HasPrefix(trimmedLine, "FROM ") {
 			hasValidFrom = true
-			fromValue = strings.TrimSpace(strings.TrimPrefix(trimmedLine, "FROM"))
 			break
 		}
 	}
 
 	if !hasValidFrom {
-		return "", fmt.Errorf("invalid modelfile: missing or invalid FROM directive")
-	}
-
-	// Check if FROM is using a direct blob path
-	if strings.Contains(fromValue, "/root/.ollama/models/blobs/") ||
-	   strings.Contains(fromValue, ".ollama/models/blobs/") {
-		return "", fmt.Errorf("error updating model: direct blob paths in FROM directive are not supported.\n" +
-			"Please use a model name instead. For example:\n" +
-			"FROM modelname:tag\n\n" +
-			"Your current FROM path points to: %s\n" +
-			"This should be replaced with the original model name and tag.", fromValue)
-	}
-
-	if strings.TrimSpace(fromValue) == "" {
-		return "", fmt.Errorf("invalid modelfile: FROM directive is empty")
+		return "", fmt.Errorf("invalid modelfile: missing FROM directive")
 	}
 
 	// If there were no changes, return early
-	if string(newModelfileContent) == modelfileContent {
+	if string(newModelfileContent) == showResp.Modelfile {
 		return fmt.Sprintf("No changes made to model %s", modelName), nil
 	}
 
-	// Log the update attempt
-	logging.DebugLogger.Printf("Updating model %s with new modelfile\n", modelName)
-	logging.DebugLogger.Printf("Modelfile content:\n%s\n", string(newModelfileContent))
-
-	// Update the model on the server with the new modelfile content
+	// Create request with complete modelfile content
 	createReq := &api.CreateRequest{
 		Model: modelName,
 		Files: map[string]string{
 			"modelfile": string(newModelfileContent),
 		},
+		From: modelName, // Required: specifies the base model
 	}
+	logging.DebugLogger.Printf("Creating model with FROM: %s\n", modelName)
 
-	progressCallback := func(resp api.ProgressResponse) error {
-		logging.InfoLogger.Printf("Create progress: %s\n", resp.Status)
-		return nil
-	}
-
-	err = client.Create(ctx, createReq, progressCallback)
+	err = client.Create(ctx, createReq, nil)
 	if err != nil {
-		if strings.Contains(err.Error(), "unknown type") {
-			return "", fmt.Errorf("error updating model: the Ollama API rejected the modelfile.\n\n" +
-				"This error often occurs when using direct blob paths in the FROM directive.\n" +
-				"Please modify the FROM directive to use the original model name instead of a blob path.\n" +
-				"For example: 'FROM modelname:tag' instead of 'FROM /path/to/blob'")
-		}
-		return "", fmt.Errorf("error updating model: %v", err)
+		return "", fmt.Errorf("error updating model: %v\n\nMake sure your modelfile is valid and the FROM directive uses a valid model name", err)
 	}
 
 	// log to the console if we're not in a tea app
-	fmt.Printf("Model %s updated successfully\n", modelName)
 
 	return fmt.Sprintf("Model %s updated successfully, Press 'q' to return to the models list", modelName), nil
 }

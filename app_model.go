@@ -547,16 +547,21 @@ func (m *AppModel) handleTopKey() (tea.Model, tea.Cmd) {
 func (m *AppModel) handleUpdateModelKey() (tea.Model, tea.Cmd) {
 	logging.DebugLogger.Println("UpdateModel key matched")
 	if item, ok := m.list.SelectedItem().(Model); ok {
-		m.editing = true
 		message, err := editModelfile(m.client, item.Name)
 		if err != nil {
 			m.message = fmt.Sprintf("Error updating model: %v", err)
 		} else {
 			m.message = message
+			// Refresh the model list after successful update
+			ctx := context.Background()
+			resp, err := m.client.List(ctx)
+			if err != nil {
+				m.message = fmt.Sprintf("Error refreshing models: %v", err)
+			} else {
+				m.models = parseAPIResponse(resp)
+				m.refreshList()
+			}
 		}
-		m.clearScreen()
-		m.refreshList()
-		return m, nil
 	}
 	m.refreshList()
 	return m, nil
