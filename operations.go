@@ -796,19 +796,36 @@ func editModelfile(client *api.Client, modelName string) (string, error) {
 		return "", fmt.Errorf("error reading edited modelfile: %v", err)
 	}
 
-	// Validate modelfile content with improved checks
+	// Parse and validate modelfile content
 	modelfileStr := string(newModelfileContent)
 	lines := strings.Split(modelfileStr, "\n")
 	hasValidFrom := false
+	fromValue := ""
 	for _, line := range lines {
-		if strings.HasPrefix(strings.TrimSpace(line), "FROM") {
+		trimmedLine := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmedLine, "FROM") {
 			hasValidFrom = true
+			fromValue = strings.TrimSpace(strings.TrimPrefix(trimmedLine, "FROM"))
 			break
 		}
 	}
 
 	if !hasValidFrom {
 		return "", fmt.Errorf("invalid modelfile: missing or invalid FROM directive")
+	}
+
+	// Check if FROM is using a direct blob path
+	if strings.Contains(fromValue, "/root/.ollama/models/blobs/") ||
+	   strings.Contains(fromValue, ".ollama/models/blobs/") {
+		return "", fmt.Errorf("error updating model: direct blob paths in FROM directive are not supported.\n" +
+			"Please use a model name instead. For example:\n" +
+			"FROM modelname:tag\n\n" +
+			"Your current FROM path points to: %s\n" +
+			"This should be replaced with the original model name and tag.", fromValue)
+	}
+
+	if strings.TrimSpace(fromValue) == "" {
+		return "", fmt.Errorf("invalid modelfile: FROM directive is empty")
 	}
 
 	// If there were no changes, return early
@@ -836,7 +853,10 @@ func editModelfile(client *api.Client, modelName string) (string, error) {
 	err = client.Create(ctx, createReq, progressCallback)
 	if err != nil {
 		if strings.Contains(err.Error(), "unknown type") {
-			return "", fmt.Errorf("error updating model: the Ollama API rejected the modelfile. This might be because:\n1. The FROM path is not accessible\n2. The model binary is not in the expected format\n3. The parameters are not compatible with the model\n\nPlease verify the model path and parameters are correct")
+			return "", fmt.Errorf("error updating model: the Ollama API rejected the modelfile.\n\n" +
+				"This error often occurs when using direct blob paths in the FROM directive.\n" +
+				"Please modify the FROM directive to use the original model name instead of a blob path.\n" +
+				"For example: 'FROM modelname:tag' instead of 'FROM /path/to/blob'")
 		}
 		return "", fmt.Errorf("error updating model: %v", err)
 	}
