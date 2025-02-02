@@ -796,9 +796,19 @@ func editModelfile(client *api.Client, modelName string) (string, error) {
 		return "", fmt.Errorf("error reading edited modelfile: %v", err)
 	}
 
-	// Validate modelfile content
-	if !strings.Contains(string(newModelfileContent), "FROM") {
-		return "", fmt.Errorf("invalid modelfile: missing FROM directive")
+	// Validate modelfile content with improved checks
+	modelfileStr := string(newModelfileContent)
+	lines := strings.Split(modelfileStr, "\n")
+	hasValidFrom := false
+	for _, line := range lines {
+		if strings.HasPrefix(strings.TrimSpace(line), "FROM") {
+			hasValidFrom = true
+			break
+		}
+	}
+
+	if !hasValidFrom {
+		return "", fmt.Errorf("invalid modelfile: missing or invalid FROM directive")
 	}
 
 	// If there were no changes, return early
@@ -826,7 +836,7 @@ func editModelfile(client *api.Client, modelName string) (string, error) {
 	err = client.Create(ctx, createReq, progressCallback)
 	if err != nil {
 		if strings.Contains(err.Error(), "unknown type") {
-			return "", fmt.Errorf("error updating model: invalid modelfile format or content. Please check the modelfile syntax")
+			return "", fmt.Errorf("error updating model: the Ollama API rejected the modelfile. This might be because:\n1. The FROM path is not accessible\n2. The model binary is not in the expected format\n3. The parameters are not compatible with the model\n\nPlease verify the model path and parameters are correct")
 		}
 		return "", fmt.Errorf("error updating model: %v", err)
 	}
