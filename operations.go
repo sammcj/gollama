@@ -747,6 +747,7 @@ func editModelfile(client *api.Client, modelName string) (string, error) {
 	if client == nil {
 		return "", fmt.Errorf("error: Client is nil")
 	}
+	logging.DebugLogger.Printf("Starting model update for: %s\n", modelName)
 	ctx := context.Background()
 
 	// Fetch the current modelfile from the server
@@ -755,6 +756,12 @@ func editModelfile(client *api.Client, modelName string) (string, error) {
 		return "", fmt.Errorf("error fetching modelfile for %s: %v", modelName, err)
 	}
 	modelfileContent := showResp.Modelfile
+
+	// Unload the model first to prevent conflicts
+	if _, err := unloadModel(client, modelName); err != nil {
+		logging.DebugLogger.Printf("Error unloading model %s: %v\n", modelName, err)
+		// Continue anyway as the error might be because the model wasn't loaded
+	}
 
 	// Get editor from environment or config
 	editor := getEditor()
@@ -789,10 +796,19 @@ func editModelfile(client *api.Client, modelName string) (string, error) {
 		return "", fmt.Errorf("error reading edited modelfile: %v", err)
 	}
 
+	// Validate modelfile content
+	if !strings.Contains(string(newModelfileContent), "FROM") {
+		return "", fmt.Errorf("invalid modelfile: missing FROM directive")
+	}
+
 	// If there were no changes, return early
 	if string(newModelfileContent) == modelfileContent {
 		return fmt.Sprintf("No changes made to model %s", modelName), nil
 	}
+
+	// Log the update attempt
+	logging.DebugLogger.Printf("Updating model %s with new modelfile\n", modelName)
+	logging.DebugLogger.Printf("Modelfile content:\n%s\n", string(newModelfileContent))
 
 	// Update the model on the server with the new modelfile content
 	createReq := &api.CreateRequest{
@@ -802,12 +818,17 @@ func editModelfile(client *api.Client, modelName string) (string, error) {
 		},
 	}
 
-	err = client.Create(ctx, createReq, func(resp api.ProgressResponse) error {
+	progressCallback := func(resp api.ProgressResponse) error {
 		logging.InfoLogger.Printf("Create progress: %s\n", resp.Status)
 		return nil
-	})
+	}
+
+	err = client.Create(ctx, createReq, progressCallback)
 	if err != nil {
-		return "", fmt.Errorf("error updating model with new modelfile: %v", err)
+		if strings.Contains(err.Error(), "unknown type") {
+			return "", fmt.Errorf("error updating model: invalid modelfile format or content. Please check the modelfile syntax")
+		}
+		return "", fmt.Errorf("error updating model: %v", err)
 	}
 
 	// log to the console if we're not in a tea app
