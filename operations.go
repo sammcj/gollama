@@ -256,53 +256,47 @@ func editModelfile(client *api.Client, modelName string) (string, error) {
 		return fmt.Sprintf("No changes made to model %s", modelName), nil
 	}
 
-	// Parse the modelfile content to extract parameters
-	modelfileStr := string(newModelfileContent)
-	parameters := make(map[string]any)
-	lines := strings.Split(modelfileStr, "\n")
+	// Extract TEMPLATE, SYSTEM, and parameters from both original and new content
+	var origTemplate, origSystem, newTemplate, newSystem string
 
-	// Handle multiple stop parameters
-	var stopValues []string
-
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, "PARAMETER") {
-			parts := strings.Fields(line)
-			if len(parts) >= 3 {
-				paramName := parts[1]
-				paramValue := strings.Join(parts[2:], " ")
-
-				// Special handling for stop parameters
-				if paramName == "stop" {
-					stopValues = append(stopValues, paramValue)
-					continue
-				}
-
-				// Convert numeric values to appropriate types
-				if num, err := strconv.Atoi(paramValue); err == nil {
-					parameters[paramName] = num
-				} else if num, err := strconv.ParseFloat(paramValue, 64); err == nil {
-					parameters[paramName] = num
-				} else {
-					parameters[paramName] = paramValue
-				}
-			}
-		}
-	}
-
-	// Add stop values as an array if any were found
-	if len(stopValues) > 0 {
-		parameters["stop"] = stopValues
-	}
-
-	logging.DebugLogger.Printf("Updating model %s parameters: %+v", modelName, parameters)
-
-	// Update the model on the server with the new modelfile content
+	// Create request with base fields
 	createReq := &api.CreateRequest{
-		Model:      modelName,    // The model to update
-		From:       modelName,    // Required: use the model's own name as the base
-		Parameters: parameters,   // Only send the updated parameters
+		Model: modelName,    // The model to update
+		From:  modelName,    // Required: use the model's own name as the base
 	}
+
+	origTemplate, origSystem = extractTemplateAndSystem(modelfileContent)
+	newTemplate, newSystem = extractTemplateAndSystem(string(newModelfileContent))
+
+	// Only include template if it was changed
+	if newTemplate != origTemplate {
+		logging.DebugLogger.Printf("Template was modified for model %s", modelName)
+		createReq.Template = newTemplate
+	}
+
+	if newSystem != origSystem {
+		logging.DebugLogger.Printf("System prompt was modified for model %s", modelName)
+		createReq.System = newSystem
+	}
+
+	// Add parameters if any were found
+	parameters := extractParameters(string(newModelfileContent))
+	if len(parameters) > 0 {
+		createReq.Parameters = parameters
+	}
+
+	logging.DebugLogger.Printf("Updating model %s with changes:\n", modelName)
+	if newTemplate != origTemplate {
+		logging.DebugLogger.Printf("- Modified template\n")
+	}
+	if newSystem != origSystem {
+		logging.DebugLogger.Printf("- Modified system prompt\n")
+	}
+	if len(parameters) > 0 {
+		logging.DebugLogger.Printf("- Modified parameters: %+v\n", parameters)
+	}
+
+
 
 	reqJson, jsonErr := json.Marshal(createReq)
 	if jsonErr == nil {
@@ -747,4 +741,89 @@ func containsAnyTerm(s string, terms ...string) bool {
 		}
 	}
 	return false
+}
+
+// extractTemplateAndSystem extracts TEMPLATE and SYSTEM values from modelfile content
+// preserving any template syntax within them
+func extractTemplateAndSystem(content string) (template string, system string) {
+	lines := strings.Split(content, "\n")
+	var templateLines []string
+	inTemplate := false
+	inMultilineTemplate := false
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+
+		// Handle TEMPLATE directive
+		if strings.HasPrefix(trimmed, "TEMPLATE") {
+			if strings.Contains(trimmed, `"""`) {
+				// Multi-line template
+				inTemplate = true
+				inMultilineTemplate = true
+				templateLines = append(templateLines, strings.TrimPrefix(trimmed, "TEMPLATE "))
+			} else {
+				// Single-line template
+				template = strings.TrimPrefix(trimmed, "TEMPLATE ")
+				template = strings.Trim(template, `"`)
+			}
+		} else if inTemplate {
+			if inMultilineTemplate && strings.Contains(trimmed, `"""`) {
+				inTemplate = false
+				inMultilineTemplate = false
+			}
+			templateLines = append(templateLines, line)
+		} else if strings.HasPrefix(trimmed, "SYSTEM") {
+			system = strings.TrimPrefix(trimmed, "SYSTEM ")
+			// Remove surrounding quotes if present
+			system = strings.Trim(system, `"`)
+		}
+	}
+
+	if len(templateLines) > 0 {
+		template = strings.Join(templateLines, "\n")
+	}
+
+	return template, system
+}
+
+// extractParameters extracts parameter values from modelfile content
+func extractParameters(content string) map[string]any {
+	parameters := make(map[string]any)
+	lines := strings.Split(content, "\n")
+
+	// Handle multiple stop parameters
+	var stopValues []string
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "PARAMETER") {
+			parts := strings.Fields(line)
+			if len(parts) >= 3 {
+				paramName := parts[1]
+				paramValue := strings.Join(parts[2:], " ")
+
+				// Special handling for stop parameters
+				if paramName == "stop" {
+					stopValues = append(stopValues, paramValue)
+					continue
+				}
+
+				// Convert numeric values to appropriate types
+				if num, err := strconv.Atoi(paramValue); err == nil {
+					parameters[paramName] = num
+				} else if num, err := strconv.ParseFloat(paramValue, 64); err == nil {
+					parameters[paramName] = num
+				} else {
+					parameters[paramName] = paramValue
+				}
+			}
+		}
+	}
+
+	// Add stop values as an array if any were found
+	if len(stopValues) > 0 {
+		parameters["stop"] = stopValues
+	}
+
+	return parameters
 }
