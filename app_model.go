@@ -541,6 +541,7 @@ func (m *AppModel) handleClearScreenKey() (tea.Model, tea.Cmd) {
 func (m *AppModel) handleTopKey() (tea.Model, tea.Cmd) {
 	logging.DebugLogger.Println("Top key matched")
 	m.view = TopView
+	m.table = table.New()
 	return m.ToggleTop()
 }
 
@@ -922,6 +923,10 @@ func (m *AppModel) startTopTicker() tea.Cmd {
 }
 
 func (m *AppModel) topView() string {
+	headerStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("241")).
+		MarginBottom(1)
+
 	runningModels, err := showRunningModels(m.client)
 	if err != nil {
 		return fmt.Sprintf("Error showing running models: %v", err)
@@ -948,7 +953,11 @@ func (m *AppModel) topView() string {
 	t.SetStyles(s)
 
 	// Render the table view
-	return "\n" + t.View() + "\nPress 'q' or `esc` to return to the main view."
+	return lipgloss.JoinVertical(
+		lipgloss.Left,
+		headerStyle.Render(fmt.Sprintf("Connected to Ollama at: %s", m.cfg.OllamaAPIURL)),
+		"\n" + t.View() + "\nPress 'q' or `esc` to return to the main view.",
+	)
 }
 
 // FullHelp returns keybindings for the expanded help view. It's part of the key.Map interface.

@@ -9,16 +9,18 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/ollama/ollama/api"
+	"github.com/sammcj/gollama/config"
 	"github.com/sammcj/gollama/logging"
 )
 
 type TopModel struct {
 	client   *api.Client
 	table    table.Model
+	apiURL   string
 	quitting bool
 }
 
-func NewTopModel(client *api.Client) *TopModel {
+func NewTopModel(client *api.Client, cfg config.Config) *TopModel {
 	columns := []table.Column{
 		{Title: "Name", Width: 40},
 		{Title: "Size (GB)", Width: 10},
@@ -38,6 +40,7 @@ func NewTopModel(client *api.Client) *TopModel {
 	return &TopModel{
 		client: client,
 		table:  t,
+		apiURL: cfg.OllamaAPIURL,
 	}
 }
 
@@ -71,7 +74,16 @@ func (m *TopModel) View() string {
 	if m.quitting {
 		return "Returning to main view...\n"
 	}
-	return lipgloss.NewStyle().Render(m.table.View())
+
+	headerStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("241")).
+		MarginBottom(1)
+
+	return lipgloss.JoinVertical(
+		lipgloss.Left,
+		headerStyle.Render(fmt.Sprintf("Connected to Ollama at: %s", m.apiURL)),
+		lipgloss.NewStyle().Render(m.table.View()),
+	)
 }
 
 func (m *TopModel) updateRunningModels() tea.Cmd {
