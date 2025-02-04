@@ -54,6 +54,9 @@ func TestLoadConfig(t *testing.T) {
 		{
 			name: "Config file exists and is valid",
 			prepFunc: func(configPath string) error {
+				// Ensure environment variables are unset for this test
+				os.Unsetenv("OLLAMA_HOST")
+				os.Unsetenv("OLLAMA_API_URL")
 				config := Config{
 					Columns:           []string{"Name", "Size"},
 					OllamaAPIKey:      "testkey",
@@ -85,14 +88,27 @@ func TestLoadConfig(t *testing.T) {
 		{
 			name: "Config file does not exist",
 			prepFunc: func(configPath string) error {
+				os.Unsetenv("OLLAMA_HOST")
+				os.Setenv("OLLAMA_HOST", "https://ollama.icu.lol")
 				return nil // No prep needed for this test case
 			},
-			expected:      defaultConfig,
+			expected: Config{
+				Columns:           []string{"Name", "Size", "Quant", "Family", "Modified", "ID"},
+				OllamaAPIKey:      "",
+				OllamaAPIURL:      getAPIUrl(), // This will use environment variables if set
+				LMStudioFilePaths: "",
+				LogLevel:          "info",
+				SortOrder:         "modified",
+				Editor:            "/usr/bin/vim",
+			},
 			expectedError: false,
 		},
 		{
 			name: "Config file is invalid",
 			prepFunc: func(configPath string) error {
+				// Ensure environment variables are unset for this test
+				os.Unsetenv("OLLAMA_HOST")
+				os.Unsetenv("OLLAMA_API_URL")
 				return os.WriteFile(configPath, []byte("invalid json"), 0644)
 			},
 			expected:      Config{},
@@ -101,6 +117,7 @@ func TestLoadConfig(t *testing.T) {
 		{
 			name: "Empty ollama_api_url with OLLAMA_HOST set",
 			prepFunc: func(configPath string) error {
+				os.Unsetenv("OLLAMA_API_URL")
 				os.Setenv("OLLAMA_HOST", "test.example.com:1234")
 				config := Config{
 					Columns:      []string{"Name", "Size"},
@@ -145,7 +162,9 @@ func TestLoadConfig(t *testing.T) {
 			}
 			defer func() {
 				os.RemoveAll(tempDir)
-				if tt.name == "Empty ollama_api_url with OLLAMA_HOST set" {
+				// Clean up environment variables after each test
+				if tt.name != "Empty ollama_api_url with OLLAMA_HOST set" {
+					os.Unsetenv("OLLAMA_API_URL")
 					os.Unsetenv("OLLAMA_HOST")
 				}
 			}()
@@ -271,8 +290,10 @@ func loadConfigFromPath(path string) (Config, error) {
 		return Config{}, fmt.Errorf("failed to decode config file: %w", err)
 	}
 
-	// Always use getAPIUrl() to ensure environment variables take precedence
-	config.OllamaAPIURL = getAPIUrl()
+	// Only use getAPIUrl() if no URL is set in the config file
+	if config.OllamaAPIURL == "" {
+		config.OllamaAPIURL = getAPIUrl()
+	}
 
 	return config, nil
 }
