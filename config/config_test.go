@@ -253,16 +253,25 @@ func loadConfigFromPath(path string) (Config, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return defaultConfig, nil
+			// Return default config with API URL fallback
+			config := defaultConfig
+			config.OllamaAPIURL = getAPIUrl()
+			return config, nil
 		}
-		return Config{}, err
+		return Config{}, fmt.Errorf("failed to open config file: %w", err)
 	}
 	defer file.Close()
 
 	var config Config
 	if err := json.NewDecoder(file).Decode(&config); err != nil {
-		return Config{}, err
+		return Config{}, fmt.Errorf("failed to decode config file: %w", err)
 	}
+
+	// Apply the same API URL fallback logic as in the main LoadConfig function
+	if config.OllamaAPIURL == "" {
+		config.OllamaAPIURL = getAPIUrl()
+	}
+
 	return config, nil
 }
 
