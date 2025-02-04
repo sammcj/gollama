@@ -468,7 +468,7 @@ func main() {
 
 	// TUI App
 	l := list.New(items, NewItemDelegate(&app), width, height-5)
-	l.Title = "Ollama Models"
+	l.Title = fmt.Sprintf("Ollama Models - Connected to %s", cfg.OllamaAPIURL)
 	l.Help.Styles.ShortDesc.Bold(true)
 	l.Help.Styles.ShortDesc.UnsetFaint()
 	l.Help.Styles.ShortDesc.Foreground(lipgloss.Color("#FF00FF"))

@@ -98,6 +98,44 @@ func TestLoadConfig(t *testing.T) {
 			expected:      Config{},
 			expectedError: true,
 		},
+		{
+			name: "Empty ollama_api_url with OLLAMA_HOST set",
+			prepFunc: func(configPath string) error {
+				os.Setenv("OLLAMA_HOST", "test.example.com:1234")
+				defer os.Unsetenv("OLLAMA_HOST")
+				config := Config{
+					Columns:      []string{"Name", "Size"},
+					OllamaAPIURL: "", // Empty URL to test fallback
+					LogLevel:     "debug",
+				}
+				return saveTempConfig(configPath, config)
+			},
+			expected: Config{
+				Columns:      []string{"Name", "Size"},
+				OllamaAPIURL: "http://test.example.com:1234",
+				LogLevel:     "debug",
+			},
+			expectedError: false,
+		},
+		{
+			name: "Empty ollama_api_url with no environment variables",
+			prepFunc: func(configPath string) error {
+				os.Unsetenv("OLLAMA_HOST")
+				os.Unsetenv("OLLAMA_API_URL")
+				config := Config{
+					Columns:      []string{"Name", "Size"},
+					OllamaAPIURL: "", // Empty URL to test default
+					LogLevel:     "debug",
+				}
+				return saveTempConfig(configPath, config)
+			},
+			expected: Config{
+				Columns:      []string{"Name", "Size"},
+				OllamaAPIURL: "http://127.0.0.1:11434",
+				LogLevel:     "debug",
+			},
+			expectedError: false,
+		},
 	}
 
 	for _, tt := range tests {
