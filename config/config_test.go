@@ -271,10 +271,8 @@ func loadConfigFromPath(path string) (Config, error) {
 		return Config{}, fmt.Errorf("failed to decode config file: %w", err)
 	}
 
-	// Apply the same API URL fallback logic as in the main LoadConfig function
-	if config.OllamaAPIURL == "" {
-		config.OllamaAPIURL = getAPIUrl()
-	}
+	// Always use getAPIUrl() to ensure environment variables take precedence
+	config.OllamaAPIURL = getAPIUrl()
 
 	return config, nil
 }

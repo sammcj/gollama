@@ -104,11 +104,8 @@ func LoadConfig() (Config, error) {
 	}
 
 	var config Config
-	if apiURL := viper.GetString("ollama_api_url"); apiURL != "" {
-		config.OllamaAPIURL = apiURL
-	} else {
-		config.OllamaAPIURL = getAPIUrl()
-	}
+	config.OllamaAPIURL = getAPIUrl()
+	viper.Set("ollama_api_url", config.OllamaAPIURL)
 	config.LogLevel = viper.GetString("log_level")
 
 	viper.OnConfigChange(func(e fsnotify.Event) {
