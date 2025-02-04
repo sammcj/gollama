@@ -102,7 +102,6 @@ func TestLoadConfig(t *testing.T) {
 			name: "Empty ollama_api_url with OLLAMA_HOST set",
 			prepFunc: func(configPath string) error {
 				os.Setenv("OLLAMA_HOST", "test.example.com:1234")
-				defer os.Unsetenv("OLLAMA_HOST")
 				config := Config{
 					Columns:      []string{"Name", "Size"},
 					OllamaAPIURL: "", // Empty URL to test fallback
@@ -144,7 +143,12 @@ func TestLoadConfig(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to create temporary directory: %v", err)
 			}
-			defer os.RemoveAll(tempDir)
+			defer func() {
+				os.RemoveAll(tempDir)
+				if tt.name == "Empty ollama_api_url with OLLAMA_HOST set" {
+					os.Unsetenv("OLLAMA_HOST")
+				}
+			}()
 
 			tempConfigPath := filepath.Join(tempDir, "config.json")
 			if tt.prepFunc != nil {
