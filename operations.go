@@ -758,20 +758,32 @@ func extractTemplateAndSystem(content string) (template string, system string) {
 		if strings.HasPrefix(trimmed, "TEMPLATE") {
 			if strings.Contains(trimmed, `"""`) {
 				// Multi-line template
+				templateContent := strings.TrimPrefix(trimmed, "TEMPLATE ")
+				templateContent = strings.TrimSpace(templateContent)
+				if strings.HasPrefix(templateContent, `"""`) {
+					templateContent = strings.TrimPrefix(templateContent, `"""`)
+				}
 				inTemplate = true
 				inMultilineTemplate = true
-				templateLines = append(templateLines, strings.TrimPrefix(trimmed, "TEMPLATE "))
+				if templateContent != "" {
+					templateLines = append(templateLines, templateContent)
+				}
 			} else {
 				// Single-line template
 				template = strings.TrimPrefix(trimmed, "TEMPLATE ")
 				template = strings.Trim(template, `"`)
 			}
 		} else if inTemplate {
-			if inMultilineTemplate && strings.Contains(trimmed, `"""`) {
+			if inMultilineTemplate && strings.HasSuffix(trimmed, `"""`) {
+				line = strings.TrimSuffix(line, `"""`)
+				if line != "" {
+					templateLines = append(templateLines, line)
+				}
 				inTemplate = false
 				inMultilineTemplate = false
+			} else {
+				templateLines = append(templateLines, line)
 			}
-			templateLines = append(templateLines, line)
 		} else if strings.HasPrefix(trimmed, "SYSTEM") {
 			system = strings.TrimPrefix(trimmed, "SYSTEM ")
 			// Remove surrounding quotes if present
