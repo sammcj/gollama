@@ -86,20 +86,44 @@ func TestLoadConfig(t *testing.T) {
 			expectedError: false,
 		},
 		{
-			name: "Config file does not exist",
+			name: "Config file does not exist (no env vars)",
 			prepFunc: func(configPath string) error {
+				// Ensure both environment variables are unset for this test
 				os.Unsetenv("OLLAMA_HOST")
-				os.Setenv("OLLAMA_HOST", "https://ollama.icu.lol")
+				os.Unsetenv("OLLAMA_API_URL")
 				return nil // No prep needed for this test case
 			},
 			expected: Config{
 				Columns:           []string{"Name", "Size", "Quant", "Family", "Modified", "ID"},
 				OllamaAPIKey:      "",
-				OllamaAPIURL:      getAPIUrl(), // This will use environment variables if set
+				OllamaAPIURL:      "http://127.0.0.1:11434", // Default URL when no env vars are set
 				LMStudioFilePaths: "",
 				LogLevel:          "info",
 				SortOrder:         "modified",
+				StripString:       "",
 				Editor:            "/usr/bin/vim",
+				DockerContainer:   "",
+			},
+			expectedError: false,
+		},
+		{
+			name: "Config file does not exist (with OLLAMA_HOST)",
+			prepFunc: func(configPath string) error {
+				// Set OLLAMA_HOST but unset OLLAMA_API_URL
+				os.Unsetenv("OLLAMA_API_URL")
+				os.Setenv("OLLAMA_HOST", "ollama.icu.lol")
+				return nil
+			},
+			expected: Config{
+				Columns:           []string{"Name", "Size", "Quant", "Family", "Modified", "ID"},
+				OllamaAPIKey:      "",
+				OllamaAPIURL:      "http://ollama.icu.lol",
+				LMStudioFilePaths: "",
+				LogLevel:          "info",
+				SortOrder:         "modified",
+				StripString:       "",
+				Editor:            "/usr/bin/vim",
+				DockerContainer:   "",
 			},
 			expectedError: false,
 		},
