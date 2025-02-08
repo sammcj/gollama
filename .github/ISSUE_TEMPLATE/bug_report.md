@@ -7,7 +7,12 @@ assignees: sammcj
 
 ---
 
-<!-- If you're able to contribute a fix, please consider opening a pull request instead of an issue. -->
+<!--
+Gollama is a tool I wrote for myself and decided to open source for others, it's not something I make any profit from or have received donations for.
+I don't provide "support" but do consider genuine bugs and features and if they align with my goals and I have the time I try to fix them.
+
+If you're able to contribute a fix, please consider opening a pull request instead of an issue.
+-->
 
 ## Description
 
@@ -23,19 +28,18 @@ assignees: sammcj
 
 ## Environment
 
-- macOS version: <!-- (e.g. output of `sw_vers`) -->
+- macOS version: <!-- `sw_vers` -->
 or
-- Linux distribution: <!-- (e.g. output of `cat /etc/os-release`) -->
-- Install source: <!-- (Downloaded from releases / Go get / Built from source) -->
-- Go version: <!-- (Output of `go version`) -->
+- Linux distribution: <!-- `cat /etc/os-release` -->
+<!-- Gollama does not support and is not tested on Windows -->
+- Install source: <!-- (Go install / Built from source / Downloaded from Github releases) -->
+- Go version: <!-- (`go version`) -->
 
 <!-- If applicable, add screenshots to help explain your problem. -->
 
 ## Can you contribute?
 
 - [ ] I will attempt to implement a fix for this bug
-
-<!-- It's ok if not, but it's always great to have contributors! -->
 
 ## How did you find out about Gollama?
 
