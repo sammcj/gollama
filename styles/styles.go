@@ -53,10 +53,10 @@ func ItemNameStyle(index int) lipgloss.Style {
 }
 
 func ItemDateStyle() lipgloss.Style {
-       theme := GetTheme()
-       return lipgloss.NewStyle().
-               Foreground(theme.GetColour(theme.Colours.ItemDate)).
-               Bold(true)
+	theme := GetTheme()
+	return lipgloss.NewStyle().
+		Foreground(theme.GetColour(theme.Colours.ItemDate)).
+		Bold(true)
 }
 
 func ItemShaStyle() lipgloss.Style {
@@ -85,7 +85,7 @@ func SelectedItemStyle() lipgloss.Style {
 	theme := GetTheme()
 	return lipgloss.NewStyle().
 		Background(theme.GetColour(theme.Colours.SelectedBg)).
-               Foreground(theme.GetColour(theme.Colours.Selected)).
+		Foreground(theme.GetColour(theme.Colours.Selected)).
 		Bold(true).
 		Italic(true)
 }
@@ -247,9 +247,9 @@ func CompareSeparatorStyle() lipgloss.Style {
 
 // Model family colour
 func FamilyStyle(family string) lipgloss.Style {
-       theme := GetTheme()
-       return lipgloss.NewStyle().Bold(true).
-               Foreground(theme.GetFamilyColour(family))
+	theme := GetTheme()
+	return lipgloss.NewStyle().Bold(true).
+		Foreground(theme.GetFamilyColour(family))
 }
 
 // VRAM estimation styles

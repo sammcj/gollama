@@ -21,54 +21,54 @@ type Theme struct {
 // ThemeColours contains all the colour definitions for the TUI
 type ThemeColours struct {
 	// General UI elements
-	HeaderForeground string `json:"header_foreground"`  // Header text
-	HeaderBorder     string `json:"header_border"`      // Header borders
-	Selected         string `json:"selected"`           // Selected item text
-	SelectedBg       string `json:"selected_bg"`        // Background colour for selected items
+	HeaderForeground string `json:"header_foreground"` // Header text
+	HeaderBorder     string `json:"header_border"`     // Header borders
+	Selected         string `json:"selected"`          // Selected item text
+	SelectedBg       string `json:"selected_bg"`       // Background colour for selected items
 
 	// Text input elements
-	PromptText      string `json:"prompt_text"`       // Prompt text (>)
-	InputText       string `json:"input_text"`        // User input text
-	PlaceholderText string `json:"placeholder_text"`  // Placeholder text
-	CursorBg        string `json:"cursor_bg"`         // Background colour for text cursor
+	PromptText      string `json:"prompt_text"`      // Prompt text (>)
+	InputText       string `json:"input_text"`       // User input text
+	PlaceholderText string `json:"placeholder_text"` // Placeholder text
+	CursorBg        string `json:"cursor_bg"`        // Background colour for text cursor
 
 	// Status message colours
-	Error   string `json:"error"`    // Error messages
-	Success string `json:"success"`   // Success messages
-	Info    string `json:"info"`     // Info messages
-	Warning string `json:"warning"`   // Warning messages
+	Error   string `json:"error"`   // Error messages
+	Success string `json:"success"` // Success messages
+	Info    string `json:"info"`    // Info messages
+	Warning string `json:"warning"` // Warning messages
 
 	// List item elements
-	ItemName      []string `json:"item_name"`       // Alternating colours for item names
-	ItemId        string   `json:"item_id"`         // Legacy field for metadata
-	ItemDate      string   `json:"item_date"`       // Date metadata colour
-	ItemSha       string   `json:"item_sha"`        // SHA metadata colour
-	ItemBorder    string   `json:"item_border"`     // Item borders
-	ItemHighlight string   `json:"item_highlight"`  // Background colour for highlighted items
+	ItemName      []string `json:"item_name"`      // Alternating colours for item names
+	ItemId        string   `json:"item_id"`        // Legacy field for metadata
+	ItemDate      string   `json:"item_date"`      // Date metadata colour
+	ItemSha       string   `json:"item_sha"`       // SHA metadata colour
+	ItemBorder    string   `json:"item_border"`    // Item borders
+	ItemHighlight string   `json:"item_highlight"` // Background colour for highlighted items
 
 	// Help view colours
-	HelpText string `json:"help_text"`  // Help text
-	HelpBg   string `json:"help_bg"`    // Background colour for help view
+	HelpText string `json:"help_text"` // Help text
+	HelpBg   string `json:"help_bg"`   // Background colour for help view
 
 	// Compare view colours
-	CompareHeader    string `json:"compare_header"`     // Comparison view headers
-	CompareCommand   string `json:"compare_command"`    // Command text in comparisons
-	CompareLocal     string `json:"compare_local"`      // Local version text
-	CompareRemote    string `json:"compare_remote"`     // Remote version text
-	CompareModified  string `json:"compare_modified"`   // Modified items
-	CompareAdded     string `json:"compare_added"`      // Added items
-	CompareRemoved   string `json:"compare_removed"`    // Removed items
-	CompareSeparator string `json:"compare_separator"`  // Comparison separators
+	CompareHeader    string `json:"compare_header"`    // Comparison view headers
+	CompareCommand   string `json:"compare_command"`   // Command text in comparisons
+	CompareLocal     string `json:"compare_local"`     // Local version text
+	CompareRemote    string `json:"compare_remote"`    // Remote version text
+	CompareModified  string `json:"compare_modified"`  // Modified items
+	CompareAdded     string `json:"compare_added"`     // Added items
+	CompareRemoved   string `json:"compare_removed"`   // Removed items
+	CompareSeparator string `json:"compare_separator"` // Comparison separators
 
 	// Search view colour
-	SearchHighlight string `json:"search_highlight"`  // Highlighted search matches
+	SearchHighlight string `json:"search_highlight"` // Highlighted search matches
 	SearchText      string `json:"search_text"`      // Search text
 	SearchHeader    string `json:"search_header"`    // Search headers
 
 	// VRAM estimation indicators
-	VRAMExceeds string `json:"vram_exceeds"`  // For VRAM usage exceeding available memory
-	VRAMWithin  string `json:"vram_within"`   // For VRAM usage within available memory
-	VRAMUnknown string `json:"vram_unknown"`  // For VRAM usage when available memory is unknown
+	VRAMExceeds string `json:"vram_exceeds"` // For VRAM usage exceeding available memory
+	VRAMWithin  string `json:"vram_within"`  // For VRAM usage within available memory
+	VRAMUnknown string `json:"vram_unknown"` // For VRAM usage when available memory is unknown
 }
 
 // DarkNeonTheme returns the dark neon theme with current colour
