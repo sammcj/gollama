@@ -99,22 +99,14 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, item list.Ite
 	if isSelected {
 		selectedStyle := styles.SelectedItemStyle()
 		// Create new styles that inherit from selected style first
-		// Keep the foreground color but add the background highlight
-		nameStyle = selectedStyle.Copy().
-			Bold(true).
+		// Keep the foreground colour but add the background highlight
+		nameStyle = selectedStyle.Bold(true).
 			Italic(true)
-		shaStyle = selectedStyle.Copy().
-			Inherit(shaStyle)
-		dateStyle = selectedStyle.Copy().
-			Inherit(dateStyle)
-		sizeStyle = selectedStyle.Copy().
-			Inherit(sizeStyle)
-		familyStyle = selectedStyle.Copy().
-			Inherit(familyStyle)
-		quantStyle = selectedStyle.Copy().
-			Inherit(quantStyle)
-		modifiedStyle = selectedStyle.Copy().
-			Inherit(modifiedStyle)
+		shaStyle = selectedStyle.Inherit(shaStyle)
+		dateStyle = selectedStyle.Inherit(dateStyle)
+		sizeStyle = selectedStyle.Inherit(sizeStyle)
+		familyStyle = selectedStyle.Inherit(familyStyle)
+		quantStyle = selectedStyle.Inherit(quantStyle)
 	}
 
 	nameWidth, sizeWidth, quantWidth, modifiedWidth, idWidth, familyWidth := calculateColumnWidths(m.Width())
