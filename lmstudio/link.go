@@ -5,7 +5,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"text/template"
 
@@ -114,18 +113,6 @@ func ScanModels(dirPath string) ([]Model, error) {
 	return models, nil
 }
 
-// GetOllamaModelDir returns the default Ollama models directory for the current OS
-func GetOllamaModelDir() string {
-	homeDir := utils.GetHomeDir()
-	if runtime.GOOS == "darwin" {
-		return filepath.Join(homeDir, ".ollama", "models")
-	} else if runtime.GOOS == "linux" {
-		return "/usr/share/ollama/models"
-	}
-	// Add Windows path if needed
-	return filepath.Join(homeDir, ".ollama", "models")
-}
-
 // modelExists checks if a model is already registered with Ollama
 func modelExists(modelName string) bool {
 	cmd := exec.Command("ollama", "list")
@@ -181,13 +168,11 @@ func createModelfile(modelName string, modelPath string) error {
 
 // LinkModelToOllama links an LM Studio model to Ollama
 // If dryRun is true, it will only print what would happen without making any changes
-func LinkModelToOllama(model Model, dryRun bool, ollamaHost string) error {
+func LinkModelToOllama(model Model, dryRun bool, ollamaHost string, ollamaDir string) error {
 	// Check if we're connecting to a local Ollama instance
 	if !utils.IsLocalhost(ollamaHost) {
 		return fmt.Errorf("linking LM Studio models to Ollama is only supported when connecting to a local Ollama instance (got %s)", ollamaHost)
 	}
-
-	ollamaDir := GetOllamaModelDir()
 
 	if dryRun {
 		logging.InfoLogger.Printf("[DRY RUN] Would create Ollama models directory at: %s", ollamaDir)
