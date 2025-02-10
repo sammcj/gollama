@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 
@@ -25,7 +24,6 @@ import (
 	"github.com/sammcj/gollama/config"
 	"github.com/sammcj/gollama/lmstudio"
 	"github.com/sammcj/gollama/logging"
-	"github.com/sammcj/gollama/utils"
 	"github.com/sammcj/gollama/vramestimator"
 )
 
@@ -314,7 +312,7 @@ func main() {
 	}
 
 	if *ollamaDirFlag == "" {
-		app.ollamaModelsDir = filepath.Join(utils.GetHomeDir(), ".ollama", "models")
+		app.ollamaModelsDir = cfg.OllamaModelsDir
 	}
 	if *lmStudioDirFlag == "" {
 		app.lmStudioModelsDir = cfg.LMStudioFilePaths
@@ -394,7 +392,7 @@ func main() {
 
 		for _, model := range models {
 			fmt.Printf("%sProcessing model %s... ", prefix, model.Name)
-			if err := lmstudio.LinkModelToOllama(model, *dryRunFlag, cfg.OllamaAPIURL); err != nil {
+			if err := lmstudio.LinkModelToOllama(model, *dryRunFlag, cfg.OllamaAPIURL, app.ollamaModelsDir); err != nil {
 				logging.ErrorLogger.Printf("Error linking model %s: %v\n", model.Name, err)
 				fmt.Printf("failed: %v\n", err)
 				failCount++
