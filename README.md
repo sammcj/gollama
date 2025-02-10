@@ -336,7 +336,8 @@ Example configuration:
 
 ### Themes
 
-Gollama has initial basic support for customisable themes stored as JSON files in `~/.config/gollama/themes/`. The active theme can be set via the `theme` setting in your config file (without the .json extension).
+Gollama has basic support for customisable themes stored as JSON files in `~/.config/gollama/themes/`.
+The active theme can be set via the `theme` setting in your config file (without the .json extension).
 
 Available themes:
 

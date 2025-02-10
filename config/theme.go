@@ -143,6 +143,80 @@ var DefaultTheme = Theme{
 	},
 }
 
+// LightTheme represents the light theme with neon accents
+var LightTheme = Theme{
+	Name:        "light-neon",
+	Description: "Light theme with neon accents",
+	Colors: ThemeColors{
+		// General UI
+		HeaderForeground: "238",
+		HeaderBorder:     "237",
+		Selected:         "232",
+		SelectedBg:       "93",
+
+		// Text input
+		PromptText:      "#8B00FF",
+		InputText:       "#8B00FF",
+		PlaceholderText: "#6600CC",
+		CursorBg:        "#4B0082",
+
+		// Status messages
+		Error:   "#FF0000",
+		Success: "#8B008B",
+		Info:    "92",
+		Warning: "#FF1493",
+
+		// List items
+		ItemName:      []string{"#000000", "#444444"},
+		ItemId:        "235",
+		ItemBorder:    "92",
+		ItemHighlight: "93",
+
+		// Help view
+		HelpText: "#444444",
+		HelpBg:   "#FFFFFF",
+
+		// Compare view
+		CompareHeader:    "#8B008B",
+		CompareCommand:   "#6A0DAD",
+		CompareLocal:     "#0000CD",
+		CompareRemote:    "#008B8B",
+		CompareModified:  "#8B4513",
+		CompareAdded:     "#006400",
+		CompareRemoved:   "#8B0000",
+		CompareSeparator: "#CCCCCC",
+
+		// Search view
+		SearchHighlight: "#5000D3",
+		SearchText:      "#000000",
+		SearchHeader:    "#000000",
+
+		// VRAM estimation
+		VRAMExceeds: "#8B0000",
+		VRAMWithin:  "#006400",
+		VRAMUnknown: "#8B4513",
+	},
+	Family: map[string]string{
+		"llama":       "#8B0000",
+		"alpaca":      "#8B008B",
+		"command-r":   "#C71585",
+		"starcoder2":  "#800080",
+		"starcoder":   "#4B0082",
+		"gemma":       "#483D8B",
+		"qwen2":       "#000080",
+		"phi":         "#0000CD",
+		"granite":     "#2F4F4F",
+		"deepseek":    "#008B8B",
+		"deepseek2":   "#0000FF",
+		"vicuna":      "#4169E1",
+		"bert":        "#8B4513",
+		"nomic-bert":  "#A0522D",
+		"nomic":       "#8B6914",
+		"qwen":        "#006400",
+		"placeholder": "#483D8B",
+	},
+}
+
 // GetThemesDir returns the path to the themes directory
 func GetThemesDir() string {
 	return filepath.Join(utils.GetConfigDir(), "themes")
@@ -157,6 +231,27 @@ func EnsureThemesDir() error {
 	return nil
 }
 
+// SaveLightTheme saves the light theme to the themes directory
+func SaveLightTheme() error {
+	if err := EnsureThemesDir(); err != nil {
+		return err
+	}
+
+	themePath := filepath.Join(GetThemesDir(), "light-neon.json")
+
+	// Only create if it doesn't exist
+	if _, err := os.Stat(themePath); os.IsNotExist(err) {
+		themeJSON, err := json.MarshalIndent(LightTheme, "", "  ")
+		if err != nil {
+			return fmt.Errorf("failed to marshal light theme: %w", err)
+		}
+
+		if err := os.WriteFile(themePath, themeJSON, 0644); err != nil {
+			return fmt.Errorf("failed to write light theme: %w", err)
+		}
+	}
+	return nil
+}
 // SaveDefaultTheme saves the default theme to the themes directory
 func SaveDefaultTheme() error {
 	if err := EnsureThemesDir(); err != nil {

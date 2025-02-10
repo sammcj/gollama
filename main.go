@@ -105,10 +105,17 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Initialize the default theme
+	// Initialize the default and light themes
 	err = config.SaveDefaultTheme()
 	if err != nil {
 		fmt.Println("Error saving default theme:", err)
+		os.Exit(1)
+	}
+
+	// Save the light theme if it doesn't exist
+	err = config.SaveLightTheme()
+	if err != nil {
+		fmt.Println("Error saving light theme:", err)
 		os.Exit(1)
 	}
 
