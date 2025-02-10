@@ -18,6 +18,7 @@ import (
 	"github.com/ollama/ollama/api"
 	"github.com/sammcj/gollama/config"
 	"github.com/sammcj/gollama/logging"
+	"github.com/sammcj/gollama/styles"
 )
 
 func runModel(model string, cfg *config.Config) tea.Cmd {
@@ -80,6 +81,11 @@ func copyModel(m *AppModel, client *api.Client, oldName string, newName string) 
 	}
 	err := client.Copy(ctx, req)
 	if err != nil {
+		// Check if error indicates cancellation
+		if strings.Contains(err.Error(), "operation was canceled") {
+			logging.InfoLogger.Printf("Copy operation cancelled for model: %s\n", oldName)
+			return
+		}
 		logging.ErrorLogger.Printf("Error copying model: %v\n", err)
 		return
 	}
@@ -261,8 +267,8 @@ func editModelfile(client *api.Client, modelName string) (string, error) {
 
 	// Create request with base fields
 	createReq := &api.CreateRequest{
-		Model: modelName,    // The model to update
-		From:  modelName,    // Required: use the model's own name as the base
+		Model: modelName, // The model to update
+		From:  modelName, // Required: use the model's own name as the base
 	}
 
 	origTemplate, origSystem = extractTemplateAndSystem(modelfileContent)
@@ -295,8 +301,6 @@ func editModelfile(client *api.Client, modelName string) (string, error) {
 	if len(parameters) > 0 {
 		logging.DebugLogger.Printf("- Modified parameters: %+v\n", parameters)
 	}
-
-
 
 	reqJson, jsonErr := json.Marshal(createReq)
 	if jsonErr == nil {
@@ -575,20 +579,15 @@ func searchModels(models []Model, searchTerms ...string) {
 		return strings.ToLower(searchResults[i].Name) < strings.ToLower(searchResults[j].Name)
 	})
 
-	baseStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.AdaptiveColor{Light: "#5000D3", Dark: "#FF60FF"})
-	highlightStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.AdaptiveColor{Light: "#000000", Dark: "#FFFFFF"})
-	headerStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.AdaptiveColor{Light: "#000000", Dark: "#AAEE9A"})
+	baseStyle, highlightStyle, headerStyle := styles.SearchHighlightStyle(), styles.SearchTextStyle(), styles.SearchHeaderStyle()
 
 	for i, model := range searchResults {
-		colorizedName := model.Name
+		colourisedName := model.Name
 		for _, term := range searchTerms {
 			andTerms := strings.Split(term, "&")
-			colorizedName = highlightTerms(colorizedName, baseStyle, highlightStyle, andTerms)
+			colourisedName = highlightTerms(colourisedName, baseStyle, highlightStyle, andTerms)
 		}
-		searchResults[i].Name = colorizedName
+		searchResults[i].Name = colourisedName
 	}
 
 	fmt.Println(headerStyle.Render("Search results for: " + highlightStyle.Render(strings.Join(searchTerms, " "))))
@@ -668,7 +667,6 @@ func linkModel(modelName, lmStudioModelsDir string, noCleanup bool, dryRun bool,
 		return "", nil
 	}
 }
-
 
 func highlightTerms(modelName string, baseStyle, highlightStyle lipgloss.Style, searchTerms []string) string {
 	lowercaseName := strings.ToLower(modelName)

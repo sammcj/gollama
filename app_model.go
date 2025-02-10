@@ -17,6 +17,7 @@ import (
 	"github.com/ollama/ollama/api"
 
 	"github.com/sammcj/gollama/logging"
+	"github.com/sammcj/gollama/styles"
 )
 
 const (
@@ -269,8 +270,8 @@ func (m *AppModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleTopKey()
 	case key.Matches(msg, m.keys.Help):
 		return m.handleHelpKey()
-  case key.Matches(msg, m.keys.CompareModelfile):
-    return m.handleCompareModelfile()
+	case key.Matches(msg, m.keys.CompareModelfile):
+		return m.handleCompareModelfile()
 	default:
 		m.list, cmd = m.list.Update(msg)
 		return m, cmd
@@ -577,13 +578,13 @@ func (m *AppModel) handleUnloadModelsKey() (tea.Model, tea.Cmd) {
 		for _, model := range loadedModels.Models {
 			_, err := unloadModel(m.client, model.Name)
 			if err != nil {
-				return genericMsg{message: lipgloss.NewStyle().Foreground(lipgloss.Color("#8B0000")).Render(fmt.Sprintf("Error unloading model %s: %v", model.Name, err))}
+				return genericMsg{message: styles.ErrorStyle().Render(fmt.Sprintf("Error unloading model %s: %v", model.Name, err))}
 			} else {
-				unloadedModels = append(unloadedModels, lipgloss.NewStyle().Foreground(lipgloss.Color("#FFB6C1")).Render(model.Name))
+				unloadedModels = append(unloadedModels, styles.WarningStyle().Render(model.Name))
 				logging.InfoLogger.Printf("Model %s unloaded\n", model.Name)
 			}
 		}
-		return genericMsg{message: lipgloss.NewStyle().Foreground(lipgloss.Color("#EE82EE")).Render(fmt.Sprintf("Models unloaded: %v", unloadedModels))}
+		return genericMsg{message: styles.SuccessStyle().Render(fmt.Sprintf("Models unloaded: %v", unloadedModels))}
 	}
 }
 
@@ -650,7 +651,7 @@ func (m *AppModel) handleCopyModelKey() (tea.Model, tea.Cmd) {
 func (m *AppModel) handlePushModelKey() (tea.Model, tea.Cmd) {
 	logging.DebugLogger.Println("PushModel key matched")
 	if item, ok := m.list.SelectedItem().(Model); ok {
-		m.message = lipgloss.NewStyle().Foreground(lipgloss.Color("129")).Render(fmt.Sprintf("Pushing model: %s\n", item.Name))
+		m.message = styles.InfoStyle().Render(fmt.Sprintf("Pushing model: %s\n", item.Name))
 		m.showProgress = true // Show progress bar
 		return m, m.startPushModel(item.Name)
 	}
@@ -660,7 +661,7 @@ func (m *AppModel) handlePushModelKey() (tea.Model, tea.Cmd) {
 func (m *AppModel) handlePullModelKey() (tea.Model, tea.Cmd) {
 	logging.DebugLogger.Println("PullModel key matched")
 	if item, ok := m.list.SelectedItem().(Model); ok {
-		m.message = lipgloss.NewStyle().Foreground(lipgloss.Color("129")).Render(fmt.Sprintf("Pulling model: %s\n", item.Name))
+		m.message = styles.InfoStyle().Render(fmt.Sprintf("Pulling model: %s\n", item.Name))
 		m.pulling = true
 		m.pullProgress = 0
 		return m, m.startPullModel(item.Name)
@@ -731,13 +732,13 @@ func (m *AppModel) handleRenameModelKey() (tea.Model, tea.Cmd) {
 	if item, ok := m.list.SelectedItem().(Model); ok {
 		newName := promptForNewName(item.Name)
 		if newName == "" {
-			m.message = lipgloss.NewStyle().Foreground(lipgloss.Color("#8B0000")).Render("Error: name can't be empty")
+			m.message = styles.ErrorStyle().Render("Error: name can't be empty")
 		} else {
 			err := renameModel(m, item.Name, newName)
 			if err != nil {
-				m.message = lipgloss.NewStyle().Foreground(lipgloss.Color("#8B0000")).Render(fmt.Sprintf("Error renaming model: %v", err))
+				m.message = styles.ErrorStyle().Render(fmt.Sprintf("Error renaming model: %v", err))
 			} else {
-				m.message = lipgloss.NewStyle().Foreground(lipgloss.Color("#EE82EE")).Render(fmt.Sprintf("Model %s renamed to %s", item.Name, newName))
+				m.message = styles.SuccessStyle().Render(fmt.Sprintf("Model %s renamed to %s", item.Name, newName))
 			}
 		}
 	}
@@ -802,7 +803,7 @@ func (m *AppModel) View() string {
 		view := m.list.View()
 
 		if m.message != "" && m.view != HelpView {
-			view += "\n\n" + lipgloss.NewStyle().Foreground(lipgloss.Color("205")).Render(m.message)
+			view += "\n\n" + styles.InfoStyle().Render(m.message)
 		}
 
 		if m.showProgress {
@@ -868,8 +869,8 @@ func (m *AppModel) inspectModelView(model Model) string {
 
 	// Set the table styles
 	s := table.DefaultStyles()
-	s.Header = s.Header.BorderStyle(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color("240"))
-	s.Selected = s.Selected.Foreground(lipgloss.Color("229")).Background(lipgloss.Color("57"))
+	s.Header = s.Header.BorderStyle(lipgloss.NormalBorder()).BorderForeground(styles.GetTheme().GetColour(styles.GetTheme().Colours.HeaderBorder))
+	s.Selected = styles.SelectedItemStyle()
 	t.SetStyles(s)
 	t.Focus()
 
@@ -923,9 +924,7 @@ func (m *AppModel) startTopTicker() tea.Cmd {
 }
 
 func (m *AppModel) topView() string {
-	headerStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("241")).
-		MarginBottom(1)
+	headerStyle := styles.HeaderStyle()
 
 	runningModels, err := showRunningModels(m.client)
 	if err != nil {
@@ -948,15 +947,15 @@ func (m *AppModel) topView() string {
 
 	// Set the table styles
 	s := table.DefaultStyles()
-	s.Header = s.Header.BorderStyle(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color("240"))
-	s.Selected = s.Selected.Foreground(lipgloss.Color("229")).Background(lipgloss.Color("57"))
+	s.Header = s.Header.BorderStyle(lipgloss.NormalBorder()).BorderForeground(styles.GetTheme().GetColour(styles.GetTheme().Colours.HeaderBorder))
+	s.Selected = styles.SelectedItemStyle()
 	t.SetStyles(s)
 
 	// Render the table view
 	return lipgloss.JoinVertical(
 		lipgloss.Left,
 		headerStyle.Render(fmt.Sprintf("Connected to Ollama at: %s", m.cfg.OllamaAPIURL)),
-		"\n" + t.View() + "\nPress 'q' or `esc` to return to the main view.",
+		"\n"+t.View()+"\nPress 'q' or `esc` to return to the main view.",
 	)
 }
 
@@ -998,8 +997,8 @@ func (m *AppModel) printFullHelp() string {
 
 	// Set the table styles
 	s := table.DefaultStyles()
-	s.Header = s.Header.BorderStyle(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color("240"))
-	s.Selected = s.Selected.Foreground(lipgloss.Color("229")).Background(lipgloss.Color("57"))
+	s.Header = s.Header.BorderStyle(lipgloss.NormalBorder()).BorderForeground(styles.GetTheme().GetColour(styles.GetTheme().Colours.HeaderBorder))
+	s.Selected = styles.SelectedItemStyle()
 	t.SetStyles(s)
 
 	// Render the table view

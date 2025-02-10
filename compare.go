@@ -12,6 +12,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/ollama/ollama/api"
 	"github.com/sammcj/gollama/logging"
+	"github.com/sammcj/gollama/styles"
 )
 
 type ModelfileDiff struct {
@@ -117,7 +118,6 @@ func fetchLatestModelfile(modelName string) (string, error) {
 	}
 	templateBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-
 		return "", fmt.Errorf("error reading template body: %v", err)
 	}
 	logging.DebugLogger.Printf("Template response: %s", string(templateBody))
@@ -276,47 +276,6 @@ func (m *AppModel) modelfileDiffView() string {
 		return ""
 	}
 
-	// Define styles using the application's colour scheme
-	titleStyle := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("#FF00FF")).
-		MarginBottom(1).
-		Padding(0, 1)
-
-	headerStyle := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("#FFFFFF")).
-		Background(lipgloss.Color("#333333")).
-		Padding(0, 1)
-
-	commandStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#9932CC")).
-		Padding(0, 1)
-
-	localStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#60BFFF")).
-		Padding(0, 1)
-
-	remoteStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#00CED1")).
-		Padding(0, 1)
-
-	modifiedLocalStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#FFFF00")).
-		Padding(0, 1)
-
-	modifiedRemoteStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#FFA500")).
-		Padding(0, 1)
-
-	addedStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#00FF00")).
-		Padding(0, 1)
-
-	removedStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#FF0000")).
-		Padding(0, 1)
-
 	// Calculate column widths
 	commandWidth := 20
 	valueWidth := 30
@@ -341,16 +300,15 @@ func (m *AppModel) modelfileDiffView() string {
 
 	// Add header
 	header := lipgloss.JoinHorizontal(lipgloss.Left,
-		headerStyle.Width(commandWidth).Render("Command"),
-		headerStyle.Width(valueWidth).Render("Local Value"),
-		headerStyle.Width(valueWidth).Render("Remote Value"),
+		styles.CompareHeaderStyle().Width(commandWidth).Render("Command"),
+		styles.CompareHeaderStyle().Width(valueWidth).Render("Local Value"),
+		styles.CompareHeaderStyle().Width(valueWidth).Render("Remote Value"),
 	)
 
 	rows = append(rows, header)
 
 	// Add separator
-	separator := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#333333")).
+	separator := styles.CompareSeparatorStyle().
 		Render(strings.Repeat("─", commandWidth+valueWidth*2+2))
 	rows = append(rows, separator)
 
@@ -361,29 +319,29 @@ func (m *AppModel) modelfileDiffView() string {
 
 		switch diff.Type {
 		case "modified":
-			currentStyle = modifiedLocalStyle
-			latestStyle = modifiedRemoteStyle
+			currentStyle = styles.CompareModifiedStyle()
+			latestStyle = styles.CompareModifiedStyle()
 			current = diff.Current
 			latest = diff.Latest
 		case "added":
-			currentStyle = localStyle
-			latestStyle = addedStyle
+			currentStyle = styles.CompareLocalStyle()
+			latestStyle = styles.CompareAddedStyle()
 			current = "undefined"
 			latest = diff.Latest
 		case "removed":
-			currentStyle = localStyle
-			latestStyle = removedStyle
+			currentStyle = styles.CompareLocalStyle()
+			latestStyle = styles.CompareRemovedStyle()
 			current = diff.Current
 			latest = "undefined"
 		default:
-			currentStyle = localStyle
-			latestStyle = remoteStyle
+			currentStyle = styles.CompareLocalStyle()
+			latestStyle = styles.CompareRemoteStyle()
 			current = diff.Current
 			latest = diff.Latest
 		}
 
 		row := lipgloss.JoinHorizontal(lipgloss.Left,
-			commandStyle.Width(commandWidth).Render(diff.Command),
+			styles.CompareCommandStyle().Width(commandWidth).Render(diff.Command),
 			currentStyle.Width(valueWidth).Render(current),
 			latestStyle.Width(valueWidth).Render(latest),
 		)
@@ -392,12 +350,11 @@ func (m *AppModel) modelfileDiffView() string {
 
 	// Build the final view
 	var b strings.Builder
-	b.WriteString(titleStyle.Render("Modelfile Comparison"))
+	b.WriteString(styles.CompareHeaderStyle().Render("Modelfile Comparison"))
 	b.WriteString("\n\n")
 	b.WriteString(strings.Join(rows, "\n"))
 	b.WriteString("\n\n")
-	b.WriteString(lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#666666")).
+	b.WriteString(styles.HelpTextStyle().
 		Render("Press 'q' or 'esc' to return to the main view"))
 
 	return b.String()

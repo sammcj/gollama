@@ -7,8 +7,8 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/sammcj/gollama/logging"
+	"github.com/sammcj/gollama/styles"
 )
 
 type textInputModel struct {
@@ -31,10 +31,10 @@ func promptForNewName(oldName string) string {
 	ti.CharLimit = 300
 	ti.Width = 140
 
-	ti.PromptStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF00FF"))
-	ti.TextStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF00FF"))
-	ti.Cursor.Style = lipgloss.NewStyle().Background(lipgloss.Color("#4E00FF")).Background(lipgloss.Color("#111111"))
-	ti.PlaceholderStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#AD00FF"))
+	ti.PromptStyle = styles.PromptStyle()
+	ti.TextStyle = styles.InputTextStyle()
+	ti.Cursor.Style = styles.CursorStyle()
+	ti.PlaceholderStyle = styles.PlaceholderStyle()
 
 	m := textInputModel{
 		textInput: ti,

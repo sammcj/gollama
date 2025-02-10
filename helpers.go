@@ -8,8 +8,8 @@ import (
 
 	"github.com/sammcj/gollama/config"
 	"github.com/sammcj/gollama/logging"
+	"github.com/sammcj/gollama/styles"
 
-	"github.com/charmbracelet/lipgloss"
 	"github.com/ollama/ollama/api"
 	"golang.org/x/term"
 )
@@ -19,10 +19,9 @@ func parseAPIResponse(resp *api.ListResponse) []Model {
 
 	models := make([]Model, len(resp.Models))
 	for i, modelResp := range resp.Models {
-		modelName := lipgloss.NewStyle().Foreground(lipgloss.Color("white")).Render(modelResp.Name)
 		models[i] = Model{
-			Name:              modelName,
-			ID:                truncate(modelResp.Digest, 7),                  // Truncate the ID
+			Name:              modelResp.Name,
+			ID:                truncate(modelResp.Digest, 7),
 			Size:              float64(modelResp.Size) / (1024 * 1024 * 1024), // Convert bytes to GB
 			QuantizationLevel: modelResp.Details.QuantizationLevel,
 			Family:            modelResp.Details.Family,
@@ -208,19 +207,17 @@ func listModels(models []Model) {
 	}
 
 	// Print the header
-	fmt.Println(lipgloss.NewStyle().Foreground(lipgloss.Color("12")).Render(header))
+	fmt.Println(styles.HeaderStyle().Render(header))
 
 	modelList := []string{}
 
 	for index, model := range models {
-		// colourise the model properties
-		nameColours := []lipgloss.Color{lipgloss.Color("#FFFFFF"), lipgloss.Color("#818BA9")}
-		name := lipgloss.NewStyle().Foreground(nameColours[index%len(nameColours)]).Render(names[index])
-		id := lipgloss.NewStyle().Foreground(lipgloss.Color("254")).Faint(true).Render(ids[index])
-		size := lipgloss.NewStyle().Foreground(sizeColour(model.Size)).Render(sizes[index])
-		family := lipgloss.NewStyle().Foreground(familyColour(model.Family, 0)).Render(families[index])
-		quant := lipgloss.NewStyle().Foreground(quantColour(model.QuantizationLevel)).Render(quants[index])
-		modified := lipgloss.NewStyle().Foreground(lipgloss.Color("254")).Render(modified[index])
+		name := styles.ItemNameStyle(index).Render(names[index])
+		id := styles.ItemIDStyle().Render(ids[index])
+		size := styles.SizeStyle(model.Size).Render(sizes[index])
+		family := styles.FamilyStyle(model.Family).Render(families[index])
+		quant := styles.QuantStyle(model.QuantizationLevel).Render(quants[index])
+		modified := styles.ItemIDStyle().Render(modified[index])
 
 		row := fmt.Sprintf("%-*s%-*s%-*s%-*s%-*s%-*s",
 			maxNameWidth, name,
