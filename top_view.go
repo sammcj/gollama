@@ -11,6 +11,7 @@ import (
 	"github.com/ollama/ollama/api"
 	"github.com/sammcj/gollama/config"
 	"github.com/sammcj/gollama/logging"
+	"github.com/sammcj/gollama/styles"
 )
 
 type TopModel struct {
@@ -75,13 +76,9 @@ func (m *TopModel) View() string {
 		return "Returning to main view...\n"
 	}
 
-	headerStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("241")).
-		MarginBottom(1)
-
 	return lipgloss.JoinVertical(
 		lipgloss.Left,
-		headerStyle.Render(fmt.Sprintf("Connected to Ollama at: %s", m.apiURL)),
+		styles.HeaderStyle().Render(fmt.Sprintf("Connected to Ollama at: %s", m.apiURL)),
 		lipgloss.NewStyle().Render(m.table.View()),
 	)
 }

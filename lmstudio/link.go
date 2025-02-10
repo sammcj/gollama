@@ -50,7 +50,7 @@ PARAMETER stop "<|im_end|>"
 
 type ModelfileData struct {
 	ModelPath string
-  Prompt string
+	Prompt    string
 }
 
 // ScanModels scans the given directory for LM Studio model files
@@ -152,8 +152,8 @@ func createModelfile(modelName string, modelPath string) error {
 	}
 
 	data := ModelfileData{
-		ModelPath: modelPath, // Use full path instead of just the base name
-    Prompt: "{{.Prompt}}", // Preserve this as a template variable for Ollama
+		ModelPath: modelPath,     // Use full path instead of just the base name
+		Prompt:    "{{.Prompt}}", // Preserve this as a template variable for Ollama
 	}
 
 	file, err := os.OpenFile(modelfilePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)

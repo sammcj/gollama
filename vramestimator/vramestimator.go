@@ -17,9 +17,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/charmbracelet/lipgloss"
 	"github.com/olekukonko/tablewriter"
 	"github.com/sammcj/gollama/logging"
+	"github.com/sammcj/gollama/styles"
 	"github.com/sammcj/gollama/utils"
 	"github.com/shirou/gopsutil/v3/mem"
 )
@@ -75,11 +75,6 @@ const (
 const (
 	CUDASize = 500 * 1024 * 1024 // 500 MB
 )
-
-var colourMap = []string{
-	"#ff0000", // red
-	"#00ff00", // green
-}
 
 // GGUFMapping maps GGUF quantisation types to their corresponding bits per weight
 var GGUFMapping = map[string]float64{
@@ -809,11 +804,7 @@ func PrintFormattedTable(table QuantResultTable) string {
 	var buf bytes.Buffer
 
 	// Add the description header
-	headerStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#87CEEB")). // Light blue for better readability
-		Bold(true)
-
-	buf.WriteString(headerStyle.Render(vramDescription))
+	buf.WriteString(styles.HeaderStyle().Bold(true).Render(vramDescription))
 	buf.WriteString("\n")
 
 	tw := tablewriter.NewWriter(&buf)
@@ -891,9 +882,7 @@ func PrintFormattedTable(table QuantResultTable) string {
 		modelInfo += fmt.Sprintf(" (Memory Constraint: %.1f GB)", table.FitsVRAM)
 	}
 
-	return lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#ffffff")).
-		Render(fmt.Sprintf("%s\n\n%s", modelInfo, buf.String()))
+	return styles.ItemNameStyle(0).Render(fmt.Sprintf("%s\n\n%s", modelInfo, buf.String()))
 }
 
 // ParseModelIdentifier parses a model identifier into its base name and quantisation level.
@@ -937,25 +926,13 @@ func ParseModelIdentifier(modelID string) (string, string, error) {
 }
 
 func getColouredVRAM(vram float64, vramStr string, fitsVRAM float64) string {
-	var colorIndex int
 	if fitsVRAM > 0 {
 		if vram > fitsVRAM {
-			colorIndex = 0 // Red
+			return styles.VRAMExceedsStyle().Render(vramStr)
 		} else {
-			colorIndex = len(colourMap) - 1 // Green
+			return styles.VRAMWithinStyle().Render(vramStr)
 		}
 	} else {
-		// Calculate color index based on VRAM usage
-		if vram <= 4 {
-			colorIndex = len(colourMap) - 1
-		} else if vram >= 24 {
-			colorIndex = 0
-		} else {
-			// Interpolate between 4 and 24 GB
-			colorIndex = len(colourMap) - 1 - int((vram-4)/(24-4)*float64(len(colourMap)-1))
-		}
+		return styles.VRAMUnknownStyle().Render(vramStr)
 	}
-
-	style := lipgloss.NewStyle().Foreground(lipgloss.Color(colourMap[colorIndex]))
-	return style.Render(vramStr)
 }
