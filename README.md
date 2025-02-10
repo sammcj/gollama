@@ -361,6 +361,13 @@ Please fork the repository and create a pull request with your changes.
                 </a>
             </td>
             <td align="center">
+                <a href="https://github.com/Camsbury">
+                    <img src="https://avatars.githubusercontent.com/u/7485022?v=4" width="50;" alt="Camsbury"/>
+                    <br />
+                    <sub><b>Cameron Kingsbury</b></sub>
+                </a>
+            </td>
+            <td align="center">
                 <a href="https://github.com/DenisBalan">
                     <img src="https://avatars.githubusercontent.com/u/33955091?v=4" width="50;" alt="DenisBalan"/>
                     <br />
@@ -381,6 +388,8 @@ Please fork the repository and create a pull request with your changes.
                     <sub><b>Jose Almaraz</b></sub>
                 </a>
             </td>
+		</tr>
+		<tr>
             <td align="center">
                 <a href="https://github.com/jralmaraz">
                     <img src="https://avatars.githubusercontent.com/u/13877691?v=4" width="50;" alt="jralmaraz"/>
@@ -388,8 +397,6 @@ Please fork the repository and create a pull request with your changes.
                     <sub><b>Jose Roberto Almaraz</b></sub>
                 </a>
             </td>
-		</tr>
-		<tr>
             <td align="center">
                 <a href="https://github.com/Br1ght0ne">
                     <img src="https://avatars.githubusercontent.com/u/12615679?v=4" width="50;" alt="Br1ght0ne"/>
