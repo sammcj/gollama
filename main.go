@@ -317,7 +317,7 @@ func main() {
 		app.ollamaModelsDir = filepath.Join(utils.GetHomeDir(), ".ollama", "models")
 	}
 	if *lmStudioDirFlag == "" {
-		app.lmStudioModelsDir = filepath.Join(utils.GetHomeDir(), ".lmstudio", "models")
+		app.lmStudioModelsDir = cfg.LMStudioFilePaths
 	}
 
 	if *listFlag {
@@ -347,11 +347,6 @@ func main() {
 			os.Exit(1)
 		}
 
-		// if cfg.LMStudioFilePaths is empty, use the default path in the user's home directory / .lmstudio / models
-		if cfg.LMStudioFilePaths == "" {
-			cfg.LMStudioFilePaths = filepath.Join(utils.GetHomeDir(), ".lmstudio", "models")
-		}
-
 		prefix := ""
 		if *dryRunFlag {
 			prefix = "[DRY RUN] "
@@ -360,7 +355,7 @@ func main() {
 
 		// link all models
 		for _, model := range models {
-			message, err := linkModel(model.Name, cfg.LMStudioFilePaths, false, *dryRunFlag, client)
+			message, err := linkModel(model.Name, app.lmStudioModelsDir, false, *dryRunFlag, client)
 			if message != "" {
 				logging.InfoLogger.Println(message)
 				fmt.Printf("%s%s\n", prefix, message)
@@ -376,13 +371,9 @@ func main() {
 	}
 
 	if *linkLMStudioFlag {
-		if cfg.LMStudioFilePaths == "" {
-			cfg.LMStudioFilePaths = filepath.Join(utils.GetHomeDir(), ".lmstudio", "models")
-		}
+		fmt.Printf("Scanning for LM Studio models in: %s\n", app.lmStudioModelsDir)
 
-		fmt.Printf("Scanning for LM Studio models in: %s\n", cfg.LMStudioFilePaths)
-
-		models, err := lmstudio.ScanModels(cfg.LMStudioFilePaths)
+		models, err := lmstudio.ScanModels(app.lmStudioModelsDir)
 		if err != nil {
 			logging.ErrorLogger.Printf("Error scanning LM Studio models: %v\n", err)
 			fmt.Printf("Failed to scan LM Studio models directory: %v\n", err)
