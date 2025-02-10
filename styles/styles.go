@@ -13,7 +13,7 @@ var (
 	themeMutex   sync.RWMutex
 )
 
-// InitTheme initializes the current theme
+// InitTheme initialises the current theme
 func InitTheme(theme *config.Theme) {
 	themeMutex.Lock()
 	defer themeMutex.Unlock()

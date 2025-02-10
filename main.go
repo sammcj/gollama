@@ -103,14 +103,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Initialize themes
+	// Initialise themes
 	err = config.SaveThemes()
 	if err != nil {
 		fmt.Println("Error saving themes:", err)
 		os.Exit(1)
 	}
 
-	// Load and initialize the theme
+	// Load and initialise the theme
 	theme, err := config.LoadTheme(cfg.Theme)
 	if err != nil {
 		fmt.Println("Error loading theme:", err)
