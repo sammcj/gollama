@@ -354,17 +354,17 @@ Please fork the repository and create a pull request with your changes.
                 </a>
             </td>
             <td align="center">
-                <a href="https://github.com/KimCookieYa">
-                    <img src="https://avatars.githubusercontent.com/u/45006957?v=4" width="50;" alt="KimCookieYa"/>
-                    <br />
-                    <sub><b>KimCookieYa</b></sub>
-                </a>
-            </td>
-            <td align="center">
                 <a href="https://github.com/Camsbury">
                     <img src="https://avatars.githubusercontent.com/u/7485022?v=4" width="50;" alt="Camsbury"/>
                     <br />
                     <sub><b>Cameron Kingsbury</b></sub>
+                </a>
+            </td>
+            <td align="center">
+                <a href="https://github.com/KimCookieYa">
+                    <img src="https://avatars.githubusercontent.com/u/45006957?v=4" width="50;" alt="KimCookieYa"/>
+                    <br />
+                    <sub><b>KimCookieYa</b></sub>
                 </a>
             </td>
             <td align="center">
