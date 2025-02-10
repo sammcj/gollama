@@ -104,14 +104,28 @@ func LoadConfig() (Config, error) {
 	}
 
 	var config Config
-	// First try to get the URL from the config file
-	if apiURL := viper.GetString("ollama_api_url"); apiURL != "" {
-		config.OllamaAPIURL = apiURL
-	} else {
-		config.OllamaAPIURL = getAPIUrl()
-	}
-	viper.Set("ollama_api_url", config.OllamaAPIURL)
+
+	viper.SetDefault("columns", defaultConfig.Columns)
+	viper.SetDefault("ollama_api_key", defaultConfig.OllamaAPIKey)
+	viper.SetDefault("ollama_api_url", defaultConfig.OllamaAPIURL)
+	viper.SetDefault("lm_studio_file_paths", defaultConfig.LMStudioFilePaths)
+	viper.SetDefault("log_level", defaultConfig.LogLevel)
+	viper.SetDefault("log_file_path", defaultConfig.LogFilePath)
+	viper.SetDefault("sort_order", defaultConfig.SortOrder)
+	viper.SetDefault("strip_string", defaultConfig.StripString)
+	viper.SetDefault("editor", defaultConfig.Editor)
+	viper.SetDefault("docker_container", defaultConfig.DockerContainer)
+
+	config.Columns = viper.GetStringSlice("columns")
+	config.OllamaAPIKey = viper.GetString("ollama_api_key")
+	config.OllamaAPIURL = viper.GetString("ollama_api_url")
+	config.LMStudioFilePaths = viper.GetString("lm_studio_file_paths")
 	config.LogLevel = viper.GetString("log_level")
+	config.LogFilePath = viper.GetString("log_file_path")
+	config.SortOrder = viper.GetString("sort_order")
+	config.StripString = viper.GetString("strip_string")
+	config.Editor = viper.GetString("editor")
+	config.DockerContainer = viper.GetString("docker_container")
 
 	viper.OnConfigChange(func(e fsnotify.Event) {
 		fmt.Println("Config file changed:", e.Name)
