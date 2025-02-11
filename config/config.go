@@ -23,6 +23,7 @@ type Config struct {
 	SortOrder         string   `mapstructure:"sort_order"`   // Current sort order
 	StripString       string   `mapstructure:"strip_string"` // Optional string to strip from model names in the TUI (e.g. a private registry URL)
 	Editor            string   `mapstructure:"editor"`
+	Theme             string   `mapstructure:"theme"`            // Name of the theme to use (without .json extension)
 	DockerContainer   string   `mapstructure:"docker_container"` // Optionally specify a docker container to run the ollama commands in
 	modified          bool     // Internal flag to track if the config has been modified
 }
@@ -37,6 +38,7 @@ var defaultConfig = Config{
 	SortOrder:         "modified",
 	StripString:       "",
 	Editor:            "/usr/bin/vim",
+	Theme:             "dark-neon",
 	DockerContainer:   "",
 }
 
@@ -79,6 +81,7 @@ func CreateDefaultConfig() error {
 	viper.SetDefault("sort_order", defaultConfig.SortOrder)
 	viper.SetDefault("strip_string", defaultConfig.StripString)
 	viper.SetDefault("editor", defaultConfig.Editor)
+	viper.SetDefault("theme", defaultConfig.Theme)
 	viper.SetDefault("docker_container", defaultConfig.DockerContainer)
 
 	return SaveConfig(defaultConfig)
@@ -130,6 +133,7 @@ func LoadConfig() (Config, error) {
 	viper.SetDefault("sort_order", defaultConfig.SortOrder)
 	viper.SetDefault("strip_string", defaultConfig.StripString)
 	viper.SetDefault("editor", defaultConfig.Editor)
+	viper.SetDefault("theme", defaultConfig.Theme)
 	viper.SetDefault("docker_container", defaultConfig.DockerContainer)
 
 	config.Columns = viper.GetStringSlice("columns")
@@ -142,6 +146,7 @@ func LoadConfig() (Config, error) {
 	config.SortOrder = viper.GetString("sort_order")
 	config.StripString = viper.GetString("strip_string")
 	config.Editor = viper.GetString("editor")
+	config.Theme = viper.GetString("theme")
 	config.DockerContainer = viper.GetString("docker_container")
 
 	viper.OnConfigChange(func(e fsnotify.Event) {

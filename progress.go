@@ -6,12 +6,10 @@ import (
 
 	"github.com/charmbracelet/bubbles/progress"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"github.com/sammcj/gollama/styles"
 )
 
 // TODO: Complete the progress bar and implement in the operations
-
-var helpStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#626262")).Render
 
 const (
 	padding  = 2
@@ -32,7 +30,7 @@ func (m progressModel) View() string {
 	pad := strings.Repeat(" ", padding)
 	return "\n" +
 		pad + m.progress.View() + "\n\n" +
-		pad + helpStyle("Press any key to quit")
+		pad + styles.HelpTextStyle().Render("Press any key to quit")
 }
 
 type tickMsg time.Time
@@ -78,7 +76,7 @@ func (m progressModel) ViewProgress() string {
 	pad := strings.Repeat(" ", padding)
 	return "\n" +
 		pad + m.progress.View() + "\n\n" +
-		pad + helpStyle("Press any key to quit")
+		pad + styles.HelpTextStyle().Render("Press any key to quit")
 }
 
 // A progress demo function that shows a progress bar that updates 25% every second

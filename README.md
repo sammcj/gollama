@@ -28,6 +28,7 @@ The application allows users to interactively select models, sort, filter, edit,
       - [Command-line Options](#command-line-options)
   - [Configuration](#configuration)
   - [Installation and build from source](#installation-and-build-from-source)
+    - [Themes](#themes)
   - [Logging](#logging)
   - [Contributing](#contributing)
   - [Acknowledgements](#acknowledgements)
@@ -279,7 +280,7 @@ Note: The estimator will attempt to use CUDA vRAM if available, otherwise it wil
 
 ## Configuration
 
-Gollama uses a JSON configuration file located at `~/.config/gollama/config.json`. The configuration file includes options for sorting, columns, API keys, log levels etc...
+Gollama uses a JSON configuration file located at `~/.config/gollama/config.json`. The configuration file includes options for sorting, columns, API keys, log levels, theme etc...
 
 Example configuration:
 
@@ -309,6 +310,7 @@ Example configuration:
 - `strip_string` can be used to remove a prefix from model names as they are displayed in the TUI. This can be useful if you have a common prefix such as a private registry that you want to remove for display purposes.
 - `docker_container` - **experimental** - if set, gollama will attempt to perform any run operations inside the specified container.
 - `editor` - **experimental** - if set, gollama will use this editor to open the Modelfile for editing.
+- `theme` - **experimental** The name of the theme to use (without .json extension)
 
 ## Installation and build from source
 
@@ -331,6 +333,43 @@ Example configuration:
     ```shell
     ./gollama
     ```
+
+### Themes
+
+Gollama has basic customisable theme support, themes are stored as JSON files in `~/.config/gollama/themes/`.
+The active theme can be set via the `theme` setting in your config file (without the .json extension).
+
+Default themes will be created if they don't exist:
+
+- `default` - Dark theme with neon accents (default)
+- `light-neon` - Light theme with neon accents, suitable for light terminal backgrounds
+
+To create a custom theme:
+
+1. Create a new JSON file in the themes directory (e.g. `~/.config/gollama/themes/my-theme.json`)
+2. Use the following structure:
+
+```json
+{
+  "name": "my-theme",
+  "description": "My custom theme",
+  "colours": {
+    "header_foreground": "#AA1493",
+    "header_border": "#BA1B11",
+    "selected": "#FFFFFF",
+    ...
+  },
+  "family": {
+    "llama": "#FF1493",
+    "alpaca": "#FF00FF",
+    ...
+  }
+}
+```
+
+Colours can be specified as ANSI colour codes (e.g. "241") or hex values (e.g. "#FF00FF"). The `family` section defines colours for different model families in the list view.
+
+_Note: Using the VSCode extension ['Color Highlight'](https://marketplace.visualstudio.com/items?itemName=naumovs.color-highlight) makes it easier to find the hex values for colours._
 
 ## Logging
 

@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/sammcj/gollama/logging"
+	"github.com/sammcj/gollama/styles"
 
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
@@ -59,32 +60,28 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, item list.Ite
 		return
 	}
 
-	// Alternate colours for model names
-	nameColours := []lipgloss.Color{
-		lipgloss.Color("#FFFFFF"),
-		lipgloss.Color("#818FA1"),
-	}
-
 	// If StripString is set in the config, strip it from the model name
 	if d.appModel.cfg.StripString != "" {
 		model.Name = strings.Replace(model.Name, d.appModel.cfg.StripString, "", 1)
 	}
 
-	nameStyle := lipgloss.NewStyle().Foreground(nameColours[index%len(nameColours)])
-	idStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("254")).Faint(true)
-	sizeStyle := lipgloss.NewStyle().Foreground(sizeColour(model.Size))
-	familyStyle := lipgloss.NewStyle().Foreground(familyColour(model.Family, index))
-	quantStyle := lipgloss.NewStyle().Foreground(quantColour(model.QuantizationLevel))
-	modifiedStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("254"))
+	nameStyle := styles.ItemNameStyle(index)
+	dateStyle := styles.ItemDateStyle()
+	shaStyle := styles.ItemShaStyle()
+	sizeStyle := styles.SizeStyle(model.Size)
+	familyStyle := styles.FamilyStyle(model.Family)
+	quantStyle := styles.QuantStyle(model.QuantizationLevel)
+	modifiedStyle := styles.ItemDateStyle() // Use date style for modified date
 
 	if index == m.Index() {
-		// set the name border to pink
-		nameStyle = nameStyle.Bold(true).BorderLeft(true).BorderStyle(lipgloss.InnerHalfBlockBorder()).BorderForeground(lipgloss.Color("125")).PaddingLeft(1)
+		// Apply border and highlight styles for selected item
+		nameStyle = nameStyle.Bold(true).BorderLeft(true).BorderStyle(lipgloss.InnerHalfBlockBorder()).BorderForeground(styles.GetTheme().GetColour(styles.GetTheme().Colours.ItemBorder)).PaddingLeft(1)
 		sizeStyle = sizeStyle.Bold(true).BorderLeft(true).PaddingLeft(-2).PaddingRight(-2)
 		quantStyle = quantStyle.Bold(true).BorderLeft(true).PaddingLeft(-2).PaddingRight(-2)
 		familyStyle = familyStyle.Bold(true).BorderLeft(true).PaddingLeft(-2).PaddingRight(-2)
-		modifiedStyle = modifiedStyle.Foreground(lipgloss.Color("115")).BorderLeft(true).PaddingLeft(-2).PaddingRight(-2)
-		idStyle = idStyle.Foreground(lipgloss.Color("225")).BorderLeft(true).PaddingLeft(-2).PaddingRight(-2)
+		modifiedStyle = modifiedStyle.Bold(true).BorderLeft(true).PaddingLeft(-2).PaddingRight(-2)
+		shaStyle = shaStyle.Bold(true).BorderLeft(true).PaddingLeft(-2).PaddingRight(-2)
+		dateStyle = dateStyle.Bold(true).BorderLeft(true).PaddingLeft(-2).PaddingRight(-2)
 	}
 
 	// Check if the model is selected in both filtered and unfiltered states
@@ -100,25 +97,34 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, item list.Ite
 	}
 
 	if isSelected {
-		// de-indent to allow for selection border
-		selectedStyle := lipgloss.NewStyle().Background(lipgloss.Color("92")).Bold(true).Italic(true)
-		nameStyle = nameStyle.Inherit(selectedStyle)
-		idStyle = idStyle.Inherit(selectedStyle)
-		sizeStyle = sizeStyle.Inherit(selectedStyle)
-		familyStyle = familyStyle.Inherit(selectedStyle)
-		quantStyle = quantStyle.Inherit(selectedStyle)
-		modifiedStyle = modifiedStyle.Inherit(selectedStyle)
+		selectedStyle := styles.SelectedItemStyle()
+		// Create new styles that inherit from selected style first
+		// Keep the foreground colour but add the background highlight
+		nameStyle = selectedStyle.Bold(true).
+			Italic(true)
+		shaStyle = selectedStyle.Inherit(shaStyle)
+		dateStyle = selectedStyle.Inherit(dateStyle)
+		sizeStyle = selectedStyle.Inherit(sizeStyle)
+		familyStyle = selectedStyle.Inherit(familyStyle)
+		quantStyle = selectedStyle.Inherit(quantStyle)
 	}
 
 	nameWidth, sizeWidth, quantWidth, modifiedWidth, idWidth, familyWidth := calculateColumnWidths(m.Width())
 
 	// Ensure the text fits within the terminal width
-	name := wrapText(nameStyle.Width(nameWidth).Render(truncate(model.Name, nameWidth)), nameWidth)
-	size := wrapText(sizeStyle.Width(sizeWidth).Render(fmt.Sprintf("%.2fGB", model.Size)), sizeWidth)
-	quant := wrapText(quantStyle.Width(quantWidth).Render(truncate(model.QuantizationLevel, quantWidth)), quantWidth)
-	family := wrapText(familyStyle.Width(familyWidth).Render(model.Family), familyWidth)
-	modified := wrapText(modifiedStyle.Width(modifiedWidth).Render(model.Modified.Format("2006-01-02")), modifiedWidth)
-	id := wrapText(idStyle.Width(idWidth).Render(model.ID), idWidth)
+	// Add consistent padding between columns
+	padding := 2
+	name := nameStyle.Width(nameWidth).Render(truncate(model.Name, nameWidth-padding))
+	size := sizeStyle.Width(sizeWidth).Render(fmt.Sprintf("%*.2fGB", sizeWidth-padding-2, model.Size))
+	quant := quantStyle.Width(quantWidth).Render(fmt.Sprintf("%-*s", quantWidth-padding, model.QuantizationLevel))
+	family := familyStyle.Width(familyWidth).Render(fmt.Sprintf("%-*s", familyWidth-padding, model.Family))
+	modified := dateStyle.Width(modifiedWidth).Render(fmt.Sprintf("%-*s", modifiedWidth-padding, model.Modified.Format("2006-01-02")))
+	id := shaStyle.Width(idWidth).Render(fmt.Sprintf("%-*s", idWidth-padding, model.ID))
 
-	fmt.Fprint(w, lipgloss.JoinHorizontal(lipgloss.Top, name, size, quant, family, modified, id))
+	// Add padding between columns
+	spacer := strings.Repeat(" ", padding)
+	row := fmt.Sprintf("%s%s%s%s%s%s%s%s%s%s%s",
+		name, spacer, size, spacer, quant, spacer, family, spacer, modified, spacer, id)
+
+	fmt.Fprint(w, row)
 }

@@ -9,7 +9,7 @@ package cuda
 // func GetCUDAVRAM() (float64, error) {
 // 	ret := nvml.Init()
 // 	if ret != nvml.SUCCESS {
-// 		return 0, fmt.Errorf("failed to initialize NVML: %v", ret)
+// 		return 0, fmt.Errorf("failed to initialise NVML: %v", ret)
 // 	}
 // 	defer nvml.Shutdown()
 

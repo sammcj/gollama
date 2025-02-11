@@ -68,6 +68,7 @@ func TestLoadConfig(t *testing.T) {
 					SortOrder:         "name",
 					StripString:       "strip",
 					Editor:            "vim",
+					Theme:             "dark-neon",
 					DockerContainer:   "testcontainer",
 				}
 				return saveTempConfig(configPath, config)
@@ -84,6 +85,7 @@ func TestLoadConfig(t *testing.T) {
 				StripString:       "strip",
 				Editor:            "vim",
 				DockerContainer:   "testcontainer",
+				Theme:             "dark-neon",
 			},
 			expectedError: false,
 		},
@@ -105,6 +107,7 @@ func TestLoadConfig(t *testing.T) {
 				SortOrder:         "modified",
 				StripString:       "",
 				Editor:            "/usr/bin/vim",
+				Theme:             "dark-neon",
 				DockerContainer:   "",
 			},
 			expectedError: false,
@@ -114,19 +117,20 @@ func TestLoadConfig(t *testing.T) {
 			prepFunc: func(configPath string) error {
 				// Set OLLAMA_HOST but unset OLLAMA_API_URL
 				os.Unsetenv("OLLAMA_API_URL")
-				os.Setenv("OLLAMA_HOST", "ollama.icu.lol")
+				os.Setenv("OLLAMA_HOST", "http://localhost:11434")
 				return nil
 			},
 			expected: Config{
 				Columns:           []string{"Name", "Size", "Quant", "Family", "Modified", "ID"},
 				OllamaAPIKey:      "",
-				OllamaAPIURL:      "http://ollama.icu.lol",
+				OllamaAPIURL:      "http://localhost:11434",
 				LMStudioFilePaths: "",
 				OllamaModelsDir:   GetOllamaModelDir(),
 				LogLevel:          "info",
 				SortOrder:         "modified",
 				StripString:       "",
 				Editor:            "/usr/bin/vim",
+				Theme:             "dark-neon",
 				DockerContainer:   "",
 			},
 			expectedError: false,
@@ -184,6 +188,10 @@ func TestLoadConfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Ensure environment variables are unset at the start of each test
+			os.Unsetenv("OLLAMA_HOST")
+			os.Unsetenv("OLLAMA_API_URL")
+
 			tempDir, err := os.MkdirTemp("", "config_test")
 			if err != nil {
 				t.Fatalf("Failed to create temporary directory: %v", err)
@@ -191,10 +199,6 @@ func TestLoadConfig(t *testing.T) {
 			defer func() {
 				os.RemoveAll(tempDir)
 				// Clean up environment variables after each test
-				if tt.name != "Empty ollama_api_url with OLLAMA_HOST set" {
-					os.Unsetenv("OLLAMA_API_URL")
-					os.Unsetenv("OLLAMA_HOST")
-				}
 			}()
 
 			tempConfigPath := filepath.Join(tempDir, "config.json")
@@ -235,6 +239,7 @@ func TestSaveConfig(t *testing.T) {
 				StripString:       "strip",
 				Editor:            "vim",
 				DockerContainer:   "testcontainer",
+				Theme:             "dark-neon",
 			},
 			expectedError: false,
 		},
@@ -304,9 +309,9 @@ func loadConfigFromPath(path string) (Config, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			// Return default config with API URL fallback
+			// Return default config with default API URL
 			config := defaultConfig
-			config.OllamaAPIURL = getAPIUrl()
+			config.OllamaAPIURL = getAPIUrl() // Use the same URL logic as the main function
 			return config, nil
 		}
 		return Config{}, fmt.Errorf("failed to open config file: %w", err)

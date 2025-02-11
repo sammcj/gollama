@@ -24,6 +24,7 @@ import (
 	"github.com/sammcj/gollama/config"
 	"github.com/sammcj/gollama/lmstudio"
 	"github.com/sammcj/gollama/logging"
+	"github.com/sammcj/gollama/styles"
 	"github.com/sammcj/gollama/vramestimator"
 )
 
@@ -101,6 +102,21 @@ func main() {
 		fmt.Println("Error loading config:", err)
 		os.Exit(1)
 	}
+
+	// Initialise themes
+	err = config.SaveThemes()
+	if err != nil {
+		fmt.Println("Error saving themes:", err)
+		os.Exit(1)
+	}
+
+	// Load and initialise the theme
+	theme, err := config.LoadTheme(cfg.Theme)
+	if err != nil {
+		fmt.Println("Error loading theme:", err)
+		os.Exit(1)
+	}
+	styles.InitTheme(theme)
 
 	err = logging.Init(cfg.LogLevel, cfg.LogFilePath)
 	if err != nil {
@@ -432,7 +448,7 @@ func main() {
 			if err != nil {
 				logging.ErrorLogger.Printf("Error unloading model %s: %v\n", model.Name, err)
 			} else {
-				unloadedModels = append(unloadedModels, lipgloss.NewStyle().Foreground(lipgloss.Color("#FFB6C1")).Render(model.Name))
+				unloadedModels = append(unloadedModels, styles.WarningStyle().Render(model.Name))
 				logging.InfoLogger.Printf("Model %s unloaded\n", model.Name)
 			}
 		}
@@ -460,8 +476,7 @@ func main() {
 	l.Title = fmt.Sprintf("Ollama Models - Connected to %s", cfg.OllamaAPIURL)
 	l.Help.Styles.ShortDesc.Bold(true)
 	l.Help.Styles.ShortDesc.UnsetFaint()
-	l.Help.Styles.ShortDesc.Foreground(lipgloss.Color("#FF00FF"))
-	l.Help.Styles.ShortDesc.Background(lipgloss.Color("#000000"))
+	l.Help.Styles.ShortDesc = styles.PromptStyle()
 	l.Help.Styles.ShortDesc.Width(20)
 	l.Help.Styles.ShortDesc.Padding(0, 1)
 	l.Help.Styles.ShortDesc.Margin(0, 1)

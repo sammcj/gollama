@@ -59,7 +59,7 @@ func Init(logLevel string, logFilePath string) error {
 	// Use lumberjack for logging to a file
 	fileWriter := zerolog.MultiLevelWriter(rotate)
 
-	// Initialize loggers
+	// Initialise loggers
 	log.Logger = zerolog.New(fileWriter).With().Timestamp().Logger()
 	DebugLogger = log.Logger.Level(zerolog.DebugLevel)
 	InfoLogger = log.Logger.Level(zerolog.InfoLevel)
