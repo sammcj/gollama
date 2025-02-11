@@ -91,41 +91,33 @@ func SelectedItemStyle() lipgloss.Style {
 // Size styles
 func SizeStyle(size float64) lipgloss.Style {
 	theme := GetTheme()
-	switch {
-	case size > 50:
-		return lipgloss.NewStyle().Foreground(theme.GetColour(theme.Colours.VRAMExceeds))
-	case size > 20:
-		return lipgloss.NewStyle().Foreground(theme.GetColour(theme.Colours.Warning))
-	case size > 10:
-		return lipgloss.NewStyle().Foreground(theme.GetColour(theme.Colours.Info))
-	default:
-		return lipgloss.NewStyle().Foreground(theme.GetColour(theme.Colours.Success))
+
+	// Check each range in order (highest to lowest threshold)
+	for _, r := range theme.Colours.Ranges.SizeRanges {
+		if size > r.Threshold {
+			return lipgloss.NewStyle().Foreground(theme.GetColour(r.Colour))
+		}
 	}
+
+	return lipgloss.NewStyle().Foreground(theme.GetColour(theme.Colours.ItemId))
 }
 
 // Quantization styles
 func QuantStyle(level string) lipgloss.Style {
 	theme := GetTheme()
-	switch {
-	case strings.Contains(level, "IQ"):
-		return lipgloss.NewStyle().Foreground(theme.GetColour(theme.Colours.VRAMExceeds))
-	case strings.Contains(level, "Q2"):
-		return lipgloss.NewStyle().Foreground(theme.GetColour(theme.Colours.VRAMExceeds))
-	case strings.Contains(level, "Q3"):
-		return lipgloss.NewStyle().Foreground(theme.GetColour(theme.Colours.Warning))
-	case strings.Contains(level, "Q4"):
-		return lipgloss.NewStyle().Foreground(theme.GetColour(theme.Colours.Info))
-	case strings.Contains(level, "Q5"):
-		return lipgloss.NewStyle().Foreground(theme.GetColour(theme.Colours.Success))
-	case strings.Contains(level, "Q6"):
-		return lipgloss.NewStyle().Foreground(theme.GetColour(theme.Colours.Warning))
-	case strings.Contains(level, "Q8"):
-		return lipgloss.NewStyle().Foreground(theme.GetColour(theme.Colours.Info))
-	case strings.Contains(level, "F16"):
-		return lipgloss.NewStyle().Foreground(theme.GetColour(theme.Colours.Warning))
-	default:
+
+	// Check each quantization type
+	for _, q := range theme.Colours.Ranges.QuantTypes {
+		if strings.Contains(level, q.Level) {
+			return lipgloss.NewStyle().Foreground(theme.GetColour(q.Colour))
+		}
+	}
+
+	// If no match found, use the default colour
+	if level == "" {
 		return lipgloss.NewStyle().Foreground(theme.GetColour(theme.Colours.ItemId))
 	}
+	return lipgloss.NewStyle().Foreground(theme.GetColour(theme.Colours.Warning))
 }
 
 // Text input styles

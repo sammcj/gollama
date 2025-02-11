@@ -18,6 +18,24 @@ type Theme struct {
 	Family      map[string]string `json:"family"` // Model family-specific colours
 }
 
+// SizeRange defines a size threshold and its associated colour
+type SizeRange struct {
+	Threshold float64 `json:"threshold"` // Size in GB
+	Colour    string  `json:"colour"`    // Colour to use for sizes above this threshold
+}
+
+// QuantRange defines a quantization level and its associated colour
+type QuantRange struct {
+	Level  string `json:"level"`  // Quantization level (e.g., "Q2", "Q4", etc.)
+	Colour string  `json:"colour"` // Colour to use for this quantization level
+}
+
+// RangeColours contains the configurable ranges for size and quantization levels
+type RangeColours struct {
+	SizeRanges []SizeRange `json:"size_ranges"` // Ordered from highest to lowest threshold
+	QuantTypes []QuantRange `json:"quant_types"` // Specific quantization levels and their colours
+}
+
 // ThemeColours contains all the colour definitions for the TUI
 type ThemeColours struct {
 	// General UI elements
@@ -69,6 +87,9 @@ type ThemeColours struct {
 	VRAMExceeds string `json:"vram_exceeds"` // For VRAM usage exceeding available memory
 	VRAMWithin  string `json:"vram_within"`  // For VRAM usage within available memory
 	VRAMUnknown string `json:"vram_unknown"` // For VRAM usage when available memory is unknown
+
+	// Configurable ranges
+	Ranges RangeColours `json:"ranges"` // Configurable ranges for size and quantization
 }
 
 // DarkNeonTheme returns the dark neon theme with current colour
@@ -91,7 +112,7 @@ var DarkNeonTheme = Theme{
 		// Status messages
 		Error:   "#FF0000",
 		Success: "#8B008B",
-		Info:    "92",
+		Info:    "#8B6914",
 		Warning: "#FF1493",
 
 		// List items
@@ -125,6 +146,29 @@ var DarkNeonTheme = Theme{
 		VRAMExceeds: "#BB0000",
 		VRAMWithin:  "#006400",
 		VRAMUnknown: "#8B4513",
+
+		// Configurable ranges with current default values
+		Ranges: RangeColours{
+			SizeRanges: []SizeRange{
+				{Threshold: 50, Colour: "#FF0055"},
+				{Threshold: 20, Colour: "#FF00AA"},
+				{Threshold: 10, Colour: "#AA00FF"},
+				{Threshold: 0, Colour: "#2200FF"},
+			},
+			QuantTypes: []QuantRange{
+				{Level: "IQ1", Colour: "#FF0055"}, // Bright neon red
+				{Level: "Q2", Colour: "#FF0077"},  // Deep pink
+				{Level: "IQ2", Colour: "#FF00AA"}, // Hot pink
+				{Level: "Q3", Colour: "#FF00DD"},  // Bright magenta
+				{Level: "IQ3", Colour: "#CC00FF"}, // Electric purple
+				{Level: "Q4", Colour: "#AA00FF"},  // Bright purple
+				{Level: "IQ4", Colour: "#8800FF"}, // Deep purple
+				{Level: "Q5", Colour: "#6600FF"},  // Electric indigo
+				{Level: "Q6", Colour: "#4400FF"},  // Bright indigo
+				{Level: "Q8", Colour: "#2200FF"},  // Deep blue
+				{Level: "F16", Colour: "#0000FF"}, // Pure blue
+			},
+		},
 	},
 	Family: map[string]string{
 		"llama":       "#C71585",
@@ -205,6 +249,29 @@ var LightTheme = Theme{
 		VRAMExceeds: "#8B0000",
 		VRAMWithin:  "#006400",
 		VRAMUnknown: "#8B4513",
+
+		// Configurable ranges with current default values
+		Ranges: RangeColours{
+			SizeRanges: []SizeRange{
+				{Threshold: 50, Colour: "#FF0055"},
+				{Threshold: 20, Colour: "#FF00AA"},
+				{Threshold: 10, Colour: "#AA00FF"},
+				{Threshold: 0, Colour: "#2200FF"},
+			},
+			QuantTypes: []QuantRange{
+				{Level: "IQ1", Colour: "#FF0055"}, // Bright neon red
+				{Level: "Q2", Colour: "#FF0077"},  // Deep pink
+				{Level: "IQ2", Colour: "#FF00AA"}, // Hot pink
+				{Level: "Q3", Colour: "#FF00DD"},  // Bright magenta
+				{Level: "IQ3", Colour: "#CC00FF"}, // Electric purple
+				{Level: "Q4", Colour: "#AA00FF"},  // Bright purple
+				{Level: "IQ4", Colour: "#8800FF"}, // Deep purple
+				{Level: "Q5", Colour: "#6600FF"},  // Electric indigo
+				{Level: "Q6", Colour: "#4400FF"},  // Bright indigo
+				{Level: "Q8", Colour: "#2200FF"},  // Deep blue
+				{Level: "F16", Colour: "#0000FF"}, // Pure blue
+			},
+		},
 	},
 	Family: map[string]string{
 		"llama":       "#C71585",
