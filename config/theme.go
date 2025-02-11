@@ -153,7 +153,7 @@ var DarkNeonTheme = Theme{
 				{Threshold: 50, Colour: "#FF0055"},
 				{Threshold: 20, Colour: "#FF00AA"},
 				{Threshold: 10, Colour: "#AA00FF"},
-				{Threshold: 0, Colour: "#2200FF"},
+				{Threshold: 0, Colour: "#6600FF"},
 			},
 			QuantTypes: []QuantRange{
 				{Level: "IQ1", Colour: "#FF5577"}, // Lighter bright neon red
@@ -257,7 +257,7 @@ var LightTheme = Theme{
 				{Threshold: 50, Colour: "#FF0055"},
 				{Threshold: 20, Colour: "#FF00AA"},
 				{Threshold: 10, Colour: "#AA00FF"},
-				{Threshold: 0, Colour: "#2200FF"},
+				{Threshold: 0, Colour: "#6600FF"},
 			},
 			QuantTypes: []QuantRange{
 				{Level: "IQ1", Colour: "#FF0055"},
