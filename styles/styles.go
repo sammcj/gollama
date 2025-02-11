@@ -55,15 +55,13 @@ func ItemNameStyle(index int) lipgloss.Style {
 func ItemDateStyle() lipgloss.Style {
 	theme := GetTheme()
 	return lipgloss.NewStyle().
-		Foreground(theme.GetColour(theme.Colours.ItemDate)).
-		Bold(true)
+		Foreground(theme.GetColour(theme.Colours.ItemDate))
 }
 
 func ItemShaStyle() lipgloss.Style {
 	theme := GetTheme()
 	return lipgloss.NewStyle().
-		Foreground(theme.GetColour(theme.Colours.ItemSha)).
-		Bold(true)
+		Foreground(theme.GetColour(theme.Colours.ItemSha))
 }
 
 // ItemIDStyle is kept for backwards compatibility
@@ -248,7 +246,7 @@ func CompareSeparatorStyle() lipgloss.Style {
 // Model family colour
 func FamilyStyle(family string) lipgloss.Style {
 	theme := GetTheme()
-	return lipgloss.NewStyle().Bold(true).
+	return lipgloss.NewStyle().
 		Foreground(theme.GetFamilyColour(family))
 }
 
