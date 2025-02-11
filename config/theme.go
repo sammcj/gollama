@@ -156,43 +156,43 @@ var DarkNeonTheme = Theme{
 				{Threshold: 0, Colour: "#2200FF"},
 			},
 			QuantTypes: []QuantRange{
-				{Level: "IQ1", Colour: "#FF0055"},
-				{Level: "Q2", Colour: "#FF0077"},
-				{Level: "IQ2", Colour: "#FF00AA"},
-				{Level: "Q3", Colour: "#FF00DD"},
-				{Level: "IQ3", Colour: "#CC00FF"},
-				{Level: "Q4", Colour: "#AA00FF"},
-				{Level: "IQ4", Colour: "#8800FF"},
-				{Level: "Q5", Colour: "#6600FF"},
-				{Level: "Q6", Colour: "#4400FF"},
-				{Level: "Q8", Colour: "#2200FF"},
-				{Level: "F16", Colour: "#0000FF"},
+				{Level: "IQ1", Colour: "#FF5577"}, // Lighter bright neon red
+				{Level: "Q2", Colour: "#FF5599"},  // Lighter deep pink
+				{Level: "IQ2", Colour: "#FF55BB"}, // Lighter hot pink
+				{Level: "Q3", Colour: "#FF55DD"},  // Lighter bright magenta
+				{Level: "IQ3", Colour: "#DD55FF"}, // Lighter electric purple
+				{Level: "Q4", Colour: "#BB55FF"},  // Lighter bright purple
+				{Level: "IQ4", Colour: "#9955FF"}, // Lighter deep purple
+				{Level: "Q5", Colour: "#7755FF"},  // Lighter electric indigo
+				{Level: "Q6", Colour: "#5555FF"},  // Lighter bright indigo
+				{Level: "Q8", Colour: "#3355FF"},  // Lighter deep blue
+				{Level: "F16", Colour: "#1155FF"}, // Lighter pure blue
 			},
 		},
 	},
 	Family: map[string]string{
-		"llama":       "#FF0055",
-		"mllama":      "#FF0077",
-		"alpaca":      "#FF0099",
-		"command-r":   "#FF00BB",
-		"starcoder":   "#FF00DD",
-		"starcoder2":  "#EE00FF",
-		"gemma":       "#CC00FF",
-		"gemma2":      "#CC3AF9",
-		"qwen":        "#AA00FF",
-		"qwen2":       "#8800FF",
-		"qwen3":       "#6600FF",
-		"phi":         "#4400FF",
-		"phi2":        "#2200FF",
-		"phi3":        "#0000FF",
-		"granite":     "#0022FF",
-		"deepseek":    "#0044FF",
-		"deepseek2":   "#0066FF",
-		"vicuna":      "#0088FF",
-		"bert":        "#00AAFF",
-		"nomic-bert":  "#00CCFF",
-		"nomic":       "#00EEFF",
-		"placeholder": "#00FFFF",
+		"llama":       "#FF5588", // Lighter bright neon pink
+		"mllama":      "#FF55AA", // Lighter deeper neon pink
+		"alpaca":      "#FF55CC", // Lighter hot pink
+		"command-r":   "#FF55DD", // Lighter bright magenta
+		"starcoder":   "#FF55EE", // Lighter deep magenta
+		"starcoder2":  "#EE55FF", // Lighter electric magenta
+		"gemma":       "#DD55FF", // Lighter bright purple
+		"gemma2":      "#CC55FF", // Lighter bright purple variant
+		"qwen":        "#BB55FF", // Lighter deep purple
+		"qwen2":       "#9955FF", // Lighter electric purple
+		"qwen3":       "#7755FF", // Lighter bright indigo
+		"phi":         "#5555FF", // Lighter deep indigo
+		"phi2":        "#3355FF", // Lighter electric indigo
+		"phi3":        "#1155FF", // Lighter bright blue
+		"granite":     "#1166FF", // Lighter pure blue
+		"deepseek":    "#1177FF", // Lighter deep blue
+		"deepseek2":   "#1188FF", // Lighter electric blue
+		"vicuna":      "#11AAFF", // Lighter bright azure
+		"bert":        "#11CCFF", // Lighter deep azure
+		"nomic-bert":  "#11DDFF", // Lighter electric azure
+		"nomic":       "#11EEFF", // Lighter bright cyan
+		"placeholder": "#11FFFF", // Lighter electric cyan
 	},
 }
 
