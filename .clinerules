@@ -2,11 +2,11 @@
 
 - IMPORTANT: Always use British English spelling for documentation, comments and function names.
 
-# Package and Library Versions
+# Package and library versions
 
-- IMPORTANT: When adding packages to an application use the package-version MCP tool to ensure you use the latest versions.
+- IMPORTANT: When adding packages to an application use the package-version MCP server's tools to ensure you use the latest versions.
 
-# General Coding Rules
+# General coding rules
 
 - Check project files before suggesting structural or dependency changes.
 - Don't complete the analysis prematurely, if you think you've completed the task but have no way of verifying it, you should ask the user to verify your changes.
