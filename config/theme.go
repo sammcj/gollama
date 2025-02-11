@@ -27,12 +27,12 @@ type SizeRange struct {
 // QuantRange defines a quantization level and its associated colour
 type QuantRange struct {
 	Level  string `json:"level"`  // Quantization level (e.g., "Q2", "Q4", etc.)
-	Colour string  `json:"colour"` // Colour to use for this quantization level
+	Colour string `json:"colour"` // Colour to use for this quantization level
 }
 
 // RangeColours contains the configurable ranges for size and quantization levels
 type RangeColours struct {
-	SizeRanges []SizeRange `json:"size_ranges"` // Ordered from highest to lowest threshold
+	SizeRanges []SizeRange  `json:"size_ranges"` // Ordered from highest to lowest threshold
 	QuantTypes []QuantRange `json:"quant_types"` // Specific quantization levels and their colours
 }
 
@@ -147,7 +147,7 @@ var DarkNeonTheme = Theme{
 		VRAMWithin:  "#006400",
 		VRAMUnknown: "#8B4513",
 
-		// Configurable ranges with current default values
+		// Configurable ranges with default values
 		Ranges: RangeColours{
 			SizeRanges: []SizeRange{
 				{Threshold: 50, Colour: "#FF0055"},
@@ -156,42 +156,43 @@ var DarkNeonTheme = Theme{
 				{Threshold: 0, Colour: "#2200FF"},
 			},
 			QuantTypes: []QuantRange{
-				{Level: "IQ1", Colour: "#FF0055"}, // Bright neon red
-				{Level: "Q2", Colour: "#FF0077"},  // Deep pink
-				{Level: "IQ2", Colour: "#FF00AA"}, // Hot pink
-				{Level: "Q3", Colour: "#FF00DD"},  // Bright magenta
-				{Level: "IQ3", Colour: "#CC00FF"}, // Electric purple
-				{Level: "Q4", Colour: "#AA00FF"},  // Bright purple
-				{Level: "IQ4", Colour: "#8800FF"}, // Deep purple
-				{Level: "Q5", Colour: "#6600FF"},  // Electric indigo
-				{Level: "Q6", Colour: "#4400FF"},  // Bright indigo
-				{Level: "Q8", Colour: "#2200FF"},  // Deep blue
-				{Level: "F16", Colour: "#0000FF"}, // Pure blue
+				{Level: "IQ1", Colour: "#FF0055"},
+				{Level: "Q2", Colour: "#FF0077"},
+				{Level: "IQ2", Colour: "#FF00AA"},
+				{Level: "Q3", Colour: "#FF00DD"},
+				{Level: "IQ3", Colour: "#CC00FF"},
+				{Level: "Q4", Colour: "#AA00FF"},
+				{Level: "IQ4", Colour: "#8800FF"},
+				{Level: "Q5", Colour: "#6600FF"},
+				{Level: "Q6", Colour: "#4400FF"},
+				{Level: "Q8", Colour: "#2200FF"},
+				{Level: "F16", Colour: "#0000FF"},
 			},
 		},
 	},
 	Family: map[string]string{
-		"llama":       "#C71585",
-		"mllama":      "#C71CC5",
-		"alpaca":      "#8B008C",
-		"command-r":   "#BB4144",
-		"starcoder2":  "#800080",
-		"starcoder":   "#4B0082",
-		"gemma":       "#AA3D8B",
-		"qwen2":       "#1444B0",
-		"qwen3":       "#4D11DD",
-		"phi":         "#000CCA",
-		"phi2":        "#004CCA",
-		"phi3":        "#008CCA",
-		"granite":     "#2A4F4F",
-		"deepseek":    "#008B8B",
-		"deepseek2":   "#0CCB8B",
-		"vicuna":      "#4169E1",
-		"bert":        "#8B4253",
-		"nomic-bert":  "#A0522D",
-		"nomic":       "#8B6914",
-		"qwen":        "#006400",
-		"placeholder": "#483D8B",
+		"llama":       "#FF0055",
+		"mllama":      "#FF0077",
+		"alpaca":      "#FF0099",
+		"command-r":   "#FF00BB",
+		"starcoder":   "#FF00DD",
+		"starcoder2":  "#EE00FF",
+		"gemma":       "#CC00FF",
+		"gemma2":      "#CC3AF9",
+		"qwen":        "#AA00FF",
+		"qwen2":       "#8800FF",
+		"qwen3":       "#6600FF",
+		"phi":         "#4400FF",
+		"phi2":        "#2200FF",
+		"phi3":        "#0000FF",
+		"granite":     "#0022FF",
+		"deepseek":    "#0044FF",
+		"deepseek2":   "#0066FF",
+		"vicuna":      "#0088FF",
+		"bert":        "#00AAFF",
+		"nomic-bert":  "#00CCFF",
+		"nomic":       "#00EEFF",
+		"placeholder": "#00FFFF",
 	},
 }
 
@@ -259,42 +260,43 @@ var LightTheme = Theme{
 				{Threshold: 0, Colour: "#2200FF"},
 			},
 			QuantTypes: []QuantRange{
-				{Level: "IQ1", Colour: "#FF0055"}, // Bright neon red
-				{Level: "Q2", Colour: "#FF0077"},  // Deep pink
-				{Level: "IQ2", Colour: "#FF00AA"}, // Hot pink
-				{Level: "Q3", Colour: "#FF00DD"},  // Bright magenta
-				{Level: "IQ3", Colour: "#CC00FF"}, // Electric purple
-				{Level: "Q4", Colour: "#AA00FF"},  // Bright purple
-				{Level: "IQ4", Colour: "#8800FF"}, // Deep purple
-				{Level: "Q5", Colour: "#6600FF"},  // Electric indigo
-				{Level: "Q6", Colour: "#4400FF"},  // Bright indigo
-				{Level: "Q8", Colour: "#2200FF"},  // Deep blue
-				{Level: "F16", Colour: "#0000FF"}, // Pure blue
+				{Level: "IQ1", Colour: "#FF0055"},
+				{Level: "Q2", Colour: "#FF0077"},
+				{Level: "IQ2", Colour: "#FF00AA"},
+				{Level: "Q3", Colour: "#FF00DD"},
+				{Level: "IQ3", Colour: "#CC00FF"},
+				{Level: "Q4", Colour: "#AA00FF"},
+				{Level: "IQ4", Colour: "#8800FF"},
+				{Level: "Q5", Colour: "#6600FF"},
+				{Level: "Q6", Colour: "#4400FF"},
+				{Level: "Q8", Colour: "#2200FF"},
+				{Level: "F16", Colour: "#0000FF"},
 			},
 		},
 	},
 	Family: map[string]string{
-		"llama":       "#C71585",
-		"mllama":      "#C71CC5",
-		"alpaca":      "#8B008B",
-		"command-r":   "#BB4144",
-		"starcoder2":  "#800080",
-		"starcoder":   "#4B0082",
-		"gemma":       "#483D8B",
-		"qwen2":       "#000080",
-		"qwen3":       "#0000FF",
-		"phi":         "#0000CD",
-		"phi2":        "#004CCA",
-		"phi3":        "#008CCA",
-		"granite":     "#2F4F4F",
-		"deepseek":    "#008B8B",
-		"deepseek2":   "#0000FF",
-		"vicuna":      "#4169E1",
-		"bert":        "#8B4513",
-		"nomic-bert":  "#A0522D",
-		"nomic":       "#8B6914",
-		"qwen":        "#006400",
-		"placeholder": "#483D8B",
+		"llama":       "#FF0055",
+		"mllama":      "#FF0077",
+		"alpaca":      "#FF0099",
+		"command-r":   "#FF00BB",
+		"starcoder":   "#FF00DD",
+		"starcoder2":  "#EE00FF",
+		"gemma":       "#CC00FF",
+		"gemma2":      "#CC3AF9",
+		"qwen":        "#AA00FF",
+		"qwen2":       "#8800FF",
+		"qwen3":       "#6600FF",
+		"phi":         "#4400FF",
+		"phi2":        "#2200FF",
+		"phi3":        "#0000FF",
+		"granite":     "#0022FF",
+		"deepseek":    "#0044FF",
+		"deepseek2":   "#0066FF",
+		"vicuna":      "#0088FF",
+		"bert":        "#00AAFF",
+		"nomic-bert":  "#00CCFF",
+		"nomic":       "#00EEFF",
+		"placeholder": "#00FFFF",
 	},
 }
 
