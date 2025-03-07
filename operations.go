@@ -327,7 +327,7 @@ func editModelfile(client *api.Client, modelName string) (string, error) {
 	// log to the console if we're not in a tea app
 	fmt.Printf("Model %s updated successfully\n", modelName)
 
-	return fmt.Sprintf("Model %s updated successfully, Press 'q' to return to the models list", modelName), nil
+	return fmt.Sprintf("Model %s updated successfully", modelName), nil
 }
 
 func isLocalhost(url string) bool {

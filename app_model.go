@@ -557,6 +557,9 @@ func (m *AppModel) handleUpdateModelKey() (tea.Model, tea.Cmd) {
 			m.message = fmt.Sprintf("Error updating model: %v", err)
 		} else {
 			m.message = message
+			// Automatically return to main view after editing
+			m.view = MainView
+			m.editing = false
 		}
 		m.clearScreen()
 		m.refreshList()
