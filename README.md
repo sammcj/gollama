@@ -116,6 +116,7 @@ echo "alias g=gollama" >> ~/.zshrc
 - `c`: Copy model
 - `U`: Unload all models
 - `p`: Pull an existing model
+- `ctrl+k`: Pull model & preserve user configuration
 - `ctrl+p`: Pull (get) new model
 - `P`: Push model
 - `n`: Sort by name

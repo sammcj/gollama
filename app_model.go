@@ -260,6 +260,8 @@ func (m *AppModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handlePushModelKey()
 	case key.Matches(msg, m.keys.PullModel):
 		return m.handlePullModelKey()
+	case key.Matches(msg, m.keys.PullKeepConfig):
+		return m.handlePullKeepConfigKey()
 	case key.Matches(msg, m.keys.RenameModel):
 		return m.handleRenameModelKey()
 	case key.Matches(msg, m.keys.PullNewModel):
@@ -665,6 +667,18 @@ func (m *AppModel) handlePullModelKey() (tea.Model, tea.Cmd) {
 		m.pulling = true
 		m.pullProgress = 0
 		return m, m.startPullModel(item.Name)
+	}
+	return m, nil
+}
+
+// handlePullKeepConfigKey handles the shift+p key to pull a model while preserving user config
+func (m *AppModel) handlePullKeepConfigKey() (tea.Model, tea.Cmd) {
+	logging.DebugLogger.Println("PullKeepConfig key matched")
+	if item, ok := m.list.SelectedItem().(Model); ok {
+		m.message = styles.InfoStyle().Render(fmt.Sprintf("Pulling model & preserving config: %s\n", item.Name))
+		m.pulling = true
+		m.pullProgress = 0
+		return m, m.startPullModelPreserveConfig(item.Name)
 	}
 	return m, nil
 }

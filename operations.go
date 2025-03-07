@@ -524,6 +524,78 @@ func (m *AppModel) startPullModel(modelName string) tea.Cmd {
 	}
 }
 
+// startPullModelPreserveConfig pulls a model while preserving user-modified configuration
+func (m *AppModel) startPullModelPreserveConfig(modelName string) tea.Cmd {
+	return func() tea.Msg {
+		ctx := context.Background()
+
+		// Step 1: Extract current parameters and template before pulling
+		logging.InfoLogger.Printf("Extracting parameters for model %s before pulling", modelName)
+		currentParams, currentTemplate, systemPrompt, err := getModelParamsWithSystem(modelName, m.client)
+		if err != nil {
+			logging.ErrorLogger.Printf("Error extracting parameters for model %s: %v", modelName, err)
+			return pullErrorMsg{fmt.Errorf("failed to extract parameters: %v", err)}
+		}
+
+		// Step 2: Pull the updated model
+		logging.InfoLogger.Printf("Pulling updated model: %s", modelName)
+		req := &api.PullRequest{Name: modelName}
+		err = m.client.Pull(ctx, req, func(resp api.ProgressResponse) error {
+			m.pullProgress = float64(resp.Completed) / float64(resp.Total)
+			return nil
+		})
+		if err != nil {
+			return pullErrorMsg{err}
+		}
+
+		// Step 3: Apply the saved configuration back to the updated model
+		logging.InfoLogger.Printf("Restoring configuration for model: %s", modelName)
+
+		// Create request with base fields
+		createReq := &api.CreateRequest{
+			Model: modelName, // The model to update
+			From:  modelName, // Use the same model name as base (it's now been updated)
+		}
+
+		// Add template if it exists
+		if currentTemplate != "" {
+			createReq.Template = currentTemplate
+		}
+
+		// Add system prompt if it exists
+		if systemPrompt != "" {
+			createReq.System = systemPrompt
+		}
+
+		// Add parameters if any were found
+		if len(currentParams) > 0 {
+			// Convert map[string]string to map[string]any
+			parameters := make(map[string]any)
+			for k, v := range currentParams {
+				// Try to convert numeric values
+				if floatVal, err := strconv.ParseFloat(v, 64); err == nil {
+					parameters[k] = floatVal
+				} else if intVal, err := strconv.Atoi(v); err == nil {
+					parameters[k] = intVal
+				} else {
+					parameters[k] = v
+				}
+			}
+			createReq.Parameters = parameters
+		}
+
+		// Apply the configuration
+		err = m.client.Create(ctx, createReq, func(resp api.ProgressResponse) error {
+			return nil
+		})
+		if err != nil {
+			return pullErrorMsg{fmt.Errorf("failed to restore configuration: %v", err)}
+		}
+
+		return pullSuccessMsg{modelName}
+	}
+}
+
 type editorFinishedMsg struct{ err error }
 
 func cleanupSymlinkedModels(lmStudioModelsDir string) {
@@ -794,6 +866,80 @@ func extractTemplateAndSystem(content string) (template string, system string) {
 	}
 
 	return template, system
+}
+
+// getModelParamsWithSystem extracts parameters, template, and system prompt from a model's modelfile
+func getModelParamsWithSystem(modelName string, client *api.Client) (map[string]string, string, string, error) {
+	logging.InfoLogger.Printf("Getting parameters and system prompt for model: %s\n", modelName)
+	ctx := context.Background()
+	req := &api.ShowRequest{Name: modelName}
+	resp, err := client.Show(ctx, req)
+	if err != nil {
+		logging.ErrorLogger.Printf("Error getting modelfile for %s: %v\n", modelName, err)
+		return nil, "", "", err
+	}
+	output := []byte(resp.Modelfile)
+	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	params := make(map[string]string)
+	var template string
+	var system string
+
+	inTemplate := false
+	inMultilineTemplate := false
+	var templateLines []string
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+
+		// Handle TEMPLATE directive
+		if strings.HasPrefix(trimmed, "TEMPLATE") {
+			if strings.Contains(trimmed, `"""`) {
+				// Multi-line template
+				templateContent := strings.TrimPrefix(trimmed, "TEMPLATE ")
+				templateContent = strings.TrimSpace(templateContent)
+				if strings.HasPrefix(templateContent, `"""`) {
+					templateContent = strings.TrimPrefix(templateContent, `"""`)
+				}
+				inTemplate = true
+				inMultilineTemplate = true
+				if templateContent != "" {
+					templateLines = append(templateLines, templateContent)
+				}
+			} else {
+				// Single-line template
+				template = strings.TrimPrefix(trimmed, "TEMPLATE ")
+				template = strings.Trim(template, `"`)
+			}
+		} else if inTemplate {
+			if inMultilineTemplate && strings.HasSuffix(trimmed, `"""`) {
+				line = strings.TrimSuffix(line, `"""`)
+				if line != "" {
+					templateLines = append(templateLines, line)
+				}
+				inTemplate = false
+				inMultilineTemplate = false
+			} else {
+				templateLines = append(templateLines, line)
+			}
+		} else if strings.HasPrefix(trimmed, "SYSTEM") {
+			system = strings.TrimPrefix(trimmed, "SYSTEM ")
+			// Remove surrounding quotes if present
+			system = strings.Trim(system, `"`)
+		} else if strings.HasPrefix(trimmed, "PARAMETER") {
+			parts := strings.SplitN(trimmed, " ", 3)
+			if len(parts) >= 3 {
+				key := parts[1]
+				value := strings.TrimSpace(parts[2])
+				params[key] = value
+			}
+		}
+	}
+
+	if len(templateLines) > 0 {
+		template = strings.Join(templateLines, "\n")
+	}
+
+	return params, template, system, nil
 }
 
 // extractParameters extracts parameter values from modelfile content
