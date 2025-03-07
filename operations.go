@@ -235,6 +235,13 @@ func editModelfile(client *api.Client, modelName string) (string, error) {
 	// Write the fetched content to a temporary file
 	tempDir := os.TempDir()
 	newModelfilePath := filepath.Join(tempDir, fmt.Sprintf("%s_modelfile.txt", modelName))
+
+	// Ensure parent directories exist
+	parentDir := filepath.Dir(newModelfilePath)
+	if err := os.MkdirAll(parentDir, 0755); err != nil {
+		return "", fmt.Errorf("error creating directory for modelfile: %v", err)
+	}
+
 	err = os.WriteFile(newModelfilePath, []byte(modelfileContent), 0644)
 	if err != nil {
 		return "", fmt.Errorf("error writing modelfile to temp file: %v", err)
