@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -240,6 +241,8 @@ func (m *AppModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleSortByQuantKey()
 	case key.Matches(msg, m.keys.SortByFamily):
 		return m.handleSortByFamilyKey()
+	case key.Matches(msg, m.keys.SortByParamSize):
+		return m.handleSortByParamSizeKey()
 	case key.Matches(msg, m.keys.RunModel):
 		return m.handleRunModelKey()
 	case key.Matches(msg, m.keys.AltScreen):
@@ -508,6 +511,41 @@ func (m *AppModel) handleSortByFamilyKey() (tea.Model, tea.Cmd) {
 	sort.Slice(m.models, func(i, j int) bool {
 		return m.models[i].Family < m.models[j].Family
 	})
+	m.refreshList()
+	return m, nil
+}
+
+func (m *AppModel) handleSortByParamSizeKey() (tea.Model, tea.Cmd) {
+	logging.DebugLogger.Println("SortByParamSize key matched")
+	m.cfg.SortOrder = "paramsize"
+
+	// Helper function to extract numeric value from parameter size strings
+	getParamSizeValue := func(paramSize string) float64 {
+		if paramSize == "" {
+			return 0
+		}
+
+		// Remove the "B" suffix if present
+		numStr := paramSize
+		if len(paramSize) > 0 && paramSize[len(paramSize)-1] == 'B' {
+			numStr = paramSize[:len(paramSize)-1]
+		}
+
+		// Parse the numeric part
+		size, err := strconv.ParseFloat(numStr, 64)
+		if err != nil {
+			return 0
+		}
+		return size
+	}
+
+	// Sort models by parameter size (largest first)
+	sort.Slice(m.models, func(i, j int) bool {
+		sizeI := getParamSizeValue(m.models[i].ParameterSize)
+		sizeJ := getParamSizeValue(m.models[j].ParameterSize)
+		return sizeI > sizeJ
+	})
+
 	m.refreshList()
 	return m, nil
 }
@@ -861,10 +899,19 @@ func (m *AppModel) inspectModelView(model Model) string {
 		{"Name", model.Name},
 		{"ID", model.ID},
 		{"Size (GB)", fmt.Sprintf("%.2f", model.Size)},
-		{"quantisation Level", model.QuantizationLevel},
+	}
+
+	// Add parameter size if available
+	if model.ParameterSize != "" {
+		rows = append(rows, table.Row{"Parameter Size", model.ParameterSize})
+	}
+
+	// Add remaining fields
+	rows = append(rows, []table.Row{
+		{"Quantisation Level", model.QuantizationLevel},
 		{"Modified", model.Modified.Format("2006-01-02")},
 		{"Family", model.Family},
-	}
+	}...)
 
 	// getModelParams returns a map of model parameters, so we need to iterate over the map and add the parameters to the rows
 	for key, value := range modelParams {
@@ -980,7 +1027,7 @@ func (m *AppModel) topView() string {
 func (k KeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Space, k.Delete, k.RunModel, k.LinkModel, k.LinkAllModels, k.CopyModel, k.PushModel}, // first column
-		{k.SortByName, k.SortBySize, k.SortByModified, k.SortByQuant, k.SortByFamily},           // second column
+		{k.SortByName, k.SortBySize, k.SortByModified, k.SortByQuant, k.SortByFamily, k.SortByParamSize}, // second column
 		{k.Top, k.EditModel, k.InspectModel, k.Quit},                                            // third column
 	}
 }

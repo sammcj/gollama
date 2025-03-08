@@ -1,6 +1,7 @@
 package styles
 
 import (
+	"strconv"
 	"strings"
 	"sync"
 
@@ -100,6 +101,46 @@ func SizeStyle(size float64) lipgloss.Style {
 	}
 
 	return lipgloss.NewStyle().Foreground(theme.GetColour(theme.Colours.ItemId))
+}
+
+// Parameter size styles
+func ParamSizeStyle(paramSize string) lipgloss.Style {
+	theme := GetTheme()
+
+	// If parameter size is empty, use default color
+	if paramSize == "" {
+		return lipgloss.NewStyle().Foreground(theme.GetColour(theme.Colours.ItemId))
+	}
+
+	// Use the same color scheme as size ranges
+	// Extract the numeric part from parameter size strings like "7.6B", "32B", etc.
+	numStr := paramSize
+	if len(paramSize) > 0 && paramSize[len(paramSize)-1] == 'B' {
+		numStr = paramSize[:len(paramSize)-1]
+	}
+
+	// Parse the numeric part
+	size, err := strconv.ParseFloat(numStr, 64)
+	if err != nil {
+		// Default to first color if parsing fails
+		return lipgloss.NewStyle().Foreground(theme.GetColour(theme.Colours.ItemId))
+	}
+
+	// Use more prominent colors for parameter sizes
+	// For very large models (>100B)
+	if size > 100 {
+		return lipgloss.NewStyle().Foreground(theme.GetColour(theme.Colours.Error)).Bold(true)
+	}
+	// For large models (30-100B)
+	if size > 30 {
+		return lipgloss.NewStyle().Foreground(theme.GetColour(theme.Colours.Warning)).Bold(true)
+	}
+	// For medium models (10-30B)
+	if size > 10 {
+		return lipgloss.NewStyle().Foreground(theme.GetColour(theme.Colours.Success)).Bold(true)
+	}
+	// For small models (<10B)
+	return lipgloss.NewStyle().Foreground(theme.GetColour(theme.Colours.Info))
 }
 
 // Quantization styles

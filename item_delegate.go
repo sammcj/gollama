@@ -109,13 +109,14 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, item list.Ite
 		quantStyle = selectedStyle.Inherit(quantStyle)
 	}
 
-	nameWidth, sizeWidth, quantWidth, modifiedWidth, idWidth, familyWidth := calculateColumnWidths(m.Width())
+	nameWidth, sizeWidth, quantWidth, modifiedWidth, idWidth, familyWidth, paramSizeWidth := calculateColumnWidths(m.Width())
 
 	// Ensure the text fits within the terminal width
 	// Add consistent padding between columns
 	padding := 2
 	name := nameStyle.Width(nameWidth).Render(truncate(model.Name, nameWidth-padding))
 	size := sizeStyle.Width(sizeWidth).Render(fmt.Sprintf("%*.2fGB", sizeWidth-padding-2, model.Size))
+	paramSize := styles.ParamSizeStyle(model.ParameterSize).Width(paramSizeWidth).Render(fmt.Sprintf("%-*s", paramSizeWidth-padding, model.ParameterSize))
 	quant := quantStyle.Width(quantWidth).Render(fmt.Sprintf("%-*s", quantWidth-padding, model.QuantizationLevel))
 	family := familyStyle.Width(familyWidth).Render(fmt.Sprintf("%-*s", familyWidth-padding, model.Family))
 	modified := dateStyle.Width(modifiedWidth).Render(fmt.Sprintf("%-*s", modifiedWidth-padding, model.Modified.Format("2006-01-02")))
@@ -123,8 +124,8 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, item list.Ite
 
 	// Add padding between columns
 	spacer := strings.Repeat(" ", padding)
-	row := fmt.Sprintf("%s%s%s%s%s%s%s%s%s%s%s",
-		name, spacer, size, spacer, quant, spacer, family, spacer, modified, spacer, id)
+	row := fmt.Sprintf("%s%s%s%s%s%s%s%s%s%s%s%s%s",
+		name, spacer, size, spacer, paramSize, spacer, quant, spacer, family, spacer, modified, spacer, id)
 
 	fmt.Fprint(w, row)
 }
