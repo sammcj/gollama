@@ -133,7 +133,7 @@ func ParamSizeStyle(paramSize string) lipgloss.Style {
 	}
   // For large models (48-100B)
 	if size > 48 {
-		return lipgloss.NewStyle().Foreground(theme.GetColour(theme.Colours.Warning)).Bold(true)
+		return lipgloss.NewStyle().Foreground(theme.GetColour(theme.Colours.Error)).Bold(true)
   }
     // For medium models (24-48B)
 	if size > 24 {
@@ -141,14 +141,14 @@ func ParamSizeStyle(paramSize string) lipgloss.Style {
 	}
 	// For medium-small models (14-24B)
 	if size > 14 {
-		return lipgloss.NewStyle().Foreground(theme.GetColour(theme.Colours.Success)).Bold(true)
+		return lipgloss.NewStyle().Foreground(theme.GetColour(theme.Colours.Warning)).Bold(true)
 	}
   // For small models (7-14B)
   if size > 7 {
-    return lipgloss.NewStyle().Foreground(theme.GetColour(theme.Colours.Info)).Bold(true)
+    return lipgloss.NewStyle().Foreground(theme.GetColour(theme.Colours.HeaderBorder)).Bold(true)
   }
 	// For very small models (<7B)
-	return lipgloss.NewStyle().Foreground(theme.GetColour(theme.Colours.Info))
+	return lipgloss.NewStyle().Foreground(theme.GetColour(theme.Colours.HeaderBorder))
 }
 
 // Quantization styles
