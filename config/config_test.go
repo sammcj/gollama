@@ -312,6 +312,9 @@ func loadConfigFromPath(path string) (Config, error) {
 			// Return default config with default API URL
 			config := defaultConfig
 			config.OllamaAPIURL = getAPIUrl() // Use the same URL logic as the main function
+
+			// Ensure default values for other fields
+			config.LMStudioFilePaths = "" // Default value for LMStudioFilePaths
 			return config, nil
 		}
 		return Config{}, fmt.Errorf("failed to open config file: %w", err)
