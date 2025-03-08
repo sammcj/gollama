@@ -33,7 +33,7 @@ var defaultConfig = Config{
 	OllamaAPIKey:      "",
 	OllamaAPIURL:      getAPIUrl(),
 	OllamaModelsDir:   GetOllamaModelDir(),
-	LMStudioFilePaths: "",
+	LMStudioFilePaths: GetLMStudioModelDir(),
 	LogLevel:          "info",
 	SortOrder:         "modified",
 	StripString:       "",
@@ -52,6 +52,18 @@ func GetOllamaModelDir() string {
 	}
 	// Add Windows path if needed
 	return filepath.Join(homeDir, ".ollama", "models")
+}
+
+// GetLMStudioModelDir returns the default LM Studio models directory for the current OS
+func GetLMStudioModelDir() string {
+	homeDir := utils.GetHomeDir()
+	if runtime.GOOS == "darwin" {
+		return filepath.Join(homeDir, ".lmstudio", "models")
+	} else if runtime.GOOS == "linux" {
+		return filepath.Join(homeDir, ".lmstudio", "models")
+	}
+	// Add Windows path if needed
+	return filepath.Join(homeDir, ".lmstudio", "models")
 }
 
 // getAPIUrl determines the API URL based on environment variables.
@@ -158,17 +170,34 @@ func LoadConfig() (Config, error) {
 }
 
 func SaveConfig(config Config) error {
-	if config.modified {
-		viper.Set("sort_order", config.SortOrder)
-	}
+	// Set all config values in viper
+	viper.Set("columns", config.Columns)
+	viper.Set("ollama_api_key", config.OllamaAPIKey)
+	viper.Set("ollama_api_url", config.OllamaAPIURL)
+	viper.Set("ollama_models_dir", config.OllamaModelsDir)
+	viper.Set("lm_studio_file_paths", config.LMStudioFilePaths)
+	viper.Set("log_level", config.LogLevel)
+	viper.Set("log_file_path", config.LogFilePath)
+	viper.Set("sort_order", config.SortOrder)
+	viper.Set("strip_string", config.StripString)
+	viper.Set("editor", config.Editor)
+	viper.Set("theme", config.Theme)
+	viper.Set("docker_container", config.DockerContainer)
 
 	configPath := utils.GetConfigPath()
 	if err := os.MkdirAll(filepath.Dir(configPath), 0755); err != nil {
 		return fmt.Errorf("failed to create config directory: %w", err)
 	}
 
-	if err := viper.SafeWriteConfigAs(configPath); err != nil {
-		return fmt.Errorf("failed to write config file: %w", err)
+	if err := viper.WriteConfig(); err != nil {
+		// If the config file doesn't exist, create it
+		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+			if err := viper.SafeWriteConfigAs(configPath); err != nil {
+				return fmt.Errorf("failed to write config file: %w", err)
+			}
+		} else {
+			return fmt.Errorf("failed to write config file: %w", err)
+		}
 	}
 
 	return nil

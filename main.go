@@ -331,7 +331,23 @@ func main() {
 		app.ollamaModelsDir = cfg.OllamaModelsDir
 	}
 	if *lmStudioDirFlag == "" {
-		app.lmStudioModelsDir = cfg.LMStudioFilePaths
+		// If LM Studio directory is not specified in the config, use the default
+		if cfg.LMStudioFilePaths == "" {
+			app.lmStudioModelsDir = config.GetLMStudioModelDir()
+			// Update the config with the default LM Studio directory
+			logging.InfoLogger.Printf("Setting LM Studio directory to default: %s\n", app.lmStudioModelsDir)
+			cfg.LMStudioFilePaths = app.lmStudioModelsDir
+			cfg.SetModified()
+			logging.InfoLogger.Printf("Saving config with LM Studio directory: %s\n", cfg.LMStudioFilePaths)
+			if err := cfg.SaveIfModified(); err != nil {
+				logging.ErrorLogger.Printf("Error saving config: %v\n", err)
+			} else {
+				logging.InfoLogger.Printf("Config saved successfully\n")
+			}
+		} else {
+			app.lmStudioModelsDir = cfg.LMStudioFilePaths
+			logging.InfoLogger.Printf("Using LM Studio directory from config: %s\n", app.lmStudioModelsDir)
+		}
 	}
 
 	if *listFlag {
@@ -364,22 +380,46 @@ func main() {
 		prefix := ""
 		if *dryRunFlag {
 			prefix = "[DRY RUN] "
-			fmt.Printf("%sWould link Ollama models to LM Studio\n", prefix)
+			fmt.Printf("%sWould link Ollama models to LM Studio (directory: %s)\n", prefix, app.lmStudioModelsDir)
+		} else {
+			fmt.Printf("Linking Ollama models to LM Studio (directory: %s)\n", app.lmStudioModelsDir)
 		}
 
+		fmt.Printf("\nFound %d models to link:\n", len(models))
+
+		// Display a summary of models to be linked
+		for i, model := range models {
+			fmt.Printf("%d. %s\n", i+1, model.Name)
+		}
+
+		fmt.Printf("\nStarting linking process...\n\n")
+
 		// link all models
+		successCount := 0
 		for _, model := range models {
+			fmt.Printf("%sLinking model: %s... ", prefix, model.Name)
 			message, err := linkModel(model.Name, app.lmStudioModelsDir, false, *dryRunFlag, client)
-			if message != "" {
-				logging.InfoLogger.Println(message)
-				fmt.Printf("%s%s\n", prefix, message)
-			}
+
 			if err != nil {
 				logging.ErrorLogger.Printf("Error linking model %s: %v\n", model.Name, err)
-				fmt.Printf("Error: Linking models failed. Please check if you are running without Administrator on Windows.\n")
-				fmt.Printf("Error detail: %v\n", err)
-				os.Exit(1)
+				fmt.Printf("failed: %v\n", err)
+				continue
 			}
+
+			if message != "" {
+				logging.InfoLogger.Println(message)
+				fmt.Printf("%s\n", message)
+			} else {
+				fmt.Printf("success!\n")
+				successCount++
+			}
+		}
+
+		// Print summary
+		if *dryRunFlag {
+			fmt.Printf("\n%sSummary: Would link %d of %d models\n", prefix, successCount, len(models))
+		} else {
+			fmt.Printf("\nSummary: Successfully linked %d of %d models\n", successCount, len(models))
 		}
 		os.Exit(0)
 	}

@@ -688,13 +688,20 @@ func linkModel(modelName, lmStudioModelsDir string, noCleanup bool, dryRun bool,
 		return "", fmt.Errorf("error getting model path for %s: %v", modelName, err)
 	}
 
+	// Extract author from model name (e.g., "fleo/tiny-r1-32b-preview:latest" -> "fleo")
 	parts := strings.Split(modelName, ":")
 	author := "unknown"
-	if len(parts) > 1 {
-		author = strings.ReplaceAll(parts[0], "/", "-")
+	if len(parts) > 1 && strings.Contains(parts[0], "/") {
+		authorParts := strings.Split(parts[0], "/")
+		author = authorParts[0]
+	} else if strings.Contains(modelName, "/") {
+		authorParts := strings.Split(modelName, "/")
+		author = authorParts[0]
 	}
 
+	// Create a clean model name for the file
 	lmStudioModelName := strings.ReplaceAll(strings.ReplaceAll(modelName, ":", "-"), "_", "-")
+	lmStudioModelName = strings.ReplaceAll(lmStudioModelName, "/", "-")
 	lmStudioModelDir := filepath.Join(lmStudioModelsDir, author, lmStudioModelName+"-GGUF")
 
 	// Check if the model path is a valid file
@@ -703,8 +710,8 @@ func linkModel(modelName, lmStudioModelsDir string, noCleanup bool, dryRun bool,
 		return "", fmt.Errorf("invalid model path for %s: %s", modelName, modelPath)
 	}
 
-	// Check if the symlink already exists and is valid
-	lmStudioModelPath := filepath.Join(lmStudioModelDir, filepath.Base(lmStudioModelName)+".gguf")
+    // Check if the symlink already exists and is valid
+    lmStudioModelPath := filepath.Join(lmStudioModelDir, lmStudioModelName+".gguf")
 	if _, err := os.Lstat(lmStudioModelPath); err == nil {
 		if isValidSymlink(lmStudioModelPath, modelPath) {
 			message := "Model %s is already symlinked to %s"
@@ -721,9 +728,15 @@ func linkModel(modelName, lmStudioModelsDir string, noCleanup bool, dryRun bool,
 	}
 
 	if dryRun {
+		// Log the full paths for debugging
+		logging.InfoLogger.Printf("LM Studio models directory: %s\n", lmStudioModelsDir)
+
+		// Create message with full paths for display
 		message := "[DRY RUN] Would create directory %s and symlink %s to %s"
-		logging.InfoLogger.Printf(message+"\n", lmStudioModelDir, modelName, lmStudioModelPath)
-		return fmt.Sprintf(message, lmStudioModelDir, modelName, lmStudioModelPath), nil
+		fullPathMessage := fmt.Sprintf(message, lmStudioModelDir, modelName, lmStudioModelPath)
+		logging.InfoLogger.Println(fullPathMessage)
+
+		return fullPathMessage, nil
 	} else {
 		// Create the symlink
 		err = os.MkdirAll(lmStudioModelDir, os.ModePerm)
