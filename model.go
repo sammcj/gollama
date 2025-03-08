@@ -14,6 +14,7 @@ type Model struct {
 	Modified          time.Time
 	Selected          bool
 	Family            string
+	ParameterSize     string
 }
 
 func (m Model) SelectedStr() string {
@@ -24,7 +25,11 @@ func (m Model) SelectedStr() string {
 }
 
 func (m Model) Description() string {
-	return fmt.Sprintf("ID: %s, Size: %.2f GB, Quant: %s, Modified: %s", m.ID, m.Size, m.QuantizationLevel, m.Modified.Format("2006-01-02"))
+	paramSizeStr := ""
+	if m.ParameterSize != "" {
+		paramSizeStr = fmt.Sprintf(", Parameters: %s", m.ParameterSize)
+	}
+	return fmt.Sprintf("ID: %s, Size: %.2f GB, Quant: %s%s, Modified: %s", m.ID, m.Size, m.QuantizationLevel, paramSizeStr, m.Modified.Format("2006-01-02"))
 }
 
 func (m Model) FilterValue() string {

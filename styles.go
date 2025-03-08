@@ -3,6 +3,7 @@ package main
 
 import (
 	"math"
+	"strconv"
 
 	"github.com/charmbracelet/lipgloss"
 )
@@ -76,6 +77,34 @@ func quantColour(quant string) lipgloss.Color {
 
 func sizeColour(size float64) lipgloss.Color {
 	index := int(math.Log10(size+1) * 2.5)
+	if index >= len(synthGradient) {
+		index = len(synthGradient) - 1
+	}
+	return lipgloss.Color(synthGradient[index])
+}
+
+func paramSizeColour(paramSize string) lipgloss.Color {
+	// Extract the numeric part from parameter size strings like "7.6B", "32B", etc.
+	if paramSize == "" {
+		return lipgloss.Color(synthGradient[0])
+	}
+
+	// Remove the "B" suffix if present
+	numStr := paramSize
+	if paramSize[len(paramSize)-1] == 'B' {
+		numStr = paramSize[:len(paramSize)-1]
+	}
+
+	// Parse the numeric part
+	size, err := strconv.ParseFloat(numStr, 64)
+	if err != nil {
+		// Default to first color if parsing fails
+		return lipgloss.Color(synthGradient[0])
+	}
+
+	// Use logarithmic scale similar to sizeColour but adjusted for parameter sizes
+	// Parameter sizes typically range from 1B to 100B+
+	index := int(math.Log10(size+1) * 3)
 	if index >= len(synthGradient) {
 		index = len(synthGradient) - 1
 	}

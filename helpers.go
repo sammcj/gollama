@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/charmbracelet/lipgloss"
 	"github.com/sammcj/gollama/config"
 	"github.com/sammcj/gollama/logging"
 	"github.com/sammcj/gollama/styles"
@@ -26,6 +27,7 @@ func parseAPIResponse(resp *api.ListResponse) []Model {
 			QuantizationLevel: modelResp.Details.QuantizationLevel,
 			Family:            modelResp.Details.Family,
 			Modified:          modelResp.ModifiedAt,
+			ParameterSize:     modelResp.Details.ParameterSize,
 		}
 	}
 	logging.DebugLogger.Println("Models:", models)
@@ -36,14 +38,18 @@ func normalizeSize(size float64) float64 {
 	return size // Sizes are already in GB in the API response
 }
 
-func calculateColumnWidths(totalWidth int) (nameWidth, sizeWidth, quantWidth, modifiedWidth, idWidth, familyWidth int) {
+// Constant for parameter size column width
+const minParamSizeWidth = 10
+
+func calculateColumnWidths(totalWidth int) (nameWidth, sizeWidth, quantWidth, modifiedWidth, idWidth, familyWidth, paramSizeWidth int) {
 	// Calculate column widths
-	nameWidth = int(0.45 * float64(totalWidth))
+	nameWidth = int(0.40 * float64(totalWidth))
 	sizeWidth = int(0.05 * float64(totalWidth))
 	quantWidth = int(0.05 * float64(totalWidth))
 	familyWidth = int(0.05 * float64(totalWidth))
 	modifiedWidth = int(0.05 * float64(totalWidth))
 	idWidth = int(0.02 * float64(totalWidth))
+	paramSizeWidth = int(0.05 * float64(totalWidth))
 
 	// Set the absolute minimum width for each column
 	if nameWidth < minNameWidth {
@@ -64,10 +70,13 @@ func calculateColumnWidths(totalWidth int) (nameWidth, sizeWidth, quantWidth, mo
 	if familyWidth < minFamilyWidth {
 		familyWidth = minFamilyWidth
 	}
+	if paramSizeWidth < minParamSizeWidth {
+		paramSizeWidth = minParamSizeWidth
+	}
 
 	// If the total width is less than the sum of the minimum column widths, adjust the name column width and make sure all columns are aligned
-	if totalWidth < nameWidth+sizeWidth+quantWidth+familyWidth+modifiedWidth+idWidth {
-		nameWidth = totalWidth - sizeWidth - quantWidth - familyWidth - modifiedWidth - idWidth
+	if totalWidth < nameWidth+sizeWidth+quantWidth+familyWidth+modifiedWidth+idWidth+paramSizeWidth {
+		nameWidth = totalWidth - sizeWidth - quantWidth - familyWidth - modifiedWidth - idWidth - paramSizeWidth
 	}
 
 	return
@@ -109,7 +118,7 @@ func wrapText(text string, width int) string {
 	return wrapped
 }
 
-func calculateColumnWidthsTerminal() (nameWidth, sizeWidth, quantWidth, modifiedWidth, idWidth, familyWidth int) {
+func calculateColumnWidthsTerminal() (nameWidth, sizeWidth, quantWidth, modifiedWidth, idWidth, familyWidth, paramSizeWidth int) {
 	// use the terminal width to calculate column widths
 	minWidth := 120
 
@@ -140,16 +149,17 @@ func listModels(models []Model) {
 	}
 
 	stripString := cfg.StripString
-	nameWidth, sizeWidth, quantWidth, modifiedWidth, idWidth, familyWidth := calculateColumnWidthsTerminal()
+	nameWidth, sizeWidth, quantWidth, modifiedWidth, idWidth, familyWidth, paramSizeWidth := calculateColumnWidthsTerminal()
 
 	// Add extra spacing between columns
 	colSpacing := 2
 	longestNameAllowed := 60
 
 	// Create the header with proper padding and alignment
-	header := fmt.Sprintf("%-*s%-*s%-*s%-*s%-*s%-*s",
+	header := fmt.Sprintf("%-*s%-*s%-*s%-*s%-*s%-*s%-*s",
 		nameWidth, "Name",
 		sizeWidth+colSpacing, "Size",
+		paramSizeWidth+colSpacing, "Params",
 		quantWidth+colSpacing, "Quant",
 		familyWidth+colSpacing, "Family",
 		modifiedWidth+colSpacing, "Modified",
@@ -163,7 +173,7 @@ func listModels(models []Model) {
 	}
 
 	// Prepare columns for padding
-	var names, sizes, quants, families, modified, ids []string
+	var names, sizes, quants, families, modified, ids, paramSizes []string
 	var longestName int
 	for _, model := range models {
 		if len(model.Name) > longestName {
@@ -175,6 +185,7 @@ func listModels(models []Model) {
 		}
 		names = append(names, model.Name)
 		sizes = append(sizes, fmt.Sprintf("%.2fGB", model.Size))
+		paramSizes = append(paramSizes, model.ParameterSize)
 		quants = append(quants, model.QuantizationLevel)
 		families = append(families, model.Family)
 		modified = append(modified, model.Modified.Format("2006-01-02"))
@@ -184,6 +195,7 @@ func listModels(models []Model) {
 	// Calculate maximum width for each column
 	maxNameWidth := nameWidth
 	maxSizeWidth := sizeWidth + colSpacing
+	maxParamSizeWidth := paramSizeWidth + colSpacing
 	maxQuantWidth := quantWidth + colSpacing
 	maxFamilyWidth := familyWidth + colSpacing
 	maxModifiedWidth := modifiedWidth + colSpacing
@@ -193,6 +205,7 @@ func listModels(models []Model) {
 	for i := range names {
 		names[i] = fmt.Sprintf("%-*s", maxNameWidth, names[i])
 		sizes[i] = fmt.Sprintf("%-*s", maxSizeWidth, sizes[i])
+		paramSizes[i] = fmt.Sprintf("%-*s", maxParamSizeWidth, paramSizes[i])
 		quants[i] = fmt.Sprintf("%-*s", maxQuantWidth, quants[i])
 		families[i] = fmt.Sprintf("%-*s", maxFamilyWidth, families[i])
 		modified[i] = fmt.Sprintf("%-*s", maxModifiedWidth, modified[i])
@@ -200,7 +213,13 @@ func listModels(models []Model) {
 		if longestName > longestNameAllowed {
 			ids[i] = ""
 			// remove the ID header
-			header = fmt.Sprintf("%-*s%-*s%-*s%-*s%-*s", nameWidth, "Name", sizeWidth+colSpacing, "Size", quantWidth+colSpacing, "Quant", familyWidth+colSpacing, "Family", modifiedWidth, "Modified")
+			header = fmt.Sprintf("%-*s%-*s%-*s%-*s%-*s%-*s",
+				nameWidth, "Name",
+				sizeWidth+colSpacing, "Size",
+				paramSizeWidth+colSpacing, "Params",
+				quantWidth+colSpacing, "Quant",
+				familyWidth+colSpacing, "Family",
+				modifiedWidth, "Modified")
 		} else {
 			ids[i] = fmt.Sprintf("%-*s", maxIdWidth, ids[i])
 		}
@@ -215,13 +234,24 @@ func listModels(models []Model) {
 		name := styles.ItemNameStyle(index).Render(names[index])
 		id := styles.ItemIDStyle().Render(ids[index])
 		size := styles.SizeStyle(model.Size).Render(sizes[index])
+		// Apply direct color based on parameter size
+		var paramSize string
+		if paramSizes[index] != "" {
+			// Format the string first
+			formattedParamSize := fmt.Sprintf("%-*s", maxParamSizeWidth, paramSizes[index])
+			// Apply color directly using paramSizeColour
+			paramSize = lipgloss.NewStyle().Foreground(paramSizeColour(paramSizes[index])).Render(formattedParamSize)
+		} else {
+			paramSize = fmt.Sprintf("%-*s", maxParamSizeWidth, paramSizes[index])
+		}
 		family := styles.FamilyStyle(model.Family).Render(families[index])
 		quant := styles.QuantStyle(model.QuantizationLevel).Render(quants[index])
 		modified := styles.ItemIDStyle().Render(modified[index])
 
-		row := fmt.Sprintf("%-*s%-*s%-*s%-*s%-*s%-*s",
+		row := fmt.Sprintf("%-*s%-*s%-*s%-*s%-*s%-*s%-*s",
 			maxNameWidth, name,
 			maxSizeWidth, size,
+			maxParamSizeWidth, paramSize,
 			maxQuantWidth, quant,
 			maxFamilyWidth, family,
 			maxModifiedWidth, modified,

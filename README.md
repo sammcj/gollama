@@ -124,6 +124,7 @@ echo "alias g=gollama" >> ~/.zshrc
 - `m`: Sort by modified
 - `k`: Sort by quantisation
 - `f`: Sort by family
+- `B`: Sort by parameter size
 - `l`: Link model to LM Studio
 - `L`: Link all models to LM Studio
 - `r`: Rename model _**(Work in progress)**_
