@@ -710,8 +710,8 @@ func linkModel(modelName, lmStudioModelsDir string, noCleanup bool, dryRun bool,
 		return "", fmt.Errorf("invalid model path for %s: %s", modelName, modelPath)
 	}
 
-    // Check if the symlink already exists and is valid
-    lmStudioModelPath := filepath.Join(lmStudioModelDir, lmStudioModelName+".gguf")
+	// Check if the symlink already exists and is valid
+	lmStudioModelPath := filepath.Join(lmStudioModelDir, lmStudioModelName+".gguf")
 	if _, err := os.Lstat(lmStudioModelPath); err == nil {
 		if isValidSymlink(lmStudioModelPath, modelPath) {
 			message := "Model %s is already symlinked to %s"
