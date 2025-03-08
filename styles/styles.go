@@ -131,15 +131,23 @@ func ParamSizeStyle(paramSize string) lipgloss.Style {
 	if size > 100 {
 		return lipgloss.NewStyle().Foreground(theme.GetColour(theme.Colours.Error)).Bold(true)
 	}
-	// For large models (30-100B)
-	if size > 30 {
+  // For large models (48-100B)
+	if size > 48 {
+		return lipgloss.NewStyle().Foreground(theme.GetColour(theme.Colours.Warning)).Bold(true)
+  }
+    // For medium models (24-48B)
+	if size > 24 {
 		return lipgloss.NewStyle().Foreground(theme.GetColour(theme.Colours.Warning)).Bold(true)
 	}
-	// For medium models (10-30B)
-	if size > 10 {
+	// For medium-small models (14-24B)
+	if size > 14 {
 		return lipgloss.NewStyle().Foreground(theme.GetColour(theme.Colours.Success)).Bold(true)
 	}
-	// For small models (<10B)
+  // For small models (7-14B)
+  if size > 7 {
+    return lipgloss.NewStyle().Foreground(theme.GetColour(theme.Colours.Info)).Bold(true)
+  }
+	// For very small models (<7B)
 	return lipgloss.NewStyle().Foreground(theme.GetColour(theme.Colours.Info))
 }
 
