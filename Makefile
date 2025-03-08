@@ -87,9 +87,9 @@ ci: ## build for linux and macOS
 	GOOS=linux GOARCH=amd64 go build -v -ldflags="-X 'main.Version=$(GOLLAMA_VERSION)'" -o ./dist/linux_amd64/
 	GOOS=linux GOARCH=arm64 go build -v -ldflags="-X 'main.Version=$(GOLLAMA_VERSION)'" -o ./dist/linux_arm64/
 
-	@zip -r gollama-macos.zip ./dist/macos/gollama
-	@zip -r gollama-linux-amd64.zip ./dist/linux_amd64/gollama
-	@zip -r gollama-linux-arm64.zip ./dist/linux_arm64/gollama
+	@zip -rj gollama-macos.zip ./dist/macos/gollama
+	@zip -rj gollama-linux-amd64.zip ./dist/linux_amd64/gollama
+	@zip -rj gollama-linux-arm64.zip ./dist/linux_arm64/gollama
 
 	@echo "Build completed"
 	@echo "macOS: ./dist/macos/gollama"
