@@ -26,6 +26,7 @@ import (
 	"github.com/sammcj/gollama/logging"
 	"github.com/sammcj/gollama/styles"
 	"github.com/sammcj/gollama/vramestimator"
+	"github.com/sammcj/spitter/spitter"
 )
 
 type AppModel struct {
@@ -145,6 +146,10 @@ func main() {
 	contextFlag := flag.String("context", "", "Maximum context length (e.g., '32k' or '128k')")
 	quantFlag := flag.String("quant", "", "Specific quantisation level (e.g., 'Q4_0', 'Q5_K_M')")
 	vramToNthFlag := flag.String("vram-to-nth", "65536", "Top context length to search for (e.g., 65536, 32k, 2m)")
+	// Spitter flags
+	spitFlag := flag.String("spit", "", "Copy a model to a remote host (specify model name)")
+	spitAllFlag := flag.Bool("spit-all", false, "Copy all models to a remote host")
+	remoteHostFlag := flag.String("remote", "", "Remote host URL for spit operations (e.g., http://remote-host:11434)")
 
 	flag.Parse()
 
@@ -508,6 +513,59 @@ func main() {
 		}
 		modelName := flag.Args()[0]
 		editModelfile(client, modelName)
+		os.Exit(0)
+	}
+
+	// Handle spitter flags
+	if *spitFlag != "" || *spitAllFlag {
+		if *remoteHostFlag == "" {
+			fmt.Println("Error: Remote host URL is required for spit operations. Use --remote flag.")
+			os.Exit(1)
+		}
+
+		// Create a spitter configuration
+		config := spitter.SyncConfig{
+			RemoteServer: *remoteHostFlag,
+		}
+
+		// If Docker container is specified in the config, use it for the Ollama command
+		if cfg.DockerContainer != "" && strings.ToLower(cfg.DockerContainer) != "false" {
+			config.OllamaCommand = fmt.Sprintf("docker exec -it %s ollama", cfg.DockerContainer)
+		}
+
+		// Set the custom model directory if specified
+		if app.ollamaModelsDir != "" {
+			config.CustomModelDir = app.ollamaModelsDir
+		}
+
+		if *spitAllFlag {
+			// Copy all models
+			config.AllModels = true
+			fmt.Printf("Copying all models to remote host %s...\n", *remoteHostFlag)
+
+			// We still need to provide a model name even though we're copying all models
+			// The spitter package will ignore this when AllModels is true
+			if len(groupedModels) > 0 {
+				config.LocalModel = groupedModels[0].Name
+			}
+		} else {
+			// Copy a single model
+			config.LocalModel = *spitFlag
+			fmt.Printf("Copying model %s to remote host %s...\n", *spitFlag, *remoteHostFlag)
+		}
+
+		// Sync the model(s)
+		err := spitter.Sync(config)
+		if err != nil {
+			fmt.Printf("Error copying model(s) to remote host: %v\n", err)
+			os.Exit(1)
+		}
+
+		if *spitAllFlag {
+			fmt.Printf("Successfully copied %d models to %s\n", len(groupedModels), *remoteHostFlag)
+		} else {
+			fmt.Printf("Successfully copied model %s to %s\n", *spitFlag, *remoteHostFlag)
+		}
 		os.Exit(0)
 	}
 

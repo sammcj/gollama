@@ -1026,9 +1026,9 @@ func (m *AppModel) topView() string {
 // FullHelp returns keybindings for the expanded help view. It's part of the key.Map interface.
 func (k KeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.Space, k.Delete, k.RunModel, k.LinkModel, k.LinkAllModels, k.CopyModel, k.PushModel},          // first column
+		{k.Space, k.Delete, k.RunModel, k.LinkModel, k.LinkAllModels, k.CopyModel, k.PushModel}, // first column
 		{k.SortByName, k.SortBySize, k.SortByModified, k.SortByQuant, k.SortByFamily, k.SortByParamSize}, // second column
-		{k.Top, k.EditModel, k.InspectModel, k.Quit},                                                     // third column
+		{k.Top, k.EditModel, k.InspectModel, k.Quit}, // third column
 	}
 }
 
