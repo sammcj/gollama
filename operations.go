@@ -115,7 +115,7 @@ func renameModel(m *AppModel, oldName string, newName string) error {
 	}
 
 	message := fmt.Sprintf("Successfully renamed model %s to %s", oldName, newName)
-	logging.InfoLogger.Printf(message)
+	logging.InfoLogger.Printf("%s", message)
 	return nil
 }
 
