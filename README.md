@@ -25,6 +25,7 @@ The application allows users to interactively select models, sort, filter, edit,
       - [Top](#top)
       - [Inspect](#inspect)
       - [Link](#link)
+      - [Spit (Copy to Remote)](#spit-copy-to-remote)
       - [Command-line Options](#command-line-options)
   - [Configuration](#configuration)
   - [Installation and build from source](#installation-and-build-from-source)
@@ -51,6 +52,7 @@ It's in active development, so there are some bugs and missing features, however
 - Link models to LM Studio
 - Copy / rename models
 - Push models to a registry
+- Copy models to remote hosts (spit)
 - Show running models
 - Has some cool bugs
 
@@ -150,6 +152,22 @@ When linking models to LM Studio, Gollama creates a Modelfile with the template 
 
 Note: Linking requires admin privileges if you're running Windows.
 
+#### Spit (Copy to Remote)
+
+The spit functionality allows you to copy Ollama models to remote hosts. This is useful for distributing models across multiple machines or creating backups.
+
+You can use the command-line interface:
+
+```shell
+# Copy a specific model to a remote host
+gollama --spit my-model --remote http://remote-host:11434
+
+# Copy all models to a remote host
+gollama --spit-all --remote http://remote-host:11434
+```
+
+This functionality uses the [spitter](https://github.com/sammcj/spitter) package to handle the model copying process.
+
 #### Command-line Options
 
 - `-l`: List all available Ollama models and exit
@@ -168,6 +186,9 @@ Note: Linking requires admin privileges if you're running Windows.
 - `-v`: Print the version and exit
 - `-h`, or `--host`: Specify the host for the Ollama API
 - `-H`: Shortcut for `-h http://localhost:11434` (connect to local Ollama API)
+- `--spit <model>`: Copy a model to a remote host
+- `--spit-all`: Copy all models to a remote host
+- `--remote <url>`: Remote host URL for spit operations (e.g., http://remote-host:11434)
 - `--vram`: Estimate vRAM usage for a model. Accepts:
   - Ollama models (e.g. `llama3.1:8b-instruct-q6_K`, `qwen2:14b-q4_0`)
   - HuggingFace models (e.g. `NousResearch/Hermes-2-Theta-Llama-3-8B`)
@@ -483,6 +504,7 @@ Please fork the repository and create a pull request with your changes.
 - [Ollama](https://ollama.com/)
 - [Llama.cpp](https://github.com/ggerganov/llama.cpp)
 - [Charmbracelet](https://charm.sh/)
+- [Spitter](https://github.com/sammcj/spitter) - For model copying functionality
 
 Thank you to folks such as Matt Williams, Fahd Mirza and AI Code King for giving this a shot and providing feedback.
 
@@ -495,5 +517,3 @@ Thank you to folks such as Matt Williams, Fahd Mirza and AI Code King for giving
 Copyright © 2024 Sam McLeod
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
-
-<script src="http://api.html5media.info/1.1.8/html5media.min.js"></script>
