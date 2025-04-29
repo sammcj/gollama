@@ -266,60 +266,77 @@ func editModelfile(client *api.Client, modelName string) (string, error) {
 
 	// If there were no changes, return early
 	if string(newModelfileContent) == modelfileContent {
-		return fmt.Sprintf("No changes made to model %s", modelName), nil
-	}
+return fmt.Sprintf("No changes made to model %s", modelName), nil
+}
 
-	// Extract TEMPLATE, SYSTEM, and parameters from both original and new content
-	var origTemplate, origSystem, newTemplate, newSystem string
+// --- Copy-Delete-Create Strategy ---
+logging.InfoLogger.Printf("Applying changes to model %s using copy-delete-create strategy.", modelName)
 
-	// Create request with base fields
-	createReq := &api.CreateRequest{
-		Model: modelName, // The model to update
-		From:  modelName, // Required: use the model's own name as the base
-	}
+// 1. Define a temporary model name
+tempModelName := modelName + "-gollama-temp-edit"
 
-	origTemplate, origSystem = extractTemplateAndSystem(modelfileContent)
-	newTemplate, newSystem = extractTemplateAndSystem(string(newModelfileContent))
+// 2. Copy the original model to the temporary name
+logging.DebugLogger.Printf("Copying %s to %s", modelName, tempModelName)
+copyReq := &api.CopyRequest{Source: modelName, Destination: tempModelName}
+if err := client.Copy(ctx, copyReq); err != nil {
+// Attempt cleanup if copy fails
+_ = client.Delete(ctx, &api.DeleteRequest{Name: tempModelName})
+return "", fmt.Errorf("failed to copy model to temporary name %s: %v", tempModelName, err)
+}
+// Ensure temporary model is deleted eventually
+defer func() {
+logging.DebugLogger.Printf("Cleaning up temporary model %s", tempModelName)
+if delErr := client.Delete(context.Background(), &api.DeleteRequest{Name: tempModelName}); delErr != nil {
+logging.ErrorLogger.Printf("Failed to delete temporary model %s: %v", tempModelName, delErr)
+}
+}()
 
-	// Only include template if it was changed
-	if newTemplate != origTemplate {
-		logging.DebugLogger.Printf("Template was modified for model %s", modelName)
-		createReq.Template = newTemplate
-	}
+// 3. Delete the original model
+logging.DebugLogger.Printf("Deleting original model %s", modelName)
+if err := client.Delete(ctx, &api.DeleteRequest{Name: modelName}); err != nil {
+// If original delete fails, we might have inconsistency. Log and potentially try to restore?
+// For now, return error. The deferred cleanup will still run.
+return "", fmt.Errorf("failed to delete original model %s before recreating: %v", modelName, err)
+}
 
-	if newSystem != origSystem {
-		logging.DebugLogger.Printf("System prompt was modified for model %s", modelName)
-		createReq.System = newSystem
-	}
+// 4. Modify the edited content to use the temporary model as the base
+modifiedModelfileContent := string(newModelfileContent)
+lines := strings.Split(modifiedModelfileContent, "\n")
+for i, line := range lines {
+if strings.HasPrefix(strings.TrimSpace(line), "FROM /root/.ollama/models/blobs/") {
+lines[i] = "FROM " + tempModelName
+logging.DebugLogger.Printf("Modifying modelfile FROM line to use temporary model: %s", lines[i])
+break // Assume only one FROM line needs changing
+}
+}
+modifiedModelfileContent = strings.Join(lines, "\n")
 
-	// Add parameters if any were found
-	parameters := extractParameters(string(newModelfileContent))
-	if len(parameters) > 0 {
-		createReq.Parameters = parameters
-	}
+// 5. Create the model anew with the original name, using the *modified* edited content
+logging.DebugLogger.Printf("Creating model %s anew using modified modelfile content based on %s.", modelName, tempModelName)
+createReq := &api.CreateRequest{
+Model: modelName, // Use the original name
+Files: map[string]string{ // Provide the modified content
+"modelfile": modifiedModelfileContent,
+},
+}
 
-	logging.DebugLogger.Printf("Updating model %s with changes:\n", modelName)
-	if newTemplate != origTemplate {
-		logging.DebugLogger.Printf("- Modified template\n")
-	}
-	if newSystem != origSystem {
-		logging.DebugLogger.Printf("- Modified system prompt\n")
-	}
-	if len(parameters) > 0 {
-		logging.DebugLogger.Printf("- Modified parameters: %+v\n", parameters)
-	}
+reqJson, jsonErr := json.Marshal(createReq)
+if jsonErr == nil {
+logging.DebugLogger.Printf("Create request (recreating model): %s", string(reqJson))
+}
 
-	reqJson, jsonErr := json.Marshal(createReq)
-	if jsonErr == nil {
-		logging.DebugLogger.Printf("Create request: %s", string(reqJson))
-	}
+err = client.Create(ctx, createReq, func(resp api.ProgressResponse) error {
+// Progress reporting if needed
+logging.DebugLogger.Printf("Recreate progress: Status=%s, Digest=%s, Total=%d, Completed=%d\n",
+resp.Status, resp.Digest, resp.Total, resp.Completed)
+return nil
+})
 
-	err = client.Create(ctx, createReq, func(resp api.ProgressResponse) error {
-		logging.DebugLogger.Printf("Create progress: Status=%s, Digest=%s, Total=%d, Completed=%d\n",
-			resp.Status, resp.Digest, resp.Total, resp.Completed)
-		return nil
-	})
-	if err != nil {
+// 6. Check for creation errors (temporary model cleanup is handled by defer)
+if err != nil {
+// If creation fails, the original model is gone. Log this critical state.
+// Attempt to restore by renaming the temp model back? Risky if temp model is bad.
+logging.ErrorLogger.Printf("CRITICAL: Failed to recreate model %s after deleting original. Original model lost. Error: %v", modelName, err)
 		errMsg := fmt.Sprintf("Failed to update model %s", modelName)
 		if strings.Contains(err.Error(), "error getting blobs path") {
 			errMsg += fmt.Sprintf(": error updating model parameters. This may occur with remote Ollama instances")
