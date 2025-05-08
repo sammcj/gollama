@@ -68,11 +68,8 @@ func ScanModels(dirPath string) ([]Model, error) {
 			return walkErr
 		}
 
-		// Skip directories and symlinks
-		if info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
-			if info.Mode()&os.ModeSymlink != 0 {
-				logging.DebugLogger.Printf("Skipping symlinked model: %s\n", path)
-			}
+		// Skip directories
+		if info.IsDir() {
 			return nil
 		}
 
