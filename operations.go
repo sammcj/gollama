@@ -469,6 +469,7 @@ func parseParametersFromModelfile(content string) (map[string]any, error) {
 			}
 			// No specific 'else' needed here as len(parts) < 3 is already an error.
 		}
+	// REMOVED EXTRA BRACE HERE
 	}
 
 	// If stopValues were collected, add them to parameters map as a slice of strings
