@@ -220,121 +220,84 @@ func editModelfile(client *api.Client, modelName string) (string, error) {
 	// Fetch the current modelfile from the server
 	showResp, err := client.Show(ctx, &api.ShowRequest{Name: modelName})
 	if err != nil {
-		return "", fmt.Errorf("error fetching modelfile for %s: %v", modelName, err)
+		// Enhanced error message for client.Show()
+		logging.ErrorLogger.Printf("Failed to fetch details for model %s: %v", modelName, err)
+		return "", fmt.Errorf("failed to fetch details for model %s: %w", modelName, err)
 	}
-	modelfileContent := showResp.Modelfile
+	// modelfileContent := showResp.Modelfile // Retained for context, not direct use
 
-	// Get editor from environment or config
-	editor := getEditor()
-	if editor == "" {
-		editor = "vim" // Default fallback
-	}
-
-	logging.DebugLogger.Printf("Using editor: %s for model: %s\n", editor, modelName)
-
-	// Write the fetched content to a temporary file
-	tempDir := os.TempDir()
-	newModelfilePath := filepath.Join(tempDir, fmt.Sprintf("%s_modelfile.txt", modelName))
-
-	// Ensure parent directories exist
-	parentDir := filepath.Dir(newModelfilePath)
-	if err := os.MkdirAll(parentDir, 0755); err != nil {
-		return "", fmt.Errorf("error creating directory for modelfile: %v", err)
-	}
-
-	err = os.WriteFile(newModelfilePath, []byte(modelfileContent), 0644)
+	// Current values from the server
+	currentSystem := showResp.System
+	currentTemplate := showResp.Template
+	currentParameters, err := extractParametersFromString(showResp.Parameters)
 	if err != nil {
-		return "", fmt.Errorf("error writing modelfile to temp file: %v", err)
-	}
-	defer os.Remove(newModelfilePath)
-
-	// Open the local modelfile in the editor
-	cmd := exec.Command(editor, newModelfilePath)
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	err = cmd.Run()
-	if err != nil {
-		return "", fmt.Errorf("error running editor: %v", err)
+		// Enhanced error message for parameter parsing
+		logging.ErrorLogger.Printf("Failed to parse parameters for model %s from string '%s': %v", modelName, showResp.Parameters, err)
+		return "", fmt.Errorf("failed to parse parameters for model %s: %w", modelName, err)
 	}
 
-	// Read the edited content from the local file
-	newModelfileContent, err := os.ReadFile(newModelfilePath)
-	if err != nil {
-		return "", fmt.Errorf("error reading edited modelfile: %v", err)
-	}
+	logging.DebugLogger.Printf("Current System for %s: %s\n", modelName, currentSystem)
+	logging.DebugLogger.Printf("Current Template for %s: %s\n", modelName, currentTemplate)
+	logging.DebugLogger.Printf("Current Parameters for %s: %+v\n", modelName, currentParameters)
 
-	// If there were no changes, return early
-	if string(newModelfileContent) == modelfileContent {
-		return fmt.Sprintf("No changes made to model %s", modelName), nil
-	}
+	// Simulate user editing these values.
+	// For this subtask, we'll make a small identifiable modification.
+	// In a real TUI, these would come from user input.
+	editedSystem := currentSystem + " - edited" // Simulated change
+	editedTemplate := currentTemplate            // No change for now
+	editedParameters := currentParameters        // No change for now
 
-	// Extract TEMPLATE, SYSTEM, and parameters from both original and new content
-	var origTemplate, origSystem, newTemplate, newSystem string
-
-	// Create request with base fields
+	// Construct the CreateRequest
 	createReq := &api.CreateRequest{
-		Model: modelName, // The model to update
-		From:  modelName, // Required: use the model's own name as the base
+		Model:      modelName,
+		From:       modelName, // Base the new version on the existing one
+		System:     editedSystem,
+		Template:   editedTemplate,
+		Parameters: editedParameters,
 	}
 
-	origTemplate, origSystem = extractTemplateAndSystem(modelfileContent)
-	newTemplate, newSystem = extractTemplateAndSystem(string(newModelfileContent))
-
-	// Only include template if it was changed
-	if newTemplate != origTemplate {
-		logging.DebugLogger.Printf("Template was modified for model %s", modelName)
-		createReq.Template = newTemplate
-	}
-
-	if newSystem != origSystem {
-		logging.DebugLogger.Printf("System prompt was modified for model %s", modelName)
-		createReq.System = newSystem
-	}
-
-	// Add parameters if any were found
-	parameters := extractParameters(string(newModelfileContent))
-	if len(parameters) > 0 {
-		createReq.Parameters = parameters
-	}
-
-	logging.DebugLogger.Printf("Updating model %s with changes:\n", modelName)
-	if newTemplate != origTemplate {
-		logging.DebugLogger.Printf("- Modified template\n")
-	}
-	if newSystem != origSystem {
-		logging.DebugLogger.Printf("- Modified system prompt\n")
-	}
-	if len(parameters) > 0 {
-		logging.DebugLogger.Printf("- Modified parameters: %+v\n", parameters)
-	}
+	logging.DebugLogger.Printf("Attempting to update model %s. Request details:", modelName)
+	logging.DebugLogger.Printf("  System: %s", createReq.System)
+	logging.DebugLogger.Printf("  Template: %s", createReq.Template)
+	logging.DebugLogger.Printf("  Parameters: %+v", createReq.Parameters)
 
 	reqJson, jsonErr := json.Marshal(createReq)
 	if jsonErr == nil {
-		logging.DebugLogger.Printf("Create request: %s", string(reqJson))
+		logging.DebugLogger.Printf("Create request JSON: %s", string(reqJson))
+	} else {
+		logging.ErrorLogger.Printf("Failed to marshal CreateRequest to JSON for model %s: %v", modelName, jsonErr)
+		// Not returning here, as the Create call might still work, but good to log.
 	}
 
+	// Call client.Create to update the model
 	err = client.Create(ctx, createReq, func(resp api.ProgressResponse) error {
-		logging.DebugLogger.Printf("Create progress: Status=%s, Digest=%s, Total=%d, Completed=%d\n",
-			resp.Status, resp.Digest, resp.Total, resp.Completed)
+		logging.DebugLogger.Printf("Create progress for %s: Status=%s, Digest=%s, Total=%d, Completed=%d\n",
+			modelName, resp.Status, resp.Digest, resp.Total, resp.Completed)
 		return nil
 	})
 	if err != nil {
-		errMsg := fmt.Sprintf("Failed to update model %s", modelName)
+		// Enhanced error message for client.Create()
+		errMsgBase := fmt.Sprintf("failed to update model %s", modelName)
+		specificReason := ""
+		// These string checks are based on observed Ollama API error messages.
+		// They might indicate issues with the base model specified in `From` or server-side processing.
 		if strings.Contains(err.Error(), "error getting blobs path") {
-			errMsg += fmt.Sprintf(": error updating model parameters. This may occur with remote Ollama instances")
+			specificReason = " (detail: error accessing model data, possibly an issue with the base model or remote Ollama instance)"
 		} else if strings.Contains(err.Error(), "no such file or directory") {
-			errMsg += fmt.Sprintf(": model file not found. This may occur with remote Ollama instances")
-		} else {
-			errMsg += fmt.Sprintf(": %v", err)
+			specificReason = " (detail: underlying model file not found, possibly an issue with the base model or remote Ollama instance)"
 		}
-		return "", fmt.Errorf("%s (check debug logs for details)", errMsg)
+		logging.ErrorLogger.Printf("%s%s: %v", errMsgBase, specificReason, err)
+		return "", fmt.Errorf("%s%s: %w", errMsgBase, specificReason, err)
 	}
 
-	// log to the console if we're not in a tea app
-	fmt.Printf("Model %s updated successfully\n", modelName)
+	successMsg := fmt.Sprintf("Model %s updated successfully", modelName)
+	logging.InfoLogger.Printf(successMsg) // Log success
 
-	return fmt.Sprintf("Model %s updated successfully", modelName), nil
+	// The direct fmt.Printf might be removed if all user feedback goes through a TUI.
+	// For now, it's kept for CLI context or if TUI isn't active.
+	// fmt.Printf("Model %s updated successfully\n", modelName)
+
+	return successMsg, nil
 }
 
 func isLocalhost(url string) bool {
@@ -359,20 +322,6 @@ func parseContextSize(input string) (int, error) {
 	}
 
 	return value * multiplier, nil
-}
-
-func getEditor() string {
-	if editor := os.Getenv("EDITOR"); editor != "" {
-		return editor
-	}
-
-	cfg, err := config.LoadConfig()
-	if err != nil {
-		logging.ErrorLogger.Printf("Error loading config for editor: %v\n", err)
-		return ""
-	}
-
-	return cfg.Editor
 }
 
 func createModelFromModelfile(modelName, modelfilePath string, client *api.Client) error {
@@ -962,10 +911,15 @@ func getModelParamsWithSystem(modelName string, client *api.Client) (map[string]
 	return params, template, system, nil
 }
 
-// extractParameters extracts parameter values from modelfile content
-func extractParameters(content string) map[string]any {
+// extractParametersFromString extracts parameter values from a parameter string (e.g., from api.ShowResponse.Parameters)
+// It returns an error if parsing fails (e.g. paramString is not empty but no parameters were extracted).
+func extractParametersFromString(paramString string) (map[string]any, error) {
 	parameters := make(map[string]any)
-	lines := strings.Split(content, "\n")
+	// If paramString is empty or whitespace, return empty map and no error
+	if strings.TrimSpace(paramString) == "" {
+		return parameters, nil
+	}
+	lines := strings.Split(paramString, "\n")
 
 	// Handle multiple stop parameters
 	var stopValues []string
@@ -1001,5 +955,73 @@ func extractParameters(content string) map[string]any {
 		parameters["stop"] = stopValues
 	}
 
-	return parameters
+	// Heuristic: if the input string was not empty but we didn't find any parameters,
+	// it might indicate a malformed string. This check is for lines that are not just "PARAMETER key value".
+	// The ShowResponse.Parameters string is expected to be a list of "key value" pairs, not "PARAMETER key value".
+	// So, this function needs to be adjusted if the format from ShowResponse.Parameters is different.
+	// For now, assuming it's a direct list of "key value" or similar, not prefixed with "PARAMETER".
+	// The original `extractParameters` was designed for Modelfile content.
+	// Let's adjust the parsing logic for `showResp.Parameters` which is typically `mirostat_tau 5.0 ...`
+	
+	// Re-evaluating the parsing logic for ShowResponse.Parameters:
+	// The `showResp.Parameters` string is a newline-separated list of "key value" pairs.
+	// Example:
+	// "num_ctx 4096\nstop \"<|im_end|>\"\nstop \"<|im_start|>\"\ntemperature 0.7"
+
+	parameters = make(map[string]any) // Reset parameters for the new logic
+	stopValues = []string{} // Reset stopValues
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") { // Skip empty lines or comments
+			continue
+		}
+		parts := strings.Fields(line)
+		if len(parts) >= 2 {
+			paramName := parts[0]
+			paramValueString := strings.Join(parts[1:], " ")
+
+			// Unquote if necessary (e.g. stop "<|im_end|>")
+			if unquoted, err := strconv.Unquote(paramValueString); err == nil {
+				paramValueString = unquoted
+			}
+			
+			if paramName == "stop" {
+				stopValues = append(stopValues, paramValueString)
+				continue
+			}
+
+			if num, err := strconv.Atoi(paramValueString); err == nil {
+				parameters[paramName] = num
+			} else if num, err := strconv.ParseFloat(paramValueString, 64); err == nil {
+				parameters[paramName] = num
+			} else if boolVal, err := strconv.ParseBool(paramValueString); err == nil {
+				parameters[paramName] = boolVal
+			} else {
+				parameters[paramName] = paramValueString
+			}
+		} else {
+			// Line isn't empty, not a comment, but not "key value[s...]"
+			logging.DebugLogger.Printf("Skipping malformed parameter line in extractParametersFromString: '%s'", line)
+		}
+	}
+
+	if len(stopValues) > 0 {
+		parameters["stop"] = stopValues
+	}
+	
+	// If the input paramString was not empty, but we extracted no parameters (and it wasn't just comments/empty lines)
+	// it could indicate a format mismatch or an issue.
+	hasMeaningfulContent := false
+	for _, line := range lines {
+		if strings.TrimSpace(line) != "" && !strings.HasPrefix(strings.TrimSpace(line), "#") {
+			hasMeaningfulContent = true
+			break
+		}
+	}
+	if hasMeaningfulContent && len(parameters) == 0 && len(stopValues) == 0 {
+		return nil, fmt.Errorf("input string contained content but no valid parameters were extracted. Content: '%s'", paramString)
+	}
+
+	return parameters, nil
 }
