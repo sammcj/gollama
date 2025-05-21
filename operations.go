@@ -245,58 +245,137 @@ func editModelfile(client *api.Client, modelName string) (string, error) {
 	logging.DebugLogger.Printf("Current Parameters for %s: %+v\n", modelName, currentParameters)
 
 	// Informative message and bypass actual update, as per subtask requirements.
-	// The actual values are logged above for debugging/future TUI.
-	infoMsg := fmt.Sprintf("Interactive model editing is not yet fully implemented. No changes were made to model '%s'.", modelName)
-	logging.InfoLogger.Printf("Bypassing model update for '%s': %s", modelName, infoMsg)
-	return infoMsg, nil
+	// modelfileContent is the original content from the server.
+	modelfileContent := showResp.Modelfile
 
-	// The following code for actual update is now bypassed.
-	// editedSystem := currentSystem // Original value
-	// editedTemplate := currentTemplate // Original value
-	// editedParameters := currentParameters // Original value
-	//
-	// // Construct the CreateRequest
-	// createReq := &api.CreateRequest{
-	// 	Model:      modelName,
-	// 	From:       modelName, // Base the new version on the existing one
-	// 	System:     editedSystem,
-	// 	Template:   editedTemplate,
-	// 	Parameters: editedParameters,
+	// --- Local File Editing Flow ---
+	editor := getEditor()
+	if editor == "" {
+		// This case should ideally be handled by getEditor's default, but as a safeguard:
+		logging.ErrorLogger.Println("No editor found (environment variable EDITOR not set, config error, or config empty). Defaulting to 'vim'.")
+		editor = "vim"
+	}
+	logging.DebugLogger.Printf("Using editor: %s for model: %s\n", editor, modelName)
+
+	tempDir := os.TempDir()
+	// Sanitize modelName for use in a filename - replace slashes which are common in model names.
+	safeModelName := strings.ReplaceAll(modelName, "/", "_")
+	tempFilePath := filepath.Join(tempDir, fmt.Sprintf("%s_modelfile.txt", safeModelName))
+
+	// Ensure parent directories exist (though os.TempDir() should already exist)
+	// parentDir := filepath.Dir(tempFilePath)
+	// if err := os.MkdirAll(parentDir, 0755); err != nil {
+	// 	logging.ErrorLogger.Printf("Error creating directory for temporary modelfile: %v", err)
+	// 	return "", fmt.Errorf("error creating directory for temporary modelfile: %w", err)
 	// }
-	//
-	// logging.DebugLogger.Printf("Attempting to update model %s. Request details:", modelName)
-	// logging.DebugLogger.Printf("  System: %s", createReq.System)
-	// logging.DebugLogger.Printf("  Template: %s", createReq.Template)
-	// logging.DebugLogger.Printf("  Parameters: %+v", createReq.Parameters)
-	//
-	// reqJson, jsonErr := json.Marshal(createReq)
-	// if jsonErr == nil {
-	// 	logging.DebugLogger.Printf("Create request JSON: %s", string(reqJson))
-	// } else {
-	// 	logging.ErrorLogger.Printf("Failed to marshal CreateRequest to JSON for model %s: %v", modelName, jsonErr)
-	// }
-	//
-	// // Call client.Create to update the model
-	// err = client.Create(ctx, createReq, func(resp api.ProgressResponse) error {
-	// 	logging.DebugLogger.Printf("Create progress for %s: Status=%s, Digest=%s, Total=%d, Completed=%d\n",
-	// 		modelName, resp.Status, resp.Digest, resp.Total, resp.Completed)
-	// 	return nil
-	// })
-	// if err != nil {
-	// 	errMsgBase := fmt.Sprintf("failed to update model %s", modelName)
-	// 	specificReason := ""
-	// 	if strings.Contains(err.Error(), "error getting blobs path") {
-	// 		specificReason = " (detail: error accessing model data, possibly an issue with the base model or remote Ollama instance)"
-	// 	} else if strings.Contains(err.Error(), "no such file or directory") {
-	// 		specificReason = " (detail: underlying model file not found, possibly an issue with the base model or remote Ollama instance)"
-	// 	}
-	// 	logging.ErrorLogger.Printf("%s%s: %v", errMsgBase, specificReason, err)
-	// 	return "", fmt.Errorf("%s%s: %w", errMsgBase, specificReason, err)
-	// }
-	//
-	// successMsg := fmt.Sprintf("Model %s updated successfully", modelName)
-	// logging.InfoLogger.Printf(successMsg)
-	// return successMsg, nil
+
+	err = os.WriteFile(tempFilePath, []byte(modelfileContent), 0644)
+	if err != nil {
+		logging.ErrorLogger.Printf("Error writing modelfile to temp file %s: %v", tempFilePath, err)
+		return "", fmt.Errorf("error writing modelfile to temp file %s: %w", tempFilePath, err)
+	}
+	defer func() {
+		if err := os.Remove(tempFilePath); err != nil {
+			logging.ErrorLogger.Printf("Failed to remove temporary file %s: %v", tempFilePath, err)
+		}
+	}()
+
+	cmd := exec.Command(editor, tempFilePath)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	logging.DebugLogger.Printf("Opening temporary modelfile %s with editor %s", tempFilePath, editor)
+	if err := cmd.Run(); err != nil {
+		logging.ErrorLogger.Printf("Error running editor %s on %s: %v", editor, tempFilePath, err)
+		return "", fmt.Errorf("error running editor %s: %w (modelfile was at %s)", editor, err, tempFilePath)
+	}
+
+	editedModelfileContentBytes, err := os.ReadFile(tempFilePath)
+	if err != nil {
+		logging.ErrorLogger.Printf("Error reading edited modelfile from %s: %v", tempFilePath, err)
+		return "", fmt.Errorf("error reading edited modelfile from %s: %w", tempFilePath, err)
+	}
+	editedModelfileContent := string(editedModelfileContentBytes)
+	// --- End of Local File Editing Flow ---
+
+	// Logging original and edited content for debugging.
+	logging.DebugLogger.Printf("Original modelfile content for %s:\n%s", modelName, modelfileContent)
+	logging.DebugLogger.Printf("Edited modelfile content for %s:\n%s", modelName, editedModelfileContent)
+
+	// 1. Parse Initial Parameters (from showResp.Parameters)
+	// currentParameters was already parsed at the beginning of the function. We can log it here if needed for comparison.
+	// If an error occurred, it would have returned early.
+	logging.DebugLogger.Printf("Initial server parameters for %s: %+v", modelName, currentParameters)
+
+
+	// 2. Parse Edited Modelfile Content
+	// System Prompt & Template
+	editedTemplate, editedSystem := extractTemplateAndSystem(editedModelfileContent)
+
+	// Parameters from the edited modelfile content
+	newParameters, err := parseParametersFromModelfile(editedModelfileContent)
+	if err != nil {
+		logging.ErrorLogger.Printf("Error parsing parameters from edited modelfile for %s: %v", modelName, err)
+		return "", fmt.Errorf("error parsing parameters from edited modelfile for %s: %w", modelName, err)
+	}
+	logging.DebugLogger.Printf("Parsed parameters from EDITED modelfile for %s: %+v", modelName, newParameters)
+
+	// 3. Construct api.CreateRequest
+	createReq := &api.CreateRequest{
+		Model:      modelName,
+		From:       modelName, // Using the same model name as the base for the update
+		System:     editedSystem,
+		Template:   editedTemplate,
+		Parameters: newParameters, // Parameters are taken *only* from the edited modelfile
+	}
+
+	logging.DebugLogger.Printf("Constructed CreateRequest for %s:", modelName)
+	if createReq.System != "" {
+		logging.DebugLogger.Printf("  System: %s", createReq.System)
+	} else {
+		logging.DebugLogger.Printf("  System: (empty/removed)")
+	}
+	if createReq.Template != "" {
+		logging.DebugLogger.Printf("  Template: %s", createReq.Template)
+	} else {
+		logging.DebugLogger.Printf("  Template: (empty/removed)")
+	}
+	if len(createReq.Parameters) > 0 {
+		logging.DebugLogger.Printf("  Parameters: %+v", createReq.Parameters)
+	} else {
+		logging.DebugLogger.Printf("  Parameters: (empty/removed)")
+	}
+
+
+	reqJson, jsonErr := json.Marshal(createReq)
+	if jsonErr == nil {
+		logging.DebugLogger.Printf("Create request JSON: %s", string(reqJson))
+	} else {
+		logging.ErrorLogger.Printf("Failed to marshal CreateRequest to JSON for model %s: %v", modelName, jsonErr)
+	}
+
+	apiUpdateErr := client.Create(ctx, createReq, func(resp api.ProgressResponse) error {
+		logging.DebugLogger.Printf("Create progress for %s: Status=%s, Digest=%s, Total=%d, Completed=%d\n",
+			modelName, resp.Status, resp.Digest, resp.Total, resp.Completed)
+		return nil
+	})
+	if apiUpdateErr != nil {
+		errMsgBase := fmt.Sprintf("failed to update model %s via API", modelName)
+		specificReason := ""
+		if strings.Contains(apiUpdateErr.Error(), "error getting blobs path") {
+			specificReason = " (detail: error accessing model data, possibly an issue with the base model or remote Ollama instance)"
+		} else if strings.Contains(apiUpdateErr.Error(), "no such file or directory") {
+			specificReason = " (detail: underlying model file not found, possibly an issue with the base model or remote Ollama instance)"
+		}
+		logging.ErrorLogger.Printf("%s%s: %v", errMsgBase, specificReason, apiUpdateErr)
+		return "", fmt.Errorf("%s%s: %w", errMsgBase, specificReason, apiUpdateErr)
+	}
+
+	successMsg := fmt.Sprintf("Model %s updated successfully using local editor changes.", modelName)
+	logging.InfoLogger.Printf(successMsg)
+	return successMsg, nil
+	// --- End previously bypassed API update logic ---
 }
 
 func isLocalhost(url string) bool {
@@ -322,6 +401,84 @@ func parseContextSize(input string) (int, error) {
 
 	return value * multiplier, nil
 }
+
+// getEditor retrieves the editor command.
+// It checks the EDITOR environment variable first, then Gollama config, then defaults to "vim".
+func getEditor() string {
+	if editor := os.Getenv("EDITOR"); editor != "" {
+		return editor
+	}
+	cfg, err := config.LoadConfig() // Assuming config.LoadConfig() is accessible
+	if err != nil {
+		logging.ErrorLogger.Printf("Error loading config for editor: %v\n", err)
+		return "vim" // Default fallback
+	}
+	if cfg.Editor != "" {
+		return cfg.Editor
+	}
+	return "vim" // Default fallback if config value is also empty
+}
+
+// parseParametersFromModelfile parses parameters from the full modelfile content string.
+// It looks for lines starting with "PARAMETER key value".
+func parseParametersFromModelfile(content string) (map[string]any, error) {
+	parameters := make(map[string]any)
+	lines := strings.Split(content, "\n")
+	var stopValues []string
+
+	for _, line := range lines {
+		trimmedLine := strings.TrimSpace(line)
+
+		// Skip empty lines and comments
+		if trimmedLine == "" || strings.HasPrefix(trimmedLine, "#") {
+			continue
+		}
+
+		if strings.HasPrefix(trimmedLine, "PARAMETER") {
+			parts := strings.Fields(trimmedLine) // PARAMETER key value1 value2...
+			if len(parts) < 3 { // PARAMETER + key + at least one value part
+				logging.ErrorLogger.Printf("Malformed PARAMETER line detected: %s", trimmedLine)
+				return nil, fmt.Errorf("malformed PARAMETER line: '%s'", trimmedLine)
+			}
+			// len(parts) >= 3 confirmed
+			paramName := parts[1]
+				paramValueString := strings.Join(parts[2:], " ")
+
+				// Attempt to unquote the value string if it's quoted
+				if unquoted, err := strconv.Unquote(paramValueString); err == nil {
+					paramValueString = unquoted
+				}
+				// It's also possible the value itself is a list of strings for 'stop'
+				// For 'stop', we accumulate values.
+				if paramName == "stop" {
+					stopValues = append(stopValues, paramValueString)
+					continue // Continue to next line after handling stop
+				}
+
+				// Try to parse as common types
+				if intVal, err := strconv.Atoi(paramValueString); err == nil {
+					parameters[paramName] = intVal
+				} else if floatVal, err := strconv.ParseFloat(paramValueString, 64); err == nil {
+					parameters[paramName] = floatVal
+				} else if boolVal, err := strconv.ParseBool(paramValueString); err == nil {
+					parameters[paramName] = boolVal
+				} else {
+					// Default to string if no other type matches
+					parameters[paramName] = paramValueString
+				}
+			}
+			// No specific 'else' needed here as len(parts) < 3 is already an error.
+		}
+	}
+
+	// If stopValues were collected, add them to parameters map as a slice of strings
+	if len(stopValues) > 0 {
+		parameters["stop"] = stopValues
+	}
+
+	return parameters, nil
+}
+
 
 func createModelFromModelfile(modelName, modelfilePath string, client *api.Client) error {
 	ctx := context.Background()
