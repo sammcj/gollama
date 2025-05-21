@@ -240,64 +240,63 @@ func editModelfile(client *api.Client, modelName string) (string, error) {
 	logging.DebugLogger.Printf("Current Template for %s: %s\n", modelName, currentTemplate)
 	logging.DebugLogger.Printf("Current Parameters for %s: %+v\n", modelName, currentParameters)
 
-	// Simulate user editing these values.
-	// For this subtask, we'll make a small identifiable modification.
-	// In a real TUI, these would come from user input.
-	editedSystem := currentSystem + " - edited" // Simulated change
-	editedTemplate := currentTemplate            // No change for now
-	editedParameters := currentParameters        // No change for now
+	logging.DebugLogger.Printf("Current System for %s: %s\n", modelName, currentSystem)
+	logging.DebugLogger.Printf("Current Template for %s: %s\n", modelName, currentTemplate)
+	logging.DebugLogger.Printf("Current Parameters for %s: %+v\n", modelName, currentParameters)
 
-	// Construct the CreateRequest
-	createReq := &api.CreateRequest{
-		Model:      modelName,
-		From:       modelName, // Base the new version on the existing one
-		System:     editedSystem,
-		Template:   editedTemplate,
-		Parameters: editedParameters,
-	}
+	// Informative message and bypass actual update, as per subtask requirements.
+	// The actual values are logged above for debugging/future TUI.
+	infoMsg := fmt.Sprintf("Interactive model editing is not yet fully implemented. No changes were made to model '%s'.", modelName)
+	logging.InfoLogger.Printf("Bypassing model update for '%s': %s", modelName, infoMsg)
+	return infoMsg, nil
 
-	logging.DebugLogger.Printf("Attempting to update model %s. Request details:", modelName)
-	logging.DebugLogger.Printf("  System: %s", createReq.System)
-	logging.DebugLogger.Printf("  Template: %s", createReq.Template)
-	logging.DebugLogger.Printf("  Parameters: %+v", createReq.Parameters)
-
-	reqJson, jsonErr := json.Marshal(createReq)
-	if jsonErr == nil {
-		logging.DebugLogger.Printf("Create request JSON: %s", string(reqJson))
-	} else {
-		logging.ErrorLogger.Printf("Failed to marshal CreateRequest to JSON for model %s: %v", modelName, jsonErr)
-		// Not returning here, as the Create call might still work, but good to log.
-	}
-
-	// Call client.Create to update the model
-	err = client.Create(ctx, createReq, func(resp api.ProgressResponse) error {
-		logging.DebugLogger.Printf("Create progress for %s: Status=%s, Digest=%s, Total=%d, Completed=%d\n",
-			modelName, resp.Status, resp.Digest, resp.Total, resp.Completed)
-		return nil
-	})
-	if err != nil {
-		// Enhanced error message for client.Create()
-		errMsgBase := fmt.Sprintf("failed to update model %s", modelName)
-		specificReason := ""
-		// These string checks are based on observed Ollama API error messages.
-		// They might indicate issues with the base model specified in `From` or server-side processing.
-		if strings.Contains(err.Error(), "error getting blobs path") {
-			specificReason = " (detail: error accessing model data, possibly an issue with the base model or remote Ollama instance)"
-		} else if strings.Contains(err.Error(), "no such file or directory") {
-			specificReason = " (detail: underlying model file not found, possibly an issue with the base model or remote Ollama instance)"
-		}
-		logging.ErrorLogger.Printf("%s%s: %v", errMsgBase, specificReason, err)
-		return "", fmt.Errorf("%s%s: %w", errMsgBase, specificReason, err)
-	}
-
-	successMsg := fmt.Sprintf("Model %s updated successfully", modelName)
-	logging.InfoLogger.Printf(successMsg) // Log success
-
-	// The direct fmt.Printf might be removed if all user feedback goes through a TUI.
-	// For now, it's kept for CLI context or if TUI isn't active.
-	// fmt.Printf("Model %s updated successfully\n", modelName)
-
-	return successMsg, nil
+	// The following code for actual update is now bypassed.
+	// editedSystem := currentSystem // Original value
+	// editedTemplate := currentTemplate // Original value
+	// editedParameters := currentParameters // Original value
+	//
+	// // Construct the CreateRequest
+	// createReq := &api.CreateRequest{
+	// 	Model:      modelName,
+	// 	From:       modelName, // Base the new version on the existing one
+	// 	System:     editedSystem,
+	// 	Template:   editedTemplate,
+	// 	Parameters: editedParameters,
+	// }
+	//
+	// logging.DebugLogger.Printf("Attempting to update model %s. Request details:", modelName)
+	// logging.DebugLogger.Printf("  System: %s", createReq.System)
+	// logging.DebugLogger.Printf("  Template: %s", createReq.Template)
+	// logging.DebugLogger.Printf("  Parameters: %+v", createReq.Parameters)
+	//
+	// reqJson, jsonErr := json.Marshal(createReq)
+	// if jsonErr == nil {
+	// 	logging.DebugLogger.Printf("Create request JSON: %s", string(reqJson))
+	// } else {
+	// 	logging.ErrorLogger.Printf("Failed to marshal CreateRequest to JSON for model %s: %v", modelName, jsonErr)
+	// }
+	//
+	// // Call client.Create to update the model
+	// err = client.Create(ctx, createReq, func(resp api.ProgressResponse) error {
+	// 	logging.DebugLogger.Printf("Create progress for %s: Status=%s, Digest=%s, Total=%d, Completed=%d\n",
+	// 		modelName, resp.Status, resp.Digest, resp.Total, resp.Completed)
+	// 	return nil
+	// })
+	// if err != nil {
+	// 	errMsgBase := fmt.Sprintf("failed to update model %s", modelName)
+	// 	specificReason := ""
+	// 	if strings.Contains(err.Error(), "error getting blobs path") {
+	// 		specificReason = " (detail: error accessing model data, possibly an issue with the base model or remote Ollama instance)"
+	// 	} else if strings.Contains(err.Error(), "no such file or directory") {
+	// 		specificReason = " (detail: underlying model file not found, possibly an issue with the base model or remote Ollama instance)"
+	// 	}
+	// 	logging.ErrorLogger.Printf("%s%s: %v", errMsgBase, specificReason, err)
+	// 	return "", fmt.Errorf("%s%s: %w", errMsgBase, specificReason, err)
+	// }
+	//
+	// successMsg := fmt.Sprintf("Model %s updated successfully", modelName)
+	// logging.InfoLogger.Printf(successMsg)
+	// return successMsg, nil
 }
 
 func isLocalhost(url string) bool {
