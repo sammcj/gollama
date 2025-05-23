@@ -288,8 +288,8 @@ func editModelfile(client *api.Client, modelName string) (string, error) {
 		return fmt.Sprintf("No changes made to model %s", modelName), nil
 	}
 
-	// To properly handle parameter removal, we need to delete and recreate the model
-	// This ensures no parameter inheritance from the existing model
+	// To properly handle parameter removal, we need to use a safe copy-recreate-cleanup approach
+	// This ensures no parameter inheritance while preserving the original model if something goes wrong
 	logging.DebugLogger.Printf("Updating model %s with changes:\n", modelName)
 	if templateChanged {
 		logging.DebugLogger.Printf("- Modified template\n")
@@ -300,21 +300,28 @@ func editModelfile(client *api.Client, modelName string) (string, error) {
 	if parametersChanged {
 		logging.DebugLogger.Printf("- Modified parameters: %+v\n", newParameters)
 	}
-	logging.DebugLogger.Printf("Using delete-and-recreate approach to ensure parameter removal\n")
+	logging.DebugLogger.Printf("Using safe copy-recreate-cleanup approach to ensure parameter removal\n")
 
-	// Step 1: Delete the existing model
-	logging.DebugLogger.Printf("Deleting existing model: %s\n", modelName)
-	err = deleteModel(client, modelName)
+	// Step 1: Create a temporary copy of the model
+	tempModelName := modelName + "-gollama-edit"
+	logging.DebugLogger.Printf("Creating temporary copy: %s\n", tempModelName)
+	copyReq := &api.CopyRequest{
+		Source:      modelName,
+		Destination: tempModelName,
+	}
+	err = client.Copy(ctx, copyReq)
 	if err != nil {
-		return "", fmt.Errorf("failed to delete existing model %s: %v", modelName, err)
+		return "", fmt.Errorf("failed to create temporary copy %s: %v", tempModelName, err)
 	}
 
-	// Step 2: Create the model from scratch using the new modelfile
-	logging.DebugLogger.Printf("Recreating model %s from new modelfile\n", modelName)
+	// Step 2: Create the new model from the temporary copy using the new modelfile
+	// Fix the FROM line to use the temporary model name
+	fixedModelfileContent := fixModelfileFromLine(string(newModelfileContent), tempModelName)
+	logging.DebugLogger.Printf("Creating new model %s from temporary copy\n", modelName)
 	createReq := &api.CreateRequest{
 		Model: modelName,
 		Files: map[string]string{
-			"modelfile": string(newModelfileContent),
+			"modelfile": fixedModelfileContent,
 		},
 	}
 
@@ -328,6 +335,21 @@ func editModelfile(client *api.Client, modelName string) (string, error) {
 			resp.Status, resp.Digest, resp.Total, resp.Completed)
 		return nil
 	})
+
+	// Step 3: Cleanup - delete the temporary copy
+	if err != nil {
+		// If creation failed, we should keep the temporary copy and inform the user
+		logging.ErrorLogger.Printf("Failed to create new model, temporary copy %s preserved\n", tempModelName)
+		return "", fmt.Errorf("failed to create updated model %s: %v (temporary copy %s preserved)", modelName, err, tempModelName)
+	} else {
+		// Success! Delete the temporary copy
+		logging.DebugLogger.Printf("Successfully created new model, cleaning up temporary copy: %s\n", tempModelName)
+		cleanupErr := deleteModel(client, tempModelName)
+		if cleanupErr != nil {
+			logging.ErrorLogger.Printf("Warning: Failed to cleanup temporary copy %s: %v\n", tempModelName, cleanupErr)
+			// Don't fail the operation just because cleanup failed
+		}
+	}
 	if err != nil {
 		errMsg := fmt.Sprintf("Failed to update model %s", modelName)
 		errorStr := err.Error()
@@ -1067,4 +1089,23 @@ func parametersEqual(a, b map[string]any) bool {
 	}
 
 	return true
+}
+
+// fixModelfileFromLine replaces blob references in FROM lines with the model name
+// This is necessary when recreating models to avoid "unknown type" errors
+func fixModelfileFromLine(content, modelName string) string {
+	lines := strings.Split(content, "\n")
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "FROM ") {
+			// Check if it's a blob reference
+			if strings.Contains(trimmed, "/blobs/sha256-") || strings.Contains(trimmed, ".ollama/models/blobs/") {
+				// Replace with model name
+				lines[i] = fmt.Sprintf("FROM %s", modelName)
+				logging.DebugLogger.Printf("Fixed FROM line: %s -> %s\n", trimmed, lines[i])
+			}
+			break // Only process the first FROM line
+		}
+	}
+	return strings.Join(lines, "\n")
 }
