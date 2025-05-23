@@ -288,16 +288,8 @@ func editModelfile(client *api.Client, modelName string) (string, error) {
 		return fmt.Sprintf("No changes made to model %s", modelName), nil
 	}
 
-	// Create request using the complete modelfile content to avoid parameter inheritance issues
-	// When using From field, Ollama inherits ALL existing parameters and merges with new ones
-	// To properly handle parameter removal, we need to recreate from the complete modelfile
-	createReq := &api.CreateRequest{
-		Model: modelName, // The model to update
-		Files: map[string]string{
-			"modelfile": string(newModelfileContent),
-		},
-	}
-
+	// To properly handle parameter removal, we need to delete and recreate the model
+	// This ensures no parameter inheritance from the existing model
 	logging.DebugLogger.Printf("Updating model %s with changes:\n", modelName)
 	if templateChanged {
 		logging.DebugLogger.Printf("- Modified template\n")
@@ -308,7 +300,23 @@ func editModelfile(client *api.Client, modelName string) (string, error) {
 	if parametersChanged {
 		logging.DebugLogger.Printf("- Modified parameters: %+v\n", newParameters)
 	}
-	logging.DebugLogger.Printf("Using complete modelfile approach to handle parameter removal\n")
+	logging.DebugLogger.Printf("Using delete-and-recreate approach to ensure parameter removal\n")
+
+	// Step 1: Delete the existing model
+	logging.DebugLogger.Printf("Deleting existing model: %s\n", modelName)
+	err = deleteModel(client, modelName)
+	if err != nil {
+		return "", fmt.Errorf("failed to delete existing model %s: %v", modelName, err)
+	}
+
+	// Step 2: Create the model from scratch using the new modelfile
+	logging.DebugLogger.Printf("Recreating model %s from new modelfile\n", modelName)
+	createReq := &api.CreateRequest{
+		Model: modelName,
+		Files: map[string]string{
+			"modelfile": string(newModelfileContent),
+		},
+	}
 
 	reqJson, jsonErr := json.Marshal(createReq)
 	if jsonErr == nil {
