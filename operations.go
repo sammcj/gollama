@@ -288,8 +288,8 @@ func editModelfile(client *api.Client, modelName string) (string, error) {
 		return fmt.Sprintf("No changes made to model %s", modelName), nil
 	}
 
-	// Use a simpler approach: just update the model with the new parameters
-	// This should work for parameter removal by sending only the desired parameters
+	// Use the field-based approach instead of Files to avoid blob reference issues
+	// This is the correct way to update models that were created with blob references
 	logging.DebugLogger.Printf("Updating model %s with changes:\n", modelName)
 	if templateChanged {
 		logging.DebugLogger.Printf("- Modified template\n")
@@ -301,17 +301,30 @@ func editModelfile(client *api.Client, modelName string) (string, error) {
 		logging.DebugLogger.Printf("- Modified parameters: %+v\n", newParameters)
 	}
 
-	// Fix the modelfile to remove blob references and use the current model as base
-	fixedModelfileContent := fixBlobReferences(string(newModelfileContent), modelName)
-	logging.DebugLogger.Printf("Using fixed modelfile content\n")
-
-	// Create request using the fixed modelfile content
-	createReq := &api.CreateRequest{
-		Model: modelName,
-		Files: map[string]string{
-			"modelfile": fixedModelfileContent,
-		},
+	// Try to find the original base model to avoid parameter inheritance
+	baseModelName, err := findBaseModel(client, modelName)
+	if err != nil {
+		logging.DebugLogger.Printf("Could not find base model, using current model: %v\n", err)
+		baseModelName = modelName
 	}
+
+	logging.DebugLogger.Printf("Using base model: %s\n", baseModelName)
+
+	// Create request using field-based approach with base model
+	createReq := &api.CreateRequest{
+		Model: modelName,     // The model to update
+		From:  baseModelName, // Use base model to avoid parameter inheritance
+	}
+
+	// Always set all fields to ensure complete replacement
+	if newTemplate != "" {
+		createReq.Template = newTemplate
+	}
+	if newSystem != "" {
+		createReq.System = newSystem
+	}
+	// Always set parameters (even if empty) to replace all existing parameters
+	createReq.Parameters = newParameters
 
 	reqJson, jsonErr := json.Marshal(createReq)
 	if jsonErr == nil {
@@ -1097,4 +1110,31 @@ func fixBlobReferences(content, modelName string) string {
 	}
 
 	return strings.Join(fixedLines, "\n")
+}
+
+// findBaseModel attempts to find the original base model for a given model
+// This helps avoid parameter inheritance when updating models
+func findBaseModel(client *api.Client, modelName string) (string, error) {
+	// Try to extract base model name from the model name itself
+	// For models like "sammcj/devstral-small-24b-2505-ud:cline-128k-q6_k_xl"
+	// the base might be "sammcj/devstral-small-24b-2505-ud"
+
+	parts := strings.Split(modelName, ":")
+	if len(parts) > 1 {
+		baseCandidate := parts[0]
+		logging.DebugLogger.Printf("Trying base model candidate: %s\n", baseCandidate)
+
+		// Check if this base model exists
+		ctx := context.Background()
+		req := &api.ShowRequest{Name: baseCandidate}
+		_, err := client.Show(ctx, req)
+		if err == nil {
+			logging.DebugLogger.Printf("Found base model: %s\n", baseCandidate)
+			return baseCandidate, nil
+		}
+		logging.DebugLogger.Printf("Base model candidate %s not found: %v\n", baseCandidate, err)
+	}
+
+	// If we can't find a base model, return an error
+	return "", fmt.Errorf("could not determine base model for %s", modelName)
 }
