@@ -272,49 +272,43 @@ func editModelfile(client *api.Client, modelName string) (string, error) {
 	// Extract TEMPLATE, SYSTEM, and parameters from both original and new content
 	var origTemplate, origSystem, newTemplate, newSystem string
 
-	// Create request with base fields
-	createReq := &api.CreateRequest{
-		Model: modelName, // The model to update
-		From:  modelName, // Required: use the model's own name as the base
-	}
-
 	origTemplate, origSystem = extractTemplateAndSystem(modelfileContent)
 	newTemplate, newSystem = extractTemplateAndSystem(string(newModelfileContent))
-
-	// Only include template if it was changed
-	if newTemplate != origTemplate {
-		logging.DebugLogger.Printf("Template was modified for model %s", modelName)
-		createReq.Template = newTemplate
-	}
-
-	if newSystem != origSystem {
-		logging.DebugLogger.Printf("System prompt was modified for model %s", modelName)
-		createReq.System = newSystem
-	}
 
 	// Handle parameters with proper removal detection
 	origParameters := extractParameters(modelfileContent)
 	newParameters := extractParameters(string(newModelfileContent))
 
-	// Check if parameters have changed (added, modified, or removed)
+	// Check if anything has changed
+	templateChanged := newTemplate != origTemplate
+	systemChanged := newSystem != origSystem
 	parametersChanged := !parametersEqual(origParameters, newParameters)
 
-	if parametersChanged {
-		logging.DebugLogger.Printf("Parameters were modified for model %s", modelName)
-		// Always set parameters when they've changed, even if empty (to handle removals)
-		createReq.Parameters = newParameters
+	if !templateChanged && !systemChanged && !parametersChanged {
+		return fmt.Sprintf("No changes made to model %s", modelName), nil
+	}
+
+	// Create request using the complete modelfile content to avoid parameter inheritance issues
+	// When using From field, Ollama inherits ALL existing parameters and merges with new ones
+	// To properly handle parameter removal, we need to recreate from the complete modelfile
+	createReq := &api.CreateRequest{
+		Model: modelName, // The model to update
+		Files: map[string]string{
+			"modelfile": string(newModelfileContent),
+		},
 	}
 
 	logging.DebugLogger.Printf("Updating model %s with changes:\n", modelName)
-	if newTemplate != origTemplate {
+	if templateChanged {
 		logging.DebugLogger.Printf("- Modified template\n")
 	}
-	if newSystem != origSystem {
+	if systemChanged {
 		logging.DebugLogger.Printf("- Modified system prompt\n")
 	}
 	if parametersChanged {
 		logging.DebugLogger.Printf("- Modified parameters: %+v\n", newParameters)
 	}
+	logging.DebugLogger.Printf("Using complete modelfile approach to handle parameter removal\n")
 
 	reqJson, jsonErr := json.Marshal(createReq)
 	if jsonErr == nil {
