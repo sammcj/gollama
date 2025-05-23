@@ -272,42 +272,59 @@ func editModelfile(client *api.Client, modelName string) (string, error) {
 	// Extract TEMPLATE, SYSTEM, and parameters from both original and new content
 	var origTemplate, origSystem, newTemplate, newSystem string
 
-	// Create request with base fields
-	createReq := &api.CreateRequest{
-		Model: modelName, // The model to update
-		From:  modelName, // Required: use the model's own name as the base
-	}
-
 	origTemplate, origSystem = extractTemplateAndSystem(modelfileContent)
 	newTemplate, newSystem = extractTemplateAndSystem(string(newModelfileContent))
 
-	// Only include template if it was changed
-	if newTemplate != origTemplate {
-		logging.DebugLogger.Printf("Template was modified for model %s", modelName)
-		createReq.Template = newTemplate
+	// Handle parameters with proper removal detection
+	origParameters := extractParameters(modelfileContent)
+	newParameters := extractParameters(string(newModelfileContent))
+
+	// Check if anything has changed
+	templateChanged := newTemplate != origTemplate
+	systemChanged := newSystem != origSystem
+	parametersChanged := !parametersEqual(origParameters, newParameters)
+
+	if !templateChanged && !systemChanged && !parametersChanged {
+		return fmt.Sprintf("No changes made to model %s", modelName), nil
 	}
 
-	if newSystem != origSystem {
-		logging.DebugLogger.Printf("System prompt was modified for model %s", modelName)
-		createReq.System = newSystem
-	}
-
-	// Add parameters if any were found
-	parameters := extractParameters(string(newModelfileContent))
-	if len(parameters) > 0 {
-		createReq.Parameters = parameters
-	}
-
+	// Use the field-based approach instead of Files to avoid blob reference issues
+	// This is the correct way to update models that were created with blob references
 	logging.DebugLogger.Printf("Updating model %s with changes:\n", modelName)
-	if newTemplate != origTemplate {
+	if templateChanged {
 		logging.DebugLogger.Printf("- Modified template\n")
 	}
-	if newSystem != origSystem {
+	if systemChanged {
 		logging.DebugLogger.Printf("- Modified system prompt\n")
 	}
-	if len(parameters) > 0 {
-		logging.DebugLogger.Printf("- Modified parameters: %+v\n", parameters)
+	if parametersChanged {
+		logging.DebugLogger.Printf("- Modified parameters: %+v\n", newParameters)
 	}
+
+	// Try to find the original base model to avoid parameter inheritance
+	baseModelName, err := findBaseModel(client, modelName)
+	if err != nil {
+		logging.DebugLogger.Printf("Could not find base model, using current model: %v\n", err)
+		baseModelName = modelName
+	}
+
+	logging.DebugLogger.Printf("Using base model: %s\n", baseModelName)
+
+	// Create request using field-based approach with base model
+	createReq := &api.CreateRequest{
+		Model: modelName,     // The model to update
+		From:  baseModelName, // Use base model to avoid parameter inheritance
+	}
+
+	// Always set all fields to ensure complete replacement
+	if newTemplate != "" {
+		createReq.Template = newTemplate
+	}
+	if newSystem != "" {
+		createReq.System = newSystem
+	}
+	// Always set parameters (even if empty) to replace all existing parameters
+	createReq.Parameters = newParameters
 
 	reqJson, jsonErr := json.Marshal(createReq)
 	if jsonErr == nil {
@@ -321,10 +338,19 @@ func editModelfile(client *api.Client, modelName string) (string, error) {
 	})
 	if err != nil {
 		errMsg := fmt.Sprintf("Failed to update model %s", modelName)
-		if strings.Contains(err.Error(), "error getting blobs path") {
-			errMsg += fmt.Sprintf(": error updating model parameters. This may occur with remote Ollama instances")
-		} else if strings.Contains(err.Error(), "no such file or directory") {
-			errMsg += fmt.Sprintf(": model file not found. This may occur with remote Ollama instances")
+		errorStr := err.Error()
+
+		// Check for specific error types
+		if strings.Contains(errorStr, "error getting blobs path") {
+			errMsg += ": error updating model parameters. This may occur with remote Ollama instances"
+		} else if strings.Contains(errorStr, "no such file or directory") {
+			errMsg += ": model file not found. This may occur with remote Ollama instances"
+		} else if strings.Contains(errorStr, "invalid parameter") || strings.Contains(errorStr, "unknown parameter") {
+			errMsg += fmt.Sprintf(": invalid parameter in modelfile. %v", err)
+			logging.ErrorLogger.Printf("Invalid parameter error for model %s: %v", modelName, err)
+		} else if strings.Contains(errorStr, "parameter") && (strings.Contains(errorStr, "invalid") || strings.Contains(errorStr, "unsupported") || strings.Contains(errorStr, "unknown")) {
+			errMsg += fmt.Sprintf(": parameter validation failed. %v", err)
+			logging.ErrorLogger.Printf("Parameter validation error for model %s: %v", modelName, err)
 		} else {
 			errMsg += fmt.Sprintf(": %v", err)
 		}
@@ -1002,4 +1028,113 @@ func extractParameters(content string) map[string]any {
 	}
 
 	return parameters
+}
+
+// parametersEqual compares two parameter maps for equality
+func parametersEqual(a, b map[string]any) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	for key, valueA := range a {
+		valueB, exists := b[key]
+		if !exists {
+			return false
+		}
+
+		// Handle different types of values
+		switch vA := valueA.(type) {
+		case []string:
+			vB, ok := valueB.([]string)
+			if !ok || len(vA) != len(vB) {
+				return false
+			}
+			for i, v := range vA {
+				if v != vB[i] {
+					return false
+				}
+			}
+		case string:
+			if vB, ok := valueB.(string); !ok || vA != vB {
+				return false
+			}
+		case int:
+			if vB, ok := valueB.(int); !ok || vA != vB {
+				return false
+			}
+		case float64:
+			if vB, ok := valueB.(float64); !ok || vA != vB {
+				return false
+			}
+		default:
+			// For other types, use string comparison
+			if fmt.Sprintf("%v", valueA) != fmt.Sprintf("%v", valueB) {
+				return false
+			}
+		}
+	}
+
+	return true
+}
+
+// fixBlobReferences fixes blob references in modelfiles by replacing them with the model name
+// This prevents "unknown type" errors when recreating models
+func fixBlobReferences(content, modelName string) string {
+	lines := strings.Split(content, "\n")
+	var fixedLines []string
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+
+		// Skip comment lines generated by "ollama show"
+		if strings.HasPrefix(trimmed, "# Modelfile generated by") ||
+		   strings.HasPrefix(trimmed, "# To build a new Modelfile") ||
+		   strings.HasPrefix(trimmed, "# FROM") {
+			continue
+		}
+
+		// Replace FROM line with model name if it contains blob reference
+		if strings.HasPrefix(trimmed, "FROM ") {
+			if strings.Contains(trimmed, "/blobs/sha256-") || strings.Contains(trimmed, ".ollama/models/blobs/") {
+				// Replace blob reference with model name
+				fixedLines = append(fixedLines, fmt.Sprintf("FROM %s", modelName))
+				logging.DebugLogger.Printf("Fixed blob reference: %s -> FROM %s\n", trimmed, modelName)
+			} else {
+				// Keep existing FROM line if it's not a blob reference
+				fixedLines = append(fixedLines, line)
+			}
+		} else {
+			// Keep all other lines as-is
+			fixedLines = append(fixedLines, line)
+		}
+	}
+
+	return strings.Join(fixedLines, "\n")
+}
+
+// findBaseModel attempts to find the original base model for a given model
+// This helps avoid parameter inheritance when updating models
+func findBaseModel(client *api.Client, modelName string) (string, error) {
+	// Try to extract base model name from the model name itself
+	// For models like "sammcj/devstral-small-24b-2505-ud:cline-128k-q6_k_xl"
+	// the base might be "sammcj/devstral-small-24b-2505-ud"
+
+	parts := strings.Split(modelName, ":")
+	if len(parts) > 1 {
+		baseCandidate := parts[0]
+		logging.DebugLogger.Printf("Trying base model candidate: %s\n", baseCandidate)
+
+		// Check if this base model exists
+		ctx := context.Background()
+		req := &api.ShowRequest{Name: baseCandidate}
+		_, err := client.Show(ctx, req)
+		if err == nil {
+			logging.DebugLogger.Printf("Found base model: %s\n", baseCandidate)
+			return baseCandidate, nil
+		}
+		logging.DebugLogger.Printf("Base model candidate %s not found: %v\n", baseCandidate, err)
+	}
+
+	// If we can't find a base model, return an error
+	return "", fmt.Errorf("could not determine base model for %s", modelName)
 }
