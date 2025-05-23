@@ -292,10 +292,17 @@ func editModelfile(client *api.Client, modelName string) (string, error) {
 		createReq.System = newSystem
 	}
 
-	// Add parameters if any were found
-	parameters := extractParameters(string(newModelfileContent))
-	if len(parameters) > 0 {
-		createReq.Parameters = parameters
+	// Handle parameters with proper removal detection
+	origParameters := extractParameters(modelfileContent)
+	newParameters := extractParameters(string(newModelfileContent))
+
+	// Check if parameters have changed (added, modified, or removed)
+	parametersChanged := !parametersEqual(origParameters, newParameters)
+
+	if parametersChanged {
+		logging.DebugLogger.Printf("Parameters were modified for model %s", modelName)
+		// Always set parameters when they've changed, even if empty (to handle removals)
+		createReq.Parameters = newParameters
 	}
 
 	logging.DebugLogger.Printf("Updating model %s with changes:\n", modelName)
@@ -305,8 +312,8 @@ func editModelfile(client *api.Client, modelName string) (string, error) {
 	if newSystem != origSystem {
 		logging.DebugLogger.Printf("- Modified system prompt\n")
 	}
-	if len(parameters) > 0 {
-		logging.DebugLogger.Printf("- Modified parameters: %+v\n", parameters)
+	if parametersChanged {
+		logging.DebugLogger.Printf("- Modified parameters: %+v\n", newParameters)
 	}
 
 	reqJson, jsonErr := json.Marshal(createReq)
@@ -321,10 +328,19 @@ func editModelfile(client *api.Client, modelName string) (string, error) {
 	})
 	if err != nil {
 		errMsg := fmt.Sprintf("Failed to update model %s", modelName)
-		if strings.Contains(err.Error(), "error getting blobs path") {
-			errMsg += fmt.Sprintf(": error updating model parameters. This may occur with remote Ollama instances")
-		} else if strings.Contains(err.Error(), "no such file or directory") {
-			errMsg += fmt.Sprintf(": model file not found. This may occur with remote Ollama instances")
+		errorStr := err.Error()
+
+		// Check for specific error types
+		if strings.Contains(errorStr, "error getting blobs path") {
+			errMsg += ": error updating model parameters. This may occur with remote Ollama instances"
+		} else if strings.Contains(errorStr, "no such file or directory") {
+			errMsg += ": model file not found. This may occur with remote Ollama instances"
+		} else if strings.Contains(errorStr, "invalid parameter") || strings.Contains(errorStr, "unknown parameter") {
+			errMsg += fmt.Sprintf(": invalid parameter in modelfile. %v", err)
+			logging.ErrorLogger.Printf("Invalid parameter error for model %s: %v", modelName, err)
+		} else if strings.Contains(errorStr, "parameter") && (strings.Contains(errorStr, "invalid") || strings.Contains(errorStr, "unsupported") || strings.Contains(errorStr, "unknown")) {
+			errMsg += fmt.Sprintf(": parameter validation failed. %v", err)
+			logging.ErrorLogger.Printf("Parameter validation error for model %s: %v", modelName, err)
 		} else {
 			errMsg += fmt.Sprintf(": %v", err)
 		}
@@ -1002,4 +1018,51 @@ func extractParameters(content string) map[string]any {
 	}
 
 	return parameters
+}
+
+// parametersEqual compares two parameter maps for equality
+func parametersEqual(a, b map[string]any) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	for key, valueA := range a {
+		valueB, exists := b[key]
+		if !exists {
+			return false
+		}
+
+		// Handle different types of values
+		switch vA := valueA.(type) {
+		case []string:
+			vB, ok := valueB.([]string)
+			if !ok || len(vA) != len(vB) {
+				return false
+			}
+			for i, v := range vA {
+				if v != vB[i] {
+					return false
+				}
+			}
+		case string:
+			if vB, ok := valueB.(string); !ok || vA != vB {
+				return false
+			}
+		case int:
+			if vB, ok := valueB.(int); !ok || vA != vB {
+				return false
+			}
+		case float64:
+			if vB, ok := valueB.(float64); !ok || vA != vB {
+				return false
+			}
+		default:
+			// For other types, use string comparison
+			if fmt.Sprintf("%v", valueA) != fmt.Sprintf("%v", valueB) {
+				return false
+			}
+		}
+	}
+
+	return true
 }
