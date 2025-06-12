@@ -211,6 +211,108 @@ func getModelParams(modelName string, client *api.Client) (map[string]string, st
 	return params, template, nil
 }
 
+// getEnhancedModelInfo fetches detailed model information using the Ollama show API
+func getEnhancedModelInfo(modelName string, client *api.Client) (*EnhancedModelInfo, error) {
+	logging.InfoLogger.Printf("Getting enhanced model information for: %s\n", modelName)
+	ctx := context.Background()
+	req := &api.ShowRequest{Name: modelName}
+	resp, err := client.Show(ctx, req)
+	if err != nil {
+		logging.ErrorLogger.Printf("Error getting enhanced model info for %s: %v\n", modelName, err)
+		return nil, err
+	}
+
+	info := &EnhancedModelInfo{}
+
+	// Extract information from Details
+	info.ParameterSize = resp.Details.ParameterSize
+	info.QuantizationLevel = resp.Details.QuantizationLevel
+	info.Format = resp.Details.Format
+	info.Family = resp.Details.Family
+
+	// Extract information from ModelInfo
+	if resp.ModelInfo != nil {
+		// Log all available keys for debugging
+		logging.DebugLogger.Printf("Available ModelInfo keys for %s:", modelName)
+		for key := range resp.ModelInfo {
+			logging.DebugLogger.Printf("  - %s", key)
+		}
+
+		// Generic field extraction - search for patterns in ModelInfo keys
+		for key, value := range resp.ModelInfo {
+			if val, ok := value.(float64); ok {
+				// Context length - look for keys ending with context_length
+				if strings.HasSuffix(key, "context_length") && info.ContextLength == 0 {
+					info.ContextLength = int64(val)
+					logging.DebugLogger.Printf("Found context length: %d (key: %s)", info.ContextLength, key)
+				}
+
+				// Embedding length - look for keys ending with embedding_length
+				if strings.HasSuffix(key, "embedding_length") && info.EmbeddingLength == 0 {
+					info.EmbeddingLength = int64(val)
+					logging.DebugLogger.Printf("Found embedding length: %d (key: %s)", info.EmbeddingLength, key)
+				}
+
+				// Rope dimension count - look for keys containing rope and dimension
+				if (strings.Contains(key, "rope") && strings.Contains(key, "dimension")) ||
+					strings.HasSuffix(key, "attention.key_length") ||
+					strings.HasSuffix(key, "attention.value_length") {
+					if info.RopeDimensionCount == 0 {
+						info.RopeDimensionCount = int64(val)
+						logging.DebugLogger.Printf("Found rope dimension count: %d (key: %s)", info.RopeDimensionCount, key)
+					}
+				}
+
+				// Rope frequency base - look for keys containing rope and freq
+				if strings.Contains(key, "rope") && strings.Contains(key, "freq") && info.RopeFreqBase == 0 {
+					info.RopeFreqBase = val
+					logging.DebugLogger.Printf("Found rope freq base: %.0f (key: %s)", info.RopeFreqBase, key)
+				}
+
+				// Vocabulary size - look for keys containing vocab
+				if strings.Contains(key, "vocab") && strings.Contains(key, "size") && info.VocabSize == 0 {
+					info.VocabSize = int64(val)
+					logging.DebugLogger.Printf("Found vocab size: %d (key: %s)", info.VocabSize, key)
+				}
+			}
+
+			// Handle special cases for vocab size from token arrays
+			if strings.Contains(key, "tokens") && info.VocabSize == 0 {
+				if tokens, ok := value.([]interface{}); ok {
+					info.VocabSize = int64(len(tokens))
+					logging.DebugLogger.Printf("Found vocab size from tokens array: %d (key: %s)", info.VocabSize, key)
+				}
+			}
+		}
+
+		// If vocab size still not found, try to estimate from parameter count and embedding length
+		if info.VocabSize == 0 {
+			if paramCount, exists := resp.ModelInfo["general.parameter_count"]; exists {
+				if paramVal, ok := paramCount.(float64); ok && info.EmbeddingLength > 0 {
+					// Rough estimation: vocab_size ≈ (param_count - other_params) / embedding_length
+					// This is a very rough estimate and may not be accurate
+					estimatedVocab := int64(paramVal / float64(info.EmbeddingLength) / 100) // Rough divisor
+					if estimatedVocab > 10000 && estimatedVocab < 200000 {                  // Reasonable range
+						info.VocabSize = estimatedVocab
+						logging.DebugLogger.Printf("Estimated vocab size: %d", info.VocabSize)
+					}
+				}
+			}
+		}
+	}
+
+	// Extract capabilities - convert from []model.Capability to []string
+	if resp.Capabilities != nil {
+		capabilities := make([]string, len(resp.Capabilities))
+		for i, cap := range resp.Capabilities {
+			capabilities[i] = string(cap)
+		}
+		info.Capabilities = capabilities
+	}
+
+	return info, nil
+}
+
 func editModelfile(client *api.Client, modelName string) (string, error) {
 	if client == nil {
 		return "", fmt.Errorf("error: Client is nil")

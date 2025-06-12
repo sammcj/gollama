@@ -17,6 +17,20 @@ type Model struct {
 	ParameterSize     string
 }
 
+// EnhancedModelInfo contains detailed information from the Ollama show API
+type EnhancedModelInfo struct {
+	ParameterSize      string   `json:"parameter_size"`
+	QuantizationLevel  string   `json:"quantization_level"`
+	Format             string   `json:"format"`
+	Family             string   `json:"family"`
+	ContextLength      int64    `json:"context_length"`
+	EmbeddingLength    int64    `json:"embedding_length"`
+	RopeDimensionCount int64    `json:"rope_dimension_count"`
+	RopeFreqBase       float64  `json:"rope_freq_base"`
+	VocabSize          int64    `json:"vocab_size"`
+	Capabilities       []string `json:"capabilities"`
+}
+
 func (m Model) SelectedStr() string {
 	if m.Selected {
 		return "X"
