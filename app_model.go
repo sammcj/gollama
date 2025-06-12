@@ -884,38 +884,85 @@ func (m *AppModel) inspectModelView(model Model) string {
 	logging.DebugLogger.Printf("Inspecting model view: %+v\n", model) // Log the model being inspected
 
 	columns := []table.Column{
-		{Title: "Property", Width: 20},
+		{Title: "Property", Width: 25},
 		{Title: "Value", Width: 50},
 	}
 
-	// Use getModelParams to get the model parameters and add them to the rows
-	modelParams, _, err := getModelParams(model.Name, m.client)
+	// Get enhanced model information using the new API
+	enhancedInfo, err := getEnhancedModelInfo(model.Name, m.client)
 	if err != nil {
-		logging.ErrorLogger.Printf("Error getting model parameters: %v\n", err)
+		logging.ErrorLogger.Printf("Error getting enhanced model info: %v\n", err)
+		// Fall back to basic information if enhanced info fails
+		enhancedInfo = &EnhancedModelInfo{}
 	}
 
-	// similar to above but also includes the model parameters
+	// Use getModelParams to get the model parameters for backward compatibility
+	modelParams, _, paramErr := getModelParams(model.Name, m.client)
+	if paramErr != nil {
+		logging.ErrorLogger.Printf("Error getting model parameters: %v\n", paramErr)
+	}
+
+	// Start with basic model information
 	rows := []table.Row{
 		{"Name", model.Name},
 		{"ID", model.ID},
 		{"Size (GB)", fmt.Sprintf("%.2f", model.Size)},
 	}
 
-	// Add parameter size if available
-	if model.ParameterSize != "" {
-		rows = append(rows, table.Row{"Parameter Size", model.ParameterSize})
+	// Add enhanced information if available, only showing fields that have values
+	if enhancedInfo.ParameterSize != "" {
+		rows = append(rows, table.Row{"Parameter Size", enhancedInfo.ParameterSize})
 	}
 
-	// Add remaining fields
-	rows = append(rows, []table.Row{
-		{"Quantisation Level", model.QuantizationLevel},
-		{"Modified", model.Modified.Format("2006-01-02")},
-		{"Family", model.Family},
-	}...)
+	if enhancedInfo.QuantizationLevel != "" {
+		rows = append(rows, table.Row{"Quantisation Level", enhancedInfo.QuantizationLevel})
+	} else if model.QuantizationLevel != "" {
+		rows = append(rows, table.Row{"Quantisation Level", model.QuantizationLevel})
+	}
 
-	// getModelParams returns a map of model parameters, so we need to iterate over the map and add the parameters to the rows
+	if enhancedInfo.Format != "" {
+		rows = append(rows, table.Row{"Format", enhancedInfo.Format})
+	}
+
+	if enhancedInfo.Family != "" {
+		rows = append(rows, table.Row{"Family", enhancedInfo.Family})
+	} else if model.Family != "" {
+		rows = append(rows, table.Row{"Family", model.Family})
+	}
+
+	if enhancedInfo.ContextLength > 0 {
+		rows = append(rows, table.Row{"Context Length", fmt.Sprintf("%d", enhancedInfo.ContextLength)})
+	}
+
+	if enhancedInfo.EmbeddingLength > 0 {
+		rows = append(rows, table.Row{"Embedding Length", fmt.Sprintf("%d", enhancedInfo.EmbeddingLength)})
+	}
+
+	if enhancedInfo.RopeDimensionCount > 0 {
+		rows = append(rows, table.Row{"Rope Dimension Count", fmt.Sprintf("%d", enhancedInfo.RopeDimensionCount)})
+	}
+
+	if enhancedInfo.RopeFreqBase > 0 {
+		rows = append(rows, table.Row{"Rope Freq Base", fmt.Sprintf("%.0f", enhancedInfo.RopeFreqBase)})
+	}
+
+	if enhancedInfo.VocabSize > 0 {
+		rows = append(rows, table.Row{"Vocab Size", fmt.Sprintf("%d", enhancedInfo.VocabSize)})
+	}
+
+	if len(enhancedInfo.Capabilities) > 0 {
+		rows = append(rows, table.Row{"Capabilities", strings.Join(enhancedInfo.Capabilities, ", ")})
+	}
+
+	// Add modified date
+	rows = append(rows, table.Row{"Modified", model.Modified.Format("2006-01-02")})
+
+	// Add any additional model parameters from the legacy function for completeness
 	for key, value := range modelParams {
-		rows = append(rows, []string{key, value})
+		// Skip parameters we've already shown in enhanced info
+		if key != "parameter_size" && key != "quantization_level" && key != "format" && key != "family" {
+			rows = append(rows, []string{key, value})
+		}
 	}
 
 	// Log the rows to ensure they are being populated correctly

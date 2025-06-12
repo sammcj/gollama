@@ -827,22 +827,8 @@ func PrintFormattedTable(table QuantResultTable) string {
 			header = append(header, fmt.Sprintf("%d", context))
 		}
 	}
-	tw.SetHeader(header)
-
-	// Update table style for better readability
-	tw.SetBorders(tablewriter.Border{Left: true, Top: false, Right: true, Bottom: false})
-	tw.SetCenterSeparator("|")
-	tw.SetColumnSeparator("|")
-	tw.SetRowSeparator("-")
-	tw.SetAutoWrapText(false)
-	tw.SetAutoFormatHeaders(true)
-
-	// Enhanced header colours
-	headerColours := make([]tablewriter.Colors, len(header))
-	for i := range headerColours {
-		headerColours[i] = tablewriter.Colors{tablewriter.FgHiWhiteColor, tablewriter.Bold}
-	}
-	tw.SetHeaderColor(headerColours...)
+	// Set header using Append method
+	tw.Append(header)
 
 	// Prepare data rows with improved formatting
 	for _, result := range table.Results {
