@@ -16,3 +16,4 @@ node_modules/
 Modelfile*
 **/*.DS_Store
 **/cache
+*DEV_PLAN.md
