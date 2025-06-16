@@ -1,0 +1,101 @@
+{{define "model-details"}}
+<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+     onclick="closeModal()">
+    <div class="bg-white dark:bg-gray-800 rounded-lg max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto"
+         onclick="event.stopPropagation()">
+        <div class="p-6">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-gray-900 dark:text-white">{{.Model.Name}}</h2>
+                <button class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-2xl"
+                        onclick="closeModal()">
+                    ×
+                </button>
+            </div>
+
+            <!-- Model Information Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                <div class="space-y-4">
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Basic Information</h3>
+                    <div class="space-y-2">
+                        <div class="flex justify-between">
+                            <span class="text-gray-600 dark:text-gray-400">Size:</span>
+                            <span class="text-gray-900 dark:text-white font-medium">{{.Model.SizeFormatted}}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600 dark:text-gray-400">Family:</span>
+                            <span class="text-gray-900 dark:text-white font-medium">{{.Model.Family}}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600 dark:text-gray-400">Parameters:</span>
+                            <span class="text-gray-900 dark:text-white font-medium">{{.Model.ParameterSize}}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600 dark:text-gray-400">Quantisation:</span>
+                            <span class="text-gray-900 dark:text-white font-medium">{{.Model.QuantizationLevel}}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="space-y-4">
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Model Status</h3>
+                    <div class="space-y-2">
+                        <div class="flex justify-between">
+                            <span class="text-gray-600 dark:text-gray-400">Status:</span>
+                            <span class="px-2 py-1 rounded-full text-xs font-medium {{if .Model.IsRunning}}bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200{{else}}bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300{{end}}">
+                                {{if .Model.IsRunning}}Running{{else}}Stopped{{end}}
+                            </span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600 dark:text-gray-400">Modified:</span>
+                            <span class="text-gray-900 dark:text-white font-medium">{{.Model.ModifiedFormatted}}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {{if .Details}}
+            <!-- Additional Details -->
+            <div class="mb-8">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Additional Information</h3>
+                <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                        {{if .Details.Model.Details.Format}}
+                        <div class="flex justify-between">
+                            <span class="text-gray-600 dark:text-gray-400">Format:</span>
+                            <span class="text-gray-900 dark:text-white">{{.Details.Model.Details.Format}}</span>
+                        </div>
+                        {{end}}
+                        {{if .Details.Model.Details.Families}}
+                        <div class="flex justify-between">
+                            <span class="text-gray-600 dark:text-gray-400">Families:</span>
+                            <span class="text-gray-900 dark:text-white">{{range $i, $family := .Details.Model.Details.Families}}{{if $i}}, {{end}}{{$family}}{{end}}</span>
+                        </div>
+                        {{end}}
+                    </div>
+                </div>
+            </div>
+            {{end}}
+
+            <!-- Model Actions -->
+            <div class="flex space-x-4 pt-6 border-t border-gray-200 dark:border-gray-700">
+                <button class="btn-primary"
+                        onclick="runModel('{{.Model.Name}}'); closeModal();">
+                    Run Model
+                </button>
+                <button class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
+                        onclick="showVRAMEstimator('{{.Model.Name}}')">
+                    Estimate vRAM
+                </button>
+                <button class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg"
+                        onclick="showModelfile('{{.Model.Name}}')">
+                    View Modelfile
+                </button>
+                <button class="btn-danger"
+                        onclick="deleteModel('{{.Model.Name}}'); closeModal();">
+                    Delete
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{{end}}

@@ -1,0 +1,109 @@
+{{define "settings"}}
+<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+     onclick="closeModal()">
+    <div class="bg-white dark:bg-gray-800 rounded-lg max-w-md w-full mx-4"
+         onclick="event.stopPropagation()">
+        <div class="p-6">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Settings</h2>
+                <button class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-2xl"
+                        onclick="closeModal()">
+                    ×
+                </button>
+            </div>
+
+            <form id="settings-form" onsubmit="saveSettings(event)">
+                <div class="space-y-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Ollama API URL
+                        </label>
+                        <input type="url" name="ollama_api_url" id="ollama_api_url"
+                               value="{{.OllamaAPIURL}}"
+                               class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-gollama-primary focus:ring-gollama-primary">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Theme
+                        </label>
+                        <select name="theme" id="theme"
+                                class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-gollama-primary focus:ring-gollama-primary">
+                            <option value="system" {{if eq .Theme "system"}}selected{{end}}>System</option>
+                            <option value="light" {{if eq .Theme "light"}}selected{{end}}>Light</option>
+                            <option value="dark" {{if eq .Theme "dark"}}selected{{end}}>Dark</option>
+                        </select>
+                    </div>
+
+                    <div class="flex items-center">
+                        <input type="checkbox" name="auto_refresh" id="auto_refresh" value="true"
+                               {{if .AutoRefresh}}checked{{end}}
+                               class="h-4 w-4 text-gollama-primary focus:ring-gollama-primary border-gray-300 dark:border-gray-600 rounded">
+                        <label for="auto_refresh" class="ml-2 block text-sm text-gray-700 dark:text-gray-300">
+                            Auto-refresh model list
+                        </label>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Refresh Interval (seconds)
+                        </label>
+                        <input type="number" name="refresh_interval" id="refresh_interval" min="5" max="300"
+                               value="{{.RefreshInterval}}"
+                               class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-gollama-primary focus:ring-gollama-primary">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                Window Width
+                            </label>
+                            <input type="number" name="window_width" id="window_width" min="800"
+                                   value="{{.WindowWidth}}"
+                                   class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-gollama-primary focus:ring-gollama-primary">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                Window Height
+                            </label>
+                            <input type="number" name="window_height" id="window_height" min="600"
+                                   value="{{.WindowHeight}}"
+                                   class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-gollama-primary focus:ring-gollama-primary">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Default View
+                        </label>
+                        <select name="default_view" id="default_view"
+                                class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-gollama-primary focus:ring-gollama-primary">
+                            <option value="models" {{if eq .DefaultView "models"}}selected{{end}}>Models</option>
+                            <option value="running" {{if eq .DefaultView "running"}}selected{{end}}>Running Models</option>
+                        </select>
+                    </div>
+
+                    <div class="flex items-center">
+                        <input type="checkbox" name="show_system_tray" id="show_system_tray" value="true"
+                               {{if .ShowSystemTray}}checked{{end}}
+                               class="h-4 w-4 text-gollama-primary focus:ring-gollama-primary border-gray-300 dark:border-gray-600 rounded">
+                        <label for="show_system_tray" class="ml-2 block text-sm text-gray-700 dark:text-gray-300">
+                            Show system tray icon
+                        </label>
+                    </div>
+                </div>
+
+                <div class="flex space-x-4 pt-6 mt-6 border-t border-gray-200 dark:border-gray-700">
+                    <button type="submit" class="btn-primary flex-1">
+                        Save Settings
+                    </button>
+                    <button type="button" class="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+                            onclick="closeModal()">
+                        Cancel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{{end}}

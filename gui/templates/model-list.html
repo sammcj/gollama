@@ -1,0 +1,68 @@
+{{define "model-list"}}
+<div class="mb-6">
+    <div class="sm:flex sm:items-center sm:justify-between">
+        <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Models</h2>
+        <div class="mt-4 sm:mt-0 sm:flex sm:space-x-4">
+            <!-- Search -->
+            <input type="text" id="search-input"
+                   placeholder="Search models..."
+                   class="rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-gollama-primary focus:ring-gollama-primary"
+                   onkeyup="filterModels(this.value)">
+
+            <!-- Sort -->
+            <select id="sort-select" class="rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                    onchange="sortModels(this.value)">
+                <option value="name">Name</option>
+                <option value="size">Size</option>
+                <option value="modified">Modified</option>
+                <option value="family">Family</option>
+            </select>
+        </div>
+    </div>
+</div>
+
+<div id="model-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+    <!-- Models will be loaded here -->
+</div>
+{{end}}
+
+{{define "model-card"}}
+<div class="model-card p-6 {{if .IsRunning}}ring-2 ring-green-500{{end}}" data-model-name="{{.Name}}" data-model-size="{{.Size}}" data-model-family="{{.Family}}" data-model-modified="{{.Modified.Unix}}">
+    <div class="flex justify-between items-start mb-4">
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white truncate" title="{{.Name}}">{{.Name}}</h3>
+        <span class="text-sm text-gray-500 dark:text-gray-400">{{.SizeFormatted}}</span>
+    </div>
+
+    <div class="space-y-2 mb-4">
+        <div class="flex justify-between text-sm">
+            <span class="text-gray-600 dark:text-gray-400">Family:</span>
+            <span class="text-gray-900 dark:text-white">{{.Family}}</span>
+        </div>
+        <div class="flex justify-between text-sm">
+            <span class="text-gray-600 dark:text-gray-400">Quantisation:</span>
+            <span class="text-gray-900 dark:text-white">{{.QuantizationLevel}}</span>
+        </div>
+        <div class="flex justify-between text-sm">
+            <span class="text-gray-600 dark:text-gray-400">Modified:</span>
+            <span class="text-gray-900 dark:text-white">{{.ModifiedFormatted}}</span>
+        </div>
+    </div>
+
+    <div class="flex space-x-2">
+        <button class="btn-primary flex-1 {{if .IsRunning}}opacity-50 cursor-not-allowed{{end}}"
+                {{if not .IsRunning}}onclick="runModel('{{.Name}}')"{{end}}>
+            {{if .IsRunning}}Running{{else}}Run{{end}}
+        </button>
+
+        <button class="px-3 py-2 text-sm bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600"
+                onclick="showModelDetails('{{.Name}}')">
+            Details
+        </button>
+
+        <button class="btn-danger px-3 py-2 text-sm"
+                onclick="deleteModel('{{.Name}}')">
+            Delete
+        </button>
+    </div>
+</div>
+{{end}}

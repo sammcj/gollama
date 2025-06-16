@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gollama - Ollama Model Manager</title>
+    <link href="/css/tailwind.css" rel="stylesheet">
+    <script src="/js/htmx.min.js"></script>
+</head>
+<body class="h-full bg-gray-50 dark:bg-gray-900" data-theme="dark">
+    <div class="min-h-full">
+        <!-- Navigation -->
+        <nav class="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
+            <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between h-16">
+                    <div class="flex items-center">
+                        <img class="h-8 w-8" src="/assets/gollama-logo.png" alt="Gollama">
+                        <h1 class="ml-3 text-xl font-semibold text-gray-900 dark:text-white">Gollama</h1>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <button class="nav-link" onclick="showModels()">
+                            Models
+                        </button>
+                        <button class="nav-link" onclick="showRunning()">
+                            Running
+                        </button>
+                        <button class="nav-link" onclick="showSettings()">
+                            Settings
+                        </button>
+                        <button class="btn-primary" onclick="refreshModels()">
+                            Refresh
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main id="main-content" class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+            <div class="text-center py-12">
+                <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">Welcome to Gollama</h2>
+                <p class="text-gray-600 dark:text-gray-400 mb-8">Manage your Ollama models with ease</p>
+                <button class="btn-primary" onclick="showModels()">
+                    View Models
+                </button>
+            </div>
+        </main>
+    </div>
+
+    <!-- Loading Indicator -->
+    <div id="loading" class="htmx-indicator modal-overlay">
+        <div class="bg-white dark:bg-gray-800 rounded-lg p-6 flex items-center space-x-4">
+            <div class="loading-spinner"></div>
+            <span class="text-gray-900 dark:text-white">Loading...</span>
+        </div>
+    </div>
+
+    <!-- Modal Container -->
+    <div id="modal-container"></div>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="fixed top-4 right-4 z-50 space-y-2"></div>
+
+    <!-- Custom JavaScript -->
+    <script src="/js/app.js"></script>
+</body>
+</html>

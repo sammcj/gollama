@@ -17,3 +17,4 @@ Modelfile*
 **/*.DS_Store
 **/cache
 *DEV_PLAN.md
+**/gollama-gui

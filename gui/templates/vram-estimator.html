@@ -1,0 +1,149 @@
+{{define "vram-estimator"}}
+<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+     onclick="closeModal()">
+    <div class="bg-white dark:bg-gray-800 rounded-lg max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto"
+         onclick="event.stopPropagation()">
+        <div class="p-6">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-gray-900 dark:text-white">vRAM Estimator</h2>
+                <button class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-2xl"
+                        onclick="closeModal()">
+                    ×
+                </button>
+            </div>
+
+            <form id="vram-form" onsubmit="calculateVRAM(event)">
+                <div class="space-y-4 mb-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Model Name or HuggingFace ID
+                        </label>
+                        <input type="text" name="model_name" id="vram_model_name"
+                               class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-gollama-primary focus:ring-gollama-primary"
+                               placeholder="e.g., llama2:7b or microsoft/DialoGPT-medium"
+                               value="{{.ModelName}}">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Available vRAM (GB)
+                        </label>
+                        <input type="number" name="vram_gb" id="vram_gb" step="0.1" min="0"
+                               class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-gollama-primary focus:ring-gollama-primary"
+                               placeholder="e.g., 8.0">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                Context Length
+                            </label>
+                            <select name="context" id="vram_context"
+                                    class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-gollama-primary focus:ring-gollama-primary">
+                                <option value="">Auto</option>
+                                <option value="2048">2K</option>
+                                <option value="4096">4K</option>
+                                <option value="8192">8K</option>
+                                <option value="16384">16K</option>
+                                <option value="32768">32K</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                Quantisation
+                            </label>
+                            <select name="quantization" id="vram_quantization"
+                                    class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-gollama-primary focus:ring-gollama-primary">
+                                <option value="">Auto</option>
+                                <option value="Q4_0">Q4_0</option>
+                                <option value="Q4_1">Q4_1</option>
+                                <option value="Q5_0">Q5_0</option>
+                                <option value="Q5_1">Q5_1</option>
+                                <option value="Q8_0">Q8_0</option>
+                                <option value="F16">F16</option>
+                                <option value="F32">F32</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-primary w-full mb-6">
+                    Calculate vRAM Requirements
+                </button>
+            </form>
+
+            <div id="vram-results">
+                <!-- Results will be loaded here -->
+            </div>
+        </div>
+    </div>
+</div>
+{{end}}
+
+{{define "vram-results"}}
+<div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+    <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">vRAM Estimation Results</h3>
+
+    {{if .Error}}
+    <div class="bg-red-100 dark:bg-red-900 border border-red-400 dark:border-red-600 text-red-700 dark:text-red-200 px-4 py-3 rounded">
+        <strong>Error:</strong> {{.Error}}
+    </div>
+    {{else}}
+    <div class="space-y-4">
+        <div class="text-sm text-gray-600 dark:text-gray-400">
+            Model: <span class="font-medium text-gray-900 dark:text-white">{{.ModelName}}</span>
+        </div>
+
+        {{if .Recommendations}}
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-600">
+                <thead class="bg-gray-50 dark:bg-gray-800">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                            Quantisation
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                            Context
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                            vRAM Required
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                            Fits
+                        </th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white dark:bg-gray-700 divide-y divide-gray-200 dark:divide-gray-600">
+                    {{range .Recommendations}}
+                    <tr class="{{if .Fits}}bg-green-50 dark:bg-green-900{{end}}">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                            {{.Quantization}}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                            {{.ContextLength}}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                            {{printf "%.1f GB" .VRAMRequired}}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            {{if .Fits}}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                                ✓ Yes
+                            </span>
+                            {{else}}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
+                                ✗ No
+                            </span>
+                            {{end}}
+                        </td>
+                    </tr>
+                    {{end}}
+                </tbody>
+            </table>
+        </div>
+        {{end}}
+    </div>
+    {{end}}
+</div>
+{{end}}

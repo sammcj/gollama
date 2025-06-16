@@ -1,0 +1,123 @@
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+
+@layer components {
+  .model-card {
+    @apply bg-white dark:bg-gray-800 rounded-xl shadow-lg
+           hover:shadow-xl transition-all duration-300
+           border border-gray-200 dark:border-gray-700;
+  }
+
+  .btn-primary {
+    @apply bg-gollama-primary hover:bg-green-600 text-white
+           px-4 py-2 rounded-lg font-medium
+           transition-colors duration-200 shadow-md
+           hover:shadow-lg active:transform active:scale-95;
+  }
+
+  .btn-danger {
+    @apply bg-red-500 hover:bg-red-600 text-white
+           px-4 py-2 rounded-lg font-medium
+           transition-colors duration-200;
+  }
+
+  .btn-secondary {
+    @apply bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300
+           px-4 py-2 rounded-lg font-medium
+           transition-colors duration-200
+           hover:bg-gray-300 dark:hover:bg-gray-600;
+  }
+
+  .input-field {
+    @apply rounded-md border-gray-300 dark:border-gray-600
+           dark:bg-gray-700 dark:text-white shadow-sm
+           focus:border-gollama-primary focus:ring-gollama-primary;
+  }
+
+  .modal-overlay {
+    @apply fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50;
+  }
+
+  .modal-content {
+    @apply bg-white dark:bg-gray-800 rounded-lg max-w-4xl w-full mx-4
+           max-h-[90vh] overflow-y-auto;
+  }
+
+  .loading-spinner {
+    @apply animate-spin rounded-full h-8 w-8 border-b-2 border-gollama-primary;
+  }
+
+  .status-badge {
+    @apply px-2 py-1 rounded-full text-xs font-medium;
+  }
+
+  .status-running {
+    @apply bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200;
+  }
+
+  .status-stopped {
+    @apply bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300;
+  }
+
+  .nav-link {
+    @apply text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white
+           px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200;
+  }
+
+  .nav-link-active {
+    @apply bg-gollama-primary text-white px-3 py-2 rounded-md text-sm font-medium;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-gray-100 dark:bg-gray-800;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-400 dark:bg-gray-600 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-gray-500 dark:bg-gray-500;
+}
+
+/* HTMX loading indicators */
+.htmx-indicator {
+  display: none;
+}
+
+.htmx-request .htmx-indicator {
+  display: flex;
+}
+
+.htmx-request.htmx-indicator {
+  display: flex;
+}
+
+/* Toast notifications */
+.toast {
+  @apply fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50
+         transform transition-all duration-300 ease-in-out;
+}
+
+.toast-enter {
+  @apply translate-x-full opacity-0;
+}
+
+.toast-enter-active {
+  @apply translate-x-0 opacity-100;
+}
+
+.toast-exit {
+  @apply translate-x-0 opacity-100;
+}
+
+.toast-exit-active {
+  @apply translate-x-full opacity-0;
+}

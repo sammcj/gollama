@@ -1,0 +1,5 @@
+tailwindcss*
+wails-build/
+*.log
+.DS_Store
+node_modules/
