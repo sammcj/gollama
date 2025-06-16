@@ -12,6 +12,9 @@ func main() {
 	// Create an instance of the app structure
 	app := NewApp()
 
+	// Initialize the app manually since we can't use callbacks
+	app.OnStartup(nil) // Pass nil context for now
+
 	// Create application with options
 	wailsApp := application.New(application.Options{
 		Name:        "Gollama",

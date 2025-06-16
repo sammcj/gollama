@@ -20,12 +20,50 @@ document.addEventListener('DOMContentLoaded', function() {
 // Initialize application
 async function initializeApp() {
     try {
-        // Check service health
-        await window.go.main.App.HealthCheck();
+        // Check if any service methods are available
+        console.log('Checking for Wails service methods...');
+        console.log('window.wails:', typeof window.wails);
+        console.log('window.GetModels:', typeof window.GetModels);
+        console.log('window.HealthCheck:', typeof window.HealthCheck);
+
+        // Log all available window properties that might be Wails-related
+        console.log('All window properties:');
+        for (let prop in window) {
+            if (prop.toLowerCase().includes('wails') ||
+                prop.toLowerCase().includes('get') ||
+                prop.toLowerCase().includes('service') ||
+                typeof window[prop] === 'function') {
+                console.log(`  ${prop}: ${typeof window[prop]}`);
+            }
+        }
+
+        // Try to call health check with different possible APIs
+        let healthCheck;
+        if (window.HealthCheck) {
+            healthCheck = await window.HealthCheck();
+        } else if (window.wails && window.wails.HealthCheck) {
+            healthCheck = await window.wails.HealthCheck();
+        } else {
+            console.log('No health check method found, continuing anyway...');
+        }
+
         console.log('Service connection established');
 
         // Load settings and apply theme
-        const settings = await window.go.main.App.GetConfig();
+        let settings;
+        if (window.GetConfig) {
+            settings = await window.GetConfig();
+        } else if (window.wails && window.wails.GetConfig) {
+            settings = await window.wails.GetConfig();
+        } else {
+            // Use default settings
+            settings = {
+                Theme: 'dark',
+                AutoRefresh: false,
+                RefreshInterval: 30
+            };
+        }
+
         applyTheme(settings.Theme);
 
         // Set up auto-refresh if enabled
@@ -46,7 +84,23 @@ async function showModels() {
     showLoading();
 
     try {
-        const models = await window.go.main.App.GetModels();
+        // Try different possible Wails v3 APIs
+        let models;
+        if (window.GetModels) {
+            // Direct method exposure (most likely for Wails v3)
+            models = await window.GetModels();
+        } else if (window.wails && window.wails.GetModels) {
+            models = await window.wails.GetModels();
+        } else if (window.wails && window.wails.Call && window.wails.Call.GetModels) {
+            models = await window.wails.Call.GetModels();
+        } else if (window.wails && window.wails.Services && window.wails.Services.GetModels) {
+            models = await window.wails.Services.GetModels();
+        } else if (window.wails && window.wails.App && window.wails.App.GetModels) {
+            models = await window.wails.App.GetModels();
+        } else {
+            throw new Error('GetModels method not available');
+        }
+
         currentModels = models || [];
         renderModels(currentModels);
     } catch (error) {
@@ -70,7 +124,15 @@ async function showRunning() {
     showLoading();
 
     try {
-        const runningModels = await window.go.main.App.GetRunningModels();
+        let runningModels;
+        if (window.GetRunningModels) {
+            runningModels = await window.GetRunningModels();
+        } else if (window.wails && window.wails.GetRunningModels) {
+            runningModels = await window.wails.GetRunningModels();
+        } else {
+            throw new Error('GetRunningModels method not available');
+        }
+
         currentRunningModels = runningModels || [];
         renderRunningModels(currentRunningModels);
     } catch (error) {
@@ -90,7 +152,20 @@ async function showRunning() {
 
 async function showSettings() {
     try {
-        const settings = await window.go.main.App.GetConfig();
+        let settings;
+        if (window.GetConfig) {
+            settings = await window.GetConfig();
+        } else if (window.wails && window.wails.GetConfig) {
+            settings = await window.wails.GetConfig();
+        } else {
+            // Default settings
+            settings = {
+                OllamaAPIURL: 'http://localhost:11434',
+                Theme: 'dark',
+                AutoRefresh: false,
+                RefreshInterval: 30
+            };
+        }
         renderSettings(settings);
     } catch (error) {
         console.error('Failed to load settings:', error);
@@ -269,7 +344,14 @@ function renderSettings(settings) {
 async function runModel(name) {
     showLoading();
     try {
-        await window.go.main.App.RunModel(name);
+        if (window.RunModel) {
+            await window.RunModel(name);
+        } else if (window.wails && window.wails.RunModel) {
+            await window.wails.RunModel(name);
+        } else {
+            throw new Error('RunModel method not available');
+        }
+
         showToast('success', 'Model Started', `${name} is now running`);
 
         // Refresh current view
@@ -293,7 +375,14 @@ async function deleteModel(name) {
 
     showLoading();
     try {
-        await window.go.main.App.DeleteModel(name);
+        if (window.DeleteModel) {
+            await window.DeleteModel(name);
+        } else if (window.wails && window.wails.DeleteModel) {
+            await window.wails.DeleteModel(name);
+        } else {
+            throw new Error('DeleteModel method not available');
+        }
+
         showToast('success', 'Model Deleted', `${name} has been deleted`);
 
         // Refresh models view
@@ -311,7 +400,14 @@ async function deleteModel(name) {
 async function unloadModel(name) {
     showLoading();
     try {
-        await window.go.main.App.UnloadModel(name);
+        if (window.UnloadModel) {
+            await window.UnloadModel(name);
+        } else if (window.wails && window.wails.UnloadModel) {
+            await window.wails.UnloadModel(name);
+        } else {
+            throw new Error('UnloadModel method not available');
+        }
+
         showToast('success', 'Model Unloaded', `${name} has been unloaded`);
 
         // Refresh current view
@@ -331,7 +427,15 @@ async function unloadModel(name) {
 async function showModelDetails(name) {
     showLoading();
     try {
-        const details = await window.go.main.App.GetModelDetails(name);
+        let details;
+        if (window.GetModelDetails) {
+            details = await window.GetModelDetails(name);
+        } else if (window.wails && window.wails.GetModelDetails) {
+            details = await window.wails.GetModelDetails(name);
+        } else {
+            throw new Error('GetModelDetails method not available');
+        }
+
         renderModelDetails(details);
     } catch (error) {
         console.error('Failed to load model details:', error);
@@ -419,7 +523,14 @@ async function saveSettings(event) {
     };
 
     try {
-        await window.go.main.App.UpdateConfig(settings);
+        if (window.UpdateConfig) {
+            await window.UpdateConfig(settings);
+        } else if (window.wails && window.wails.UpdateConfig) {
+            await window.wails.UpdateConfig(settings);
+        } else {
+            throw new Error('UpdateConfig method not available');
+        }
+
         showToast('success', 'Settings Saved', 'Your settings have been saved successfully');
 
         // Apply theme change
@@ -512,7 +623,15 @@ async function calculateVRAM(event) {
     };
 
     try {
-        const result = await window.go.main.App.EstimateVRAM(request);
+        let result;
+        if (window.EstimateVRAM) {
+            result = await window.EstimateVRAM(request);
+        } else if (window.wails && window.wails.EstimateVRAM) {
+            result = await window.wails.EstimateVRAM(request);
+        } else {
+            throw new Error('EstimateVRAM method not available');
+        }
+
         renderVRAMResults(result);
     } catch (error) {
         console.error('Failed to calculate vRAM:', error);
@@ -686,7 +805,12 @@ function setupAutoRefresh(intervalSeconds) {
     autoRefreshInterval = setInterval(async () => {
         if (currentView === 'models') {
             try {
-                const models = await window.go.main.App.GetModels();
+                let models;
+                if (window.GetModels) {
+                    models = await window.GetModels();
+                } else if (window.wails && window.wails.GetModels) {
+                    models = await window.wails.GetModels();
+                }
                 currentModels = models || [];
                 renderModels(currentModels);
             } catch (error) {
@@ -694,7 +818,12 @@ function setupAutoRefresh(intervalSeconds) {
             }
         } else if (currentView === 'running') {
             try {
-                const runningModels = await window.go.main.App.GetRunningModels();
+                let runningModels;
+                if (window.GetRunningModels) {
+                    runningModels = await window.GetRunningModels();
+                } else if (window.wails && window.wails.GetRunningModels) {
+                    runningModels = await window.wails.GetRunningModels();
+                }
                 currentRunningModels = runningModels || [];
                 renderRunningModels(currentRunningModels);
             } catch (error) {
