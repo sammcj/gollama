@@ -25,7 +25,19 @@ type Config struct {
 	Editor            string   `mapstructure:"editor"`
 	Theme             string   `mapstructure:"theme"`            // Name of the theme to use (without .json extension)
 	DockerContainer   string   `mapstructure:"docker_container"` // Optionally specify a docker container to run the ollama commands in
-	modified          bool     // Internal flag to track if the config has been modified
+
+	// GUI-specific configuration fields
+	GuiEnabled      bool   `mapstructure:"gui_enabled"`       // Enable GUI interface
+	WindowWidth     int    `mapstructure:"window_width"`      // GUI window width
+	WindowHeight    int    `mapstructure:"window_height"`     // GUI window height
+	WindowMinWidth  int    `mapstructure:"window_min_width"`  // GUI window minimum width
+	WindowMinHeight int    `mapstructure:"window_min_height"` // GUI window minimum height
+	DefaultView     string `mapstructure:"default_view"`      // Default view (models, running, settings)
+	AutoRefresh     bool   `mapstructure:"auto_refresh"`      // Auto-refresh model list
+	RefreshInterval int    `mapstructure:"refresh_interval"`  // Refresh interval in seconds
+	ShowSystemTray  bool   `mapstructure:"show_system_tray"`  // Show system tray icon
+
+	modified        bool   // Internal flag to track if the config has been modified
 }
 
 var defaultConfig = Config{
@@ -40,6 +52,17 @@ var defaultConfig = Config{
 	Editor:            "/usr/bin/vim",
 	Theme:             "dark-neon",
 	DockerContainer:   "",
+
+	// GUI defaults
+	GuiEnabled:      false,
+	WindowWidth:     1200,
+	WindowHeight:    800,
+	WindowMinWidth:  800,
+	WindowMinHeight: 600,
+	DefaultView:     "models",
+	AutoRefresh:     true,
+	RefreshInterval: 30,
+	ShowSystemTray:  false,
 }
 
 // GetOllamaModelDir returns the default Ollama models directory for the current OS
@@ -96,6 +119,17 @@ func CreateDefaultConfig() error {
 	viper.SetDefault("theme", defaultConfig.Theme)
 	viper.SetDefault("docker_container", defaultConfig.DockerContainer)
 
+	// GUI defaults
+	viper.SetDefault("gui_enabled", defaultConfig.GuiEnabled)
+	viper.SetDefault("window_width", defaultConfig.WindowWidth)
+	viper.SetDefault("window_height", defaultConfig.WindowHeight)
+	viper.SetDefault("window_min_width", defaultConfig.WindowMinWidth)
+	viper.SetDefault("window_min_height", defaultConfig.WindowMinHeight)
+	viper.SetDefault("default_view", defaultConfig.DefaultView)
+	viper.SetDefault("auto_refresh", defaultConfig.AutoRefresh)
+	viper.SetDefault("refresh_interval", defaultConfig.RefreshInterval)
+	viper.SetDefault("show_system_tray", defaultConfig.ShowSystemTray)
+
 	return SaveConfig(defaultConfig)
 }
 
@@ -148,6 +182,17 @@ func LoadConfig() (Config, error) {
 	viper.SetDefault("theme", defaultConfig.Theme)
 	viper.SetDefault("docker_container", defaultConfig.DockerContainer)
 
+	// GUI defaults
+	viper.SetDefault("gui_enabled", defaultConfig.GuiEnabled)
+	viper.SetDefault("window_width", defaultConfig.WindowWidth)
+	viper.SetDefault("window_height", defaultConfig.WindowHeight)
+	viper.SetDefault("window_min_width", defaultConfig.WindowMinWidth)
+	viper.SetDefault("window_min_height", defaultConfig.WindowMinHeight)
+	viper.SetDefault("default_view", defaultConfig.DefaultView)
+	viper.SetDefault("auto_refresh", defaultConfig.AutoRefresh)
+	viper.SetDefault("refresh_interval", defaultConfig.RefreshInterval)
+	viper.SetDefault("show_system_tray", defaultConfig.ShowSystemTray)
+
 	config.Columns = viper.GetStringSlice("columns")
 	config.OllamaAPIKey = viper.GetString("ollama_api_key")
 	config.OllamaAPIURL = viper.GetString("ollama_api_url")
@@ -160,6 +205,17 @@ func LoadConfig() (Config, error) {
 	config.Editor = viper.GetString("editor")
 	config.Theme = viper.GetString("theme")
 	config.DockerContainer = viper.GetString("docker_container")
+
+	// GUI fields
+	config.GuiEnabled = viper.GetBool("gui_enabled")
+	config.WindowWidth = viper.GetInt("window_width")
+	config.WindowHeight = viper.GetInt("window_height")
+	config.WindowMinWidth = viper.GetInt("window_min_width")
+	config.WindowMinHeight = viper.GetInt("window_min_height")
+	config.DefaultView = viper.GetString("default_view")
+	config.AutoRefresh = viper.GetBool("auto_refresh")
+	config.RefreshInterval = viper.GetInt("refresh_interval")
+	config.ShowSystemTray = viper.GetBool("show_system_tray")
 
 	viper.OnConfigChange(func(e fsnotify.Event) {
 		fmt.Println("Config file changed:", e.Name)
@@ -183,6 +239,17 @@ func SaveConfig(config Config) error {
 	viper.Set("editor", config.Editor)
 	viper.Set("theme", config.Theme)
 	viper.Set("docker_container", config.DockerContainer)
+
+	// GUI fields
+	viper.Set("gui_enabled", config.GuiEnabled)
+	viper.Set("window_width", config.WindowWidth)
+	viper.Set("window_height", config.WindowHeight)
+	viper.Set("window_min_width", config.WindowMinWidth)
+	viper.Set("window_min_height", config.WindowMinHeight)
+	viper.Set("default_view", config.DefaultView)
+	viper.Set("auto_refresh", config.AutoRefresh)
+	viper.Set("refresh_interval", config.RefreshInterval)
+	viper.Set("show_system_tray", config.ShowSystemTray)
 
 	configPath := utils.GetConfigPath()
 	if err := os.MkdirAll(filepath.Dir(configPath), 0755); err != nil {
