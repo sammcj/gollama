@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gollama Diagnostics</title>
+    <link href="/css/tailwind.css" rel="stylesheet">
+    <script src="/js/htmx.min.js"></script>
+    <script src="/js/gollama-api.js"></script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <div class="max-w-6xl mx-auto">
+            <!-- Header -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h1 class="text-2xl font-bold text-gray-900">🔍 Gollama Diagnostics</h1>
+                        <p class="text-gray-600 mt-1">Comprehensive service binding and health diagnostics</p>
+                    </div>
+                    <div class="flex space-x-3">
+                        <button id="refreshBtn" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                            🔄 Refresh All
+                        </button>
+                        <button id="exportBtn" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+                            📄 Export Report
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Status Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <div id="apiStatusIcon" class="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center">
+                                <span class="text-sm">⏳</span>
+                            </div>
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-sm font-medium text-gray-900">API Status</p>
+                            <p id="apiStatusText" class="text-sm text-gray-500">Checking...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <div id="serviceStatusIcon" class="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center">
+                                <span class="text-sm">⏳</span>
+                            </div>
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-sm font-medium text-gray-900">Service Status</p>
+                            <p id="serviceStatusText" class="text-sm text-gray-500">Checking...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <div id="methodsStatusIcon" class="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center">
+                                <span class="text-sm">⏳</span>
+                            </div>
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-sm font-medium text-gray-900">Methods</p>
+                            <p id="methodsStatusText" class="text-sm text-gray-500">Checking...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <div id="testsStatusIcon" class="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center">
+                                <span class="text-sm">⏳</span>
+                            </div>
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-sm font-medium text-gray-900">Tests</p>
+                            <p id="testsStatusText" class="text-sm text-gray-500">Checking...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Diagnostic Sections -->
+            <div class="space-y-6">
+                <!-- Service Binding Verification -->
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+                    <div class="px-6 py-4 border-b border-gray-200">
+                        <h2 class="text-lg font-semibold text-gray-900">🔗 Service Binding Verification</h2>
+                    </div>
+                    <div class="p-6">
+                        <div id="bindingVerification" class="text-gray-500">
+                            <div class="animate-pulse">Loading binding verification...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Connectivity Tests -->
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+                    <div class="px-6 py-4 border-b border-gray-200">
+                        <h2 class="text-lg font-semibold text-gray-900">🧪 Connectivity Tests</h2>
+                    </div>
+                    <div class="p-6">
+                        <div id="connectivityTests" class="text-gray-500">
+                            <div class="animate-pulse">Running connectivity tests...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Method Discovery -->
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+                    <div class="px-6 py-4 border-b border-gray-200">
+                        <h2 class="text-lg font-semibold text-gray-900">🔍 Method Discovery</h2>
+                    </div>
+                    <div class="p-6">
+                        <div id="methodDiscovery" class="text-gray-500">
+                            <div class="animate-pulse">Discovering available methods...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Service Health -->
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+                    <div class="px-6 py-4 border-b border-gray-200">
+                        <h2 class="text-lg font-semibold text-gray-900">⚙️ Service Health</h2>
+                    </div>
+                    <div class="p-6">
+                        <div id="serviceHealth" class="text-gray-500">
+                            <div class="animate-pulse">Checking service health...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Runtime Information -->
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+                    <div class="px-6 py-4 border-b border-gray-200">
+                        <h2 class="text-lg font-semibold text-gray-900">🌐 Runtime Information</h2>
+                    </div>
+                    <div class="p-6">
+                        <div id="runtimeInfo" class="text-gray-500">
+                            <div class="animate-pulse">Gathering runtime information...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Diagnostic Tests -->
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+                    <div class="px-6 py-4 border-b border-gray-200">
+                        <h2 class="text-lg font-semibold text-gray-900">🧪 Diagnostic Tests</h2>
+                    </div>
+                    <div class="p-6">
+                        <div id="diagnosticTests" class="text-gray-500">
+                            <div class="animate-pulse">Running diagnostic tests...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Raw Diagnostic Data -->
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+                    <div class="px-6 py-4 border-b border-gray-200">
+                        <h2 class="text-lg font-semibold text-gray-900">📊 Raw Diagnostic Data</h2>
+                    </div>
+                    <div class="p-6">
+                        <div class="bg-gray-50 rounded-lg p-4">
+                            <pre id="rawDiagnostics" class="text-xs text-gray-600 overflow-x-auto whitespace-pre-wrap">Loading diagnostic data...</pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class DiagnosticsPage {
+            constructor() {
+                this.diagnosticData = {};
+                this.init();
+            }
+
+            async init() {
+                console.log('🔍 Initializing diagnostics page...');
+
+                // Set up event listeners
+                document.getElementById('refreshBtn').addEventListener('click', () => this.refreshAll());
+                document.getElementById('exportBtn').addEventListener('click', () => this.exportReport());
+
+                // Wait for API to be ready
+                if (window.gollamaAPI) {
+                    await this.runAllDiagnostics();
+                } else {
+                    // Wait for API to load
+                    const checkAPI = setInterval(async () => {
+                        if (window.gollamaAPI && window.gollamaAPI.initialized) {
+                            clearInterval(checkAPI);
+                            await this.runAllDiagnostics();
+                        }
+                    }, 100);
+                }
+            }
+
+            async runAllDiagnostics() {
+                console.log('🔄 Running all diagnostics...');
+
+                try {
+                    // Run diagnostics in parallel
+                    const [
+                        bindingVerification,
+                        diagnosticTests,
+                        serviceStatus,
+                        diagnosticInfo,
+                        apiDiagnostics
+                    ] = await Promise.allSettled([
+                        window.gollamaAPI.verifyServiceBinding(),
+                        window.gollamaAPI.runDiagnosticTests(),
+                        window.gollamaAPI.getServiceStatus(),
+                        window.gollamaAPI.getDiagnosticInfo(),
+                        window.gollamaAPI.getDiagnostics()
+                    ]);
+
+                    // Store results
+                    this.diagnosticData = {
+                        bindingVerification: bindingVerification.status === 'fulfilled' ? bindingVerification.value : { error: bindingVerification.reason },
+                        diagnosticTests: diagnosticTests.status === 'fulfilled' ? diagnosticTests.value : { error: diagnosticTests.reason },
+                        serviceStatus: serviceStatus.status === 'fulfilled' ? serviceStatus.value : { error: serviceStatus.reason },
+                        diagnosticInfo: diagnosticInfo.status === 'fulfilled' ? diagnosticInfo.value : { error: diagnosticInfo.reason },
+                        apiDiagnostics: apiDiagnostics.status === 'fulfilled' ? apiDiagnostics.value : { error: apiDiagnostics.reason }
+                    };
+
+                    // Update UI
+                    this.updateQuickStatus();
+                    this.updateBindingVerification();
+                    this.updateConnectivityTests();
+                    this.updateMethodDiscovery();
+                    this.updateServiceHealth();
+                    this.updateRuntimeInfo();
+                    this.updateDiagnosticTests();
+                    this.updateRawDiagnostics();
+
+                } catch (error) {
+                    console.error('❌ Failed to run diagnostics:', error);
+                    this.showError('Failed to run diagnostics', error.message);
+                }
+            }
+
+            updateQuickStatus() {
+                const { bindingVerification, serviceStatus, apiDiagnostics, diagnosticTests } = this.diagnosticData;
+
+                // API Status
+                if (apiDiagnostics && apiDiagnostics.initialized) {
+                    this.setStatusCard('api', 'healthy', 'Initialized');
+                } else {
+                    this.setStatusCard('api', 'unhealthy', 'Not Initialized');
+                }
+
+                // Service Status
+                if (serviceStatus && serviceStatus.status === 'healthy') {
+                    this.setStatusCard('service', 'healthy', 'Healthy');
+                } else {
+                    this.setStatusCard('service', 'unhealthy', 'Unhealthy');
+                }
+
+                // Methods Status
+                if (apiDiagnostics && apiDiagnostics.availableMethods) {
+                    this.setStatusCard('methods', 'healthy', `${apiDiagnostics.availableMethods.length} Available`);
+                } else {
+                    this.setStatusCard('methods', 'unhealthy', 'Unknown');
+                }
+
+                // Tests Status
+                if (diagnosticTests && diagnosticTests.summary) {
+                    const { passed, total } = diagnosticTests.summary;
+                    if (passed === total) {
+                        this.setStatusCard('tests', 'healthy', `${passed}/${total} Passed`);
+                    } else {
+                        this.setStatusCard('tests', 'unhealthy', `${passed}/${total} Passed`);
+                    }
+                } else {
+                    this.setStatusCard('tests', 'unknown', 'Not Run');
+                }
+            }
+
+            setStatusCard(type, status, text) {
+                const icon = document.getElementById(`${type}StatusIcon`);
+                const textEl = document.getElementById(`${type}StatusText`);
+
+                // Update icon and color
+                if (status === 'healthy') {
+                    icon.className = 'w-8 h-8 rounded-full bg-green-100 flex items-center justify-center';
+                    icon.innerHTML = '<span class="text-sm">✅</span>';
+                } else if (status === 'unhealthy') {
+                    icon.className = 'w-8 h-8 rounded-full bg-red-100 flex items-center justify-center';
+                    icon.innerHTML = '<span class="text-sm">❌</span>';
+                } else {
+                    icon.className = 'w-8 h-8 rounded-full bg-yellow-100 flex items-center justify-center';
+                    icon.innerHTML = '<span class="text-sm">⚠️</span>';
+                }
+
+                textEl.textContent = text;
+            }
+
+            updateBindingVerification() {
+                const container = document.getElementById('bindingVerification');
+                const data = this.diagnosticData.bindingVerification;
+
+                if (data.error) {
+                    container.innerHTML = `<div class="text-red-600">Error: ${data.error.message || data.error}</div>`;
+                    return;
+                }
+
+                const html = `
+                    <div class="space-y-4">
+                        <div class="flex items-center space-x-2">
+                            <span class="text-lg">${data.binding_status === 'success' ? '✅' : '❌'}</span>
+                            <span class="font-medium">Binding Status: ${data.binding_status}</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span class="text-lg">${data.service_status === 'healthy' ? '✅' : data.service_status === 'initialized' ? '⚠️' : '❌'}</span>
+                            <span class="font-medium">Service Status: ${data.service_status}</span>
+                        </div>
+                        ${data.method_tests ? this.renderMethodTests(data.method_tests) : ''}
+                        ${data.recommendations && data.recommendations.length > 0 ? this.renderRecommendations(data.recommendations) : ''}
+                    </div>
+                `;
+
+                container.innerHTML = html;
+            }
+
+            renderMethodTests(tests) {
+                const testItems = Object.entries(tests).map(([method, result]) => `
+                    <div class="flex items-center justify-between py-2 px-3 bg-gray-50 rounded">
+                        <span class="font-mono text-sm">${method}</span>
+                        <span class="${result.status === 'passed' ? 'text-green-600' : 'text-red-600'}">
+                            ${result.status === 'passed' ? '✅' : '❌'} ${result.status}
+                        </span>
+                    </div>
+                `).join('');
+
+                return `
+                    <div class="mt-4">
+                        <h4 class="font-medium text-gray-900 mb-2">Method Tests:</h4>
+                        <div class="space-y-1">${testItems}</div>
+                    </div>
+                `;
+            }
+
+            renderRecommendations(recommendations) {
+                const items = recommendations.map(rec => `<li class="text-sm text-amber-700">${rec}</li>`).join('');
+                return `
+                    <div class="mt-4 p-3 bg-amber-50 border border-amber-200 rounded">
+                        <h4 class="font-medium text-amber-800 mb-2">Recommendations:</h4>
+                        <ul class="list-disc list-inside space-y-1">${items}</ul>
+                    </div>
+                `;
+            }
+
+            updateConnectivityTests() {
+                const container = document.getElementById('connectivityTests');
+                const data = this.diagnosticData.apiDiagnostics?.connectivityTests;
+
+                if (!data) {
+                    container.innerHTML = '<div class="text-gray-500">No connectivity test data available</div>';
+                    return;
+                }
+
+                const testItems = Object.entries(data.results || {}).map(([name, result]) => `
+                    <div class="flex items-center justify-between py-3 px-4 border border-gray-200 rounded-lg">
+                        <div>
+                            <div class="font-medium text-gray-900">${result.description}</div>
+                            <div class="text-sm text-gray-500">Duration: ${result.duration}ms</div>
+                            ${result.error ? `<div class="text-sm text-red-600 mt-1">Error: ${result.error}</div>` : ''}
+                        </div>
+                        <div class="text-right">
+                            <span class="${result.status === 'passed' ? 'text-green-600' : result.status === 'failed' ? 'text-red-600' : 'text-yellow-600'}">
+                                ${result.status === 'passed' ? '✅' : result.status === 'failed' ? '❌' : '⏭️'} ${result.status}
+                            </span>
+                        </div>
+                    </div>
+                `).join('');
+
+                const summary = data.summary || {};
+                const html = `
+                    <div class="space-y-4">
+                        <div class="grid grid-cols-4 gap-4 text-center">
+                            <div class="bg-blue-50 p-3 rounded-lg">
+                                <div class="text-2xl font-bold text-blue-600">${summary.total || 0}</div>
+                                <div class="text-sm text-blue-600">Total</div>
+                            </div>
+                            <div class="bg-green-50 p-3 rounded-lg">
+                                <div class="text-2xl font-bold text-green-600">${summary.passed || 0}</div>
+                                <div class="text-sm text-green-600">Passed</div>
+                            </div>
+                            <div class="bg-red-50 p-3 rounded-lg">
+                                <div class="text-2xl font-bold text-red-600">${summary.failed || 0}</div>
+                                <div class="text-sm text-red-600">Failed</div>
+                            </div>
+                            <div class="bg-yellow-50 p-3 rounded-lg">
+                                <div class="text-2xl font-bold text-yellow-600">${summary.skipped || 0}</div>
+                                <div class="text-sm text-yellow-600">Skipped</div>
+                            </div>
+                        </div>
+                        <div class="space-y-2">${testItems}</div>
+                    </div>
+                `;
+
+                container.innerHTML = html;
+            }
+
+            updateMethodDiscovery() {
+                const container = document.getElementById('methodDiscovery');
+                const data = this.diagnosticData.apiDiagnostics?.methodDiscovery;
+
+                if (!data) {
+                    container.innerHTML = '<div class="text-gray-500">No method discovery data available</div>';
+                    return;
+                }
+
+                const foundMethods = Object.keys(data.foundMethods || {});
+                const missingMethods = data.missingMethods || [];
+                const unexpectedMethods = data.unexpectedMethods || [];
+
+                const html = `
+                    <div class="space-y-4">
+                        <div class="grid grid-cols-3 gap-4 text-center">
+                            <div class="bg-green-50 p-3 rounded-lg">
+                                <div class="text-2xl font-bold text-green-600">${foundMethods.length}</div>
+                                <div class="text-sm text-green-600">Found</div>
+                            </div>
+                            <div class="bg-red-50 p-3 rounded-lg">
+                                <div class="text-2xl font-bold text-red-600">${missingMethods.length}</div>
+                                <div class="text-sm text-red-600">Missing</div>
+                            </div>
+                            <div class="bg-blue-50 p-3 rounded-lg">
+                                <div class="text-2xl font-bold text-blue-600">${unexpectedMethods.length}</div>
+                                <div class="text-sm text-blue-600">Unexpected</div>
+                            </div>
+                        </div>
+
+                        ${foundMethods.length > 0 ? `
+                            <div>
+                                <h4 class="font-medium text-green-800 mb-2">✅ Found Methods (${foundMethods.length}):</h4>
+                                <div class="flex flex-wrap gap-2">
+                                    ${foundMethods.map(method => `<span class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded font-mono">${method}</span>`).join('')}
+                                </div>
+                            </div>
+                        ` : ''}
+
+                        ${missingMethods.length > 0 ? `
+                            <div>
+                                <h4 class="font-medium text-red-800 mb-2">❌ Missing Methods (${missingMethods.length}):</h4>
+                                <div class="flex flex-wrap gap-2">
+                                    ${missingMethods.map(method => `<span class="px-2 py-1 bg-red-100 text-red-800 text-xs rounded font-mono">${method}</span>`).join('')}
+                                </div>
+                            </div>
+                        ` : ''}
+
+                        ${unexpectedMethods.length > 0 ? `
+                            <div>
+                                <h4 class="font-medium text-blue-800 mb-2">🔍 Unexpected Methods (${unexpectedMethods.length}):</h4>
+                                <div class="flex flex-wrap gap-2">
+                                    ${unexpectedMethods.map(method => `<span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded font-mono">${method}</span>`).join('')}
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+
+                container.innerHTML = html;
+            }
+
+            updateServiceHealth() {
+                const container = document.getElementById('serviceHealth');
+                const data = this.diagnosticData.serviceStatus;
+
+                if (!data || data.error) {
+                    container.innerHTML = `<div class="text-red-600">Error: ${data?.error?.message || data?.error || 'No service status data'}</div>`;
+                    return;
+                }
+
+                const services = data.services || {};
+                const serviceItems = Object.entries(services).map(([name, service]) => `
+                    <div class="flex items-center justify-between py-3 px-4 border border-gray-200 rounded-lg">
+                        <div>
+                            <div class="font-medium text-gray-900">${name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</div>
+                            <div class="text-sm text-gray-600">${service.message}</div>
+                            ${service.details ? `<div class="text-xs text-gray-500 mt-1">${service.details}</div>` : ''}
+                        </div>
+                        <div class="text-right">
+                            <span class="${service.status === 'healthy' ? 'text-green-600' : 'text-red-600'}">
+                                ${service.status === 'healthy' ? '✅' : '❌'} ${service.status}
+                            </span>
+                        </div>
+                    </div>
+                `).join('');
+
+                const html = `
+                    <div class="space-y-4">
+                        <div class="flex items-center space-x-2">
+                            <span class="text-lg">${data.status === 'healthy' ? '✅' : '❌'}</span>
+                            <span class="font-medium">Overall Status: ${data.status}</span>
+                            <span class="text-sm text-gray-500">v${data.version}</span>
+                        </div>
+                        <div class="space-y-2">${serviceItems}</div>
+                    </div>
+                `;
+
+                container.innerHTML = html;
+            }
+
+            updateRuntimeInfo() {
+                const container = document.getElementById('runtimeInfo');
+                const data = this.diagnosticData.apiDiagnostics?.runtimeInfo;
+
+                if (!data) {
+                    container.innerHTML = '<div class="text-gray-500">No runtime information available</div>';
+                    return;
+                }
+
+                const html = `
+                    <div class="space-y-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="bg-gray-50 p-4 rounded-lg">
+                                <h4 class="font-medium text-gray-900 mb-2">Browser Information</h4>
+                                <div class="space-y-1 text-sm text-gray-600">
+                                    <div><strong>Platform:</strong> ${data.platform}</div>
+                                    <div><strong>Language:</strong> ${data.language}</div>
+                                    <div><strong>Online:</strong> ${data.onLine ? 'Yes' : 'No'}</div>
+                                    <div><strong>Cookies:</strong> ${data.cookieEnabled ? 'Enabled' : 'Disabled'}</div>
+                                </div>
+                            </div>
+
+                            <div class="bg-gray-50 p-4 rounded-lg">
+                                <h4 class="font-medium text-gray-900 mb-2">Window Information</h4>
+                                <div class="space-y-1 text-sm text-gray-600">
+                                    <div><strong>Size:</strong> ${data.windowSize?.width}x${data.windowSize?.height}</div>
+                                    <div><strong>Screen:</strong> ${data.screen?.width}x${data.screen?.height}</div>
+                                    <div><strong>Color Depth:</strong> ${data.screen?.colorDepth}-bit</div>
+                                    <div><strong>Location:</strong> ${data.windowLocation}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        ${data.wailsObjects && Object.keys(data.wailsObjects).length > 0 ? `
+                            <div class="bg-gray-50 p-4 rounded-lg">
+                                <h4 class="font-medium text-gray-900 mb-2">Wails Objects</h4>
+                                <div class="space-y-2">
+                                    ${Object.entries(data.wailsObjects).map(([name, obj]) => `
+                                        <div class="text-sm">
+                                            <strong>${name}:</strong> ${obj.type}
+                                            (${obj.keys?.length || 0} keys, ${obj.methods?.length || 0} methods)
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+
+                container.innerHTML = html;
+            }
+
+            updateDiagnosticTests() {
+                const container = document.getElementById('diagnosticTests');
+                const data = this.diagnosticData.diagnosticTests;
+
+                if (!data || data.error) {
+                    container.innerHTML = `<div class="text-red-600">Error: ${data?.error?.message || data?.error || 'No diagnostic test data'}</div>`;
+                    return;
+                }
+
+                const tests = data.tests || {};
+                const testItems = Object.entries(tests).map(([name, result]) => `
+                    <div class="flex items-center justify-between py-3 px-4 border border-gray-200 rounded-lg">
+                        <div>
+                            <div class="font-medium text-gray-900">${result.description}</div>
+                            ${result.error ? `<div class="text-sm text-red-600 mt-1">Error: ${result.error}</div>` : ''}
+                            ${result.model_count !== undefined ? `<div class="text-sm text-gray-500 mt-1">Models: ${result.model_count}</div>` : ''}
+                            ${result.running_count !== undefined ? `<div class="text-sm text-gray-500 mt-1">Running: ${result.running_count}</div>` : ''}
+                        </div>
+                        <div class="text-right">
+                            <span class="${result.status === 'passed' ? 'text-green-600' : result.status === 'failed' ? 'text-red-600' : 'text-yellow-600'}">
+                                ${result.status === 'passed' ? '✅' : result.status === 'failed' ? '❌' : '⏭️'} ${result.status}
+                            </span>
+                        </div>
+                    </div>
+                `).join('');
+
+                const summary = data.summary || {};
+                const html = `
+                    <div class="space-y-4">
+                        <div class="grid grid-cols-4 gap-4 text-center">
+                            <div class="bg-blue-50 p-3 rounded-lg">
+                                <div class="text-2xl font-bold text-blue-600">${summary.total || 0}</div>
+                                <div class="text-sm text-blue-600">Total</div>
+                            </div>
+                            <div class="bg-green-50 p-3 rounded-lg">
+                                <div class="text-2xl font-bold text-green-600">${summary.passed || 0}</div>
+                                <div class="text-sm text-green-600">Passed</div>
+                            </div>
+                            <div class="bg-red-50 p-3 rounded-lg">
+                                <div class="text-2xl font-bold text-red-600">${summary.failed || 0}</div>
+                                <div class="text-sm text-red-600">Failed</div>
+                            </div>
+                            <div class="bg-yellow-50 p-3 rounded-lg">
+                                <div class="text-2xl font-bold text-yellow-600">${summary.skipped || 0}</div>
+                                <div class="text-sm text-yellow-600">Skipped</div>
+                            </div>
+                        </div>
+                        <div class="space-y-2">${testItems}</div>
+                    </div>
+                `;
+
+                container.innerHTML = html;
+            }
+
+            updateRawDiagnostics() {
+                const container = document.getElementById('rawDiagnostics');
+                container.textContent = JSON.stringify(this.diagnosticData, null, 2);
+            }
+
+            async refreshAll() {
+                console.log('🔄 Refreshing all diagnostics...');
+                document.getElementById('refreshBtn').textContent = '🔄 Refreshing...';
+                document.getElementById('refreshBtn').disabled = true;
+
+                try {
+                    await this.runAllDiagnostics();
+                } finally {
+                    document.getElementById('refreshBtn').textContent = '🔄 Refresh All';
+                    document.getElementById('refreshBtn').disabled = false;
+                }
+            }
+
+            exportReport() {
+                const report = {
+                    title: 'Gollama Diagnostic Report',
+                    timestamp: new Date().toISOString(),
+                    data: this.diagnosticData
+                };
+
+                const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `gollama-diagnostics-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                console.log('📄 Diagnostic report exported');
+            }
+
+            showError(title, message) {
+                console.error(`${title}: ${message}`);
+                // Could add toast notification here
+            }
+        }
+
+        // Initialize diagnostics page when DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            new DiagnosticsPage();
+        });
+    </script>
+</body>
+</html>

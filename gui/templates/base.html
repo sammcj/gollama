@@ -6,6 +6,8 @@
     <title>{{.Title}} - Gollama</title>
     <link href="/static/css/tailwind.css" rel="stylesheet">
     <script src="/static/js/htmx.min.js"></script>
+    <script src="/static/js/gollama-api.js"></script>
+    <script src="/static/js/diagnostics-console.js"></script>
 </head>
 <body class="h-full bg-gray-50 dark:bg-gray-900" data-theme="dark">
     <div class="min-h-full">
@@ -26,6 +28,12 @@
                         </button>
                         <button class="nav-link" onclick="showSettings()">
                             Settings
+                        </button>
+                        <button class="nav-link" onclick="showDiagnostics()">
+                            🔍 Diagnostics
+                        </button>
+                        <button class="nav-link" onclick="showPerformanceMetrics()">
+                            📊 Performance
                         </button>
                         <button class="btn-primary" onclick="refreshModels()">
                             Refresh
@@ -50,12 +58,15 @@
     </div>
 
     <!-- Loading Indicator -->
-    <div id="loading" class="htmx-indicator modal-overlay">
-        <div class="bg-white dark:bg-gray-800 rounded-lg p-6 flex items-center space-x-4">
-            <div class="loading-spinner"></div>
-            <span class="text-gray-900 dark:text-white">Loading...</span>
+    <div id="loading-indicator" class="fixed top-20 right-4 bg-blue-500 text-white px-4 py-2 rounded-lg shadow-lg z-40 hidden">
+        <div class="flex items-center space-x-2">
+            <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+            <span id="loading-text">Loading...</span>
         </div>
     </div>
+
+    <!-- Performance Metrics Display -->
+    <div id="performance-metrics" class="fixed bottom-4 left-4 z-30 hidden"></div>
 
     <!-- Modal Container -->
     <div id="modal-container"></div>
