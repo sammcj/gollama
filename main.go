@@ -132,7 +132,7 @@ func main() {
 	flag.BoolVar(createFromLMStudioFlag, "create-from-lmstudio", false, "Create Ollama models from LM Studio models")
 	dryRunFlag := flag.Bool("n", false, "Show what would happen without making any changes (dry-run mode)")
 	flag.BoolVar(dryRunFlag, "dry-run", false, "Show what would happen without making any changes (dry-run mode)")
-	ollamaDirFlag := flag.String("ollama-dir", cfg.OllamaAPIKey, "Custom Ollama models directory")
+	ollamaDirFlag := flag.String("ollama-dir", cfg.OllamaModelsDir, "Custom Ollama models directory")
 	lmStudioDirFlag := flag.String("lm-dir", cfg.LMStudioFilePaths, "Custom LM Studio models directory")
 	noCleanupFlag := flag.Bool("no-cleanup", false, "Don't cleanup broken symlinks")
 	cleanupFlag := flag.Bool("cleanup", false, "Remove all symlinked models and empty directories and exit")
@@ -445,6 +445,17 @@ func main() {
 	}
 
 	if *linkLMStudioFlag {
+		if !*dryRunFlag {
+			fmt.Println("WARNING: This will create symlinks in your Ollama models directory!")
+			fmt.Print("Do you want to continue? (y/n): ")
+			var response string
+			fmt.Scanln(&response)
+			if response != "y" && response != "Y" {
+				fmt.Println("Aborting...")
+				os.Exit(0)
+			}
+		}
+
 		fmt.Printf("Scanning for LM Studio models in: %s\n", app.lmStudioModelsDir)
 
 		models, err := lmstudio.ScanModels(app.lmStudioModelsDir)
