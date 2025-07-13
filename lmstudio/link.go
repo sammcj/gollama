@@ -20,31 +20,57 @@ type Model struct {
 
 // ModelfileTemplate contains the default template for creating Modelfiles
 // TODO: Make the default Modelfile template configurable
-const ModelfileTemplate = `### MODEL IMPORTED FROM LM-STUDIO BY GOLLAMA ###
+const ModelfileTemplate = `### MODEL IMPORTED FROM LM-STUDIO BY GOLLAMA - https://github.com/sammcj/gollama ###
 
-# Tune the below inference, model load parameters and template to your needs
-# The template and stop parameters are currently set to the default for models that use the ChatML format
-# If required update these match the prompt format your model expects
-# You can look at existing similar models on the Ollama model hub for examples
-# See https://github.com/ollama/ollama/blob/main/docs/modelfile.md for a complete reference
+# 1. You may need to add appropriate TEMPLATE and STOP parameters for your model
+# 2. Tune the below inference, model load parameters and template to your needs
+#   You can look at existing similar models on the Ollama model hub for examples
+#   - https://ollama.com/search
+#   - See https://github.com/ollama/ollama/blob/main/docs/modelfile.md for a complete Modelfile syntax reference
 
 FROM {{.ModelPath}}
 
 ### Model Load Parameters ###
-PARAMETER num_ctx 4096
+PARAMETER num_ctx 16384
+# PARAMETER num_gpu 99
+# PARAMETER num_batch 512
 
 ### Inference Parameters ####
-PARAMETER temperature 0.4
-PARAMETER top_p 0.6
+PARAMETER temperature 0.6
+PARAMETER top_p 0.95
+PARAMETER min_p 0.01
+# PARAMETER top_k 20
+# PARAMETER repeat_penalty 1.05
+# PARAMETER presence_penalty 1.5
 
-### Chat Template Parameters ###
-
-TEMPLATE """
-{{.Prompt}}
-"""
-
+# ChatML Family
 PARAMETER stop "<|im_start|>"
 PARAMETER stop "<|im_end|>"
+
+# DeepSeek R1 Family
+# PARAMETER stop "<｜begin▁of▁sentence｜>"
+# PARAMETER stop "<｜end▁of▁sentence｜>"
+# PARAMETER stop "<｜User｜>"
+# PARAMETER stop "<｜Assistant｜>"
+
+# Mistral Family
+# PARAMETER stop "[INST]"
+# PARAMETER stop "[/INST]"
+# PARAMETER stop "</s>"
+
+# Llama Family
+# PARAMETER stop "<|start_header_id|>"
+# PARAMETER stop "<|end_header_id|>"
+# PARAMETER stop "<|eot_id|>"
+
+# Cline / Roo Code Tool Calls
+# PARAMETER stop "</tool_call>"
+# PARAMETER stop "</tool_response>"
+# PARAMETER stop "</write_to_file>"
+# PARAMETER stop "</execute_command>"
+
+# TEMPLATE "{{.Prompt}}"
+# SYSTEM "You are a helpful assistant."
 `
 
 type ModelfileData struct {
@@ -120,6 +146,26 @@ func modelExists(modelName string) bool {
 	return strings.Contains(string(output), modelName)
 }
 
+// generateModelfileContent generates the Modelfile content as a string
+func generateModelfileContent(modelName string, modelPath string) (string, error) {
+	tmpl, err := template.New("modelfile").Parse(ModelfileTemplate)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse Modelfile template: %w", err)
+	}
+
+	data := ModelfileData{
+		ModelPath: modelPath,     // Use full path instead of just the base name
+		Prompt:    "{{.Prompt}}", // Preserve this as a template variable for Ollama
+	}
+
+	var buf strings.Builder
+	if err := tmpl.Execute(&buf, data); err != nil {
+		return "", fmt.Errorf("failed to execute Modelfile template: %w", err)
+	}
+
+	return buf.String(), nil
+}
+
 // createModelfile creates a Modelfile for the given model
 func createModelfile(modelName string, modelPath string) error {
 	modelfilePath := filepath.Join(filepath.Dir(modelPath), fmt.Sprintf("Modelfile.%s", modelName))
@@ -130,35 +176,21 @@ func createModelfile(modelName string, modelPath string) error {
 		return nil
 	}
 
-	tmpl, err := template.New("modelfile").Parse(ModelfileTemplate)
+	// Generate Modelfile content using the helper function
+	content, err := generateModelfileContent(modelName, modelPath)
 	if err != nil {
-		return fmt.Errorf("failed to parse Modelfile template: %w", err)
+		return fmt.Errorf("failed to generate Modelfile content: %w", err)
 	}
 
-	data := ModelfileData{
-		ModelPath: modelPath,     // Use full path instead of just the base name
-		Prompt:    "{{.Prompt}}", // Preserve this as a template variable for Ollama
-	}
+	logging.DebugLogger.Printf("Creating Modelfile at: %s with model path: %s", modelfilePath, modelPath)
 
-	file, err := os.OpenFile(modelfilePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
-	if err != nil {
-		return fmt.Errorf("failed to create Modelfile: %w", err)
-	}
-	defer file.Close()
-
-	logging.DebugLogger.Printf("Creating Modelfile at: %s with model path: %s", modelfilePath, data.ModelPath)
-
-	if err := tmpl.Execute(file, data); err != nil {
-		return fmt.Errorf("failed to write Modelfile template: %w", err)
+	// Write the content to file
+	if err := os.WriteFile(modelfilePath, []byte(content), 0644); err != nil {
+		return fmt.Errorf("failed to write Modelfile: %w", err)
 	}
 
 	// Log the content of the created Modelfile for debugging
-	content, err := os.ReadFile(modelfilePath)
-	if err != nil {
-		logging.ErrorLogger.Printf("Warning: Could not read back Modelfile for verification: %v", err)
-	} else {
-		logging.DebugLogger.Printf("Created Modelfile content:\n%s", string(content))
-	}
+	logging.DebugLogger.Printf("Created Modelfile content:\n%s", content)
 
 	return nil
 }
@@ -172,7 +204,7 @@ func LinkModelToOllama(model Model, dryRun bool, ollamaHost string, ollamaDir st
 	}
 
 	if dryRun {
-		logging.InfoLogger.Printf("[DRY RUN] Would create Ollama models directory at: %s", ollamaDir)
+		fmt.Printf("[DRY RUN] Would create Ollama models directory at: %s\n", ollamaDir)
 	} else if err := os.MkdirAll(ollamaDir, 0755); err != nil {
 		return fmt.Errorf("failed to create Ollama models directory: %w", err)
 	}
@@ -180,7 +212,7 @@ func LinkModelToOllama(model Model, dryRun bool, ollamaHost string, ollamaDir st
 	targetPath := filepath.Join(ollamaDir, filepath.Base(model.Path))
 
 	if dryRun {
-		logging.InfoLogger.Printf("[DRY RUN] Would create symlink from %s to %s", model.Path, targetPath)
+		fmt.Printf("[DRY RUN] Would create symlink from %s to %s\n", model.Path, targetPath)
 	} else if err := os.Symlink(model.Path, targetPath); err != nil {
 		if os.IsExist(err) {
 			logging.InfoLogger.Printf("Symlink already exists for %s at %s", model.Name, targetPath)
@@ -197,8 +229,20 @@ func LinkModelToOllama(model Model, dryRun bool, ollamaHost string, ollamaDir st
 	// Create model-specific Modelfile
 	modelfilePath := filepath.Join(filepath.Dir(targetPath), fmt.Sprintf("Modelfile.%s", model.Name))
 	if dryRun {
-		logging.InfoLogger.Printf("[DRY RUN] Would create Modelfile at: %s", modelfilePath)
-		logging.InfoLogger.Printf("[DRY RUN] Would create Ollama model: %s using Modelfile", model.Name)
+		fmt.Printf("\n\n[DRY RUN] *** Would create Modelfile at: %s ***\n", modelfilePath)
+
+		// Generate and display the Modelfile content that would be created
+		modelfileContent, err := generateModelfileContent(model.Name, targetPath)
+		if err != nil {
+			fmt.Printf("[DRY RUN] Error generating Modelfile content: %v\n", err)
+		} else {
+			fmt.Printf("[DRY RUN] Modelfile content that would be created:\n")
+			fmt.Printf("--- BEGIN MODELFILE ---\n")
+			fmt.Printf("%s", modelfileContent)
+			fmt.Printf("--- END MODELFILE ---\n")
+		}
+
+		fmt.Printf("[DRY RUN] Would create Ollama model: %s using Modelfile\n", model.Name)
 		return nil
 	}
 

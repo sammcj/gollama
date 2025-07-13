@@ -95,7 +95,7 @@ var Version string // Version is set by the build system
 
 func main() {
 	if Version == "" {
-		Version = "1.33.2"
+		Version = "1.34.0"
 	}
 
 	cfg, err := config.LoadConfig()
@@ -121,15 +121,18 @@ func main() {
 
 	err = logging.Init(cfg.LogLevel, cfg.LogFilePath)
 	if err != nil {
-		fmt.Println("Error initializing logging:", err)
+		fmt.Println("Error initialising logging:", err)
 		os.Exit(1)
 	}
 
 	listFlag := flag.Bool("l", false, "List all available Ollama models and exit")
 	linkFlag := flag.Bool("L", false, "Link Ollama models to LM Studio")
 	linkLMStudioFlag := flag.Bool("link-lmstudio", false, "Link LM Studio models to Ollama")
-	dryRunFlag := flag.Bool("dry-run", false, "Show what would be linked without making any changes (use with -L or -link-lmstudio)")
-	ollamaDirFlag := flag.String("ollama-dir", cfg.OllamaAPIKey, "Custom Ollama models directory")
+	createFromLMStudioFlag := flag.Bool("C", false, "Create Ollama models from LM Studio models")
+	flag.BoolVar(createFromLMStudioFlag, "create-from-lmstudio", false, "Create Ollama models from LM Studio models")
+	dryRunFlag := flag.Bool("n", false, "Show what would happen without making any changes (dry-run mode)")
+	flag.BoolVar(dryRunFlag, "dry-run", false, "Show what would happen without making any changes (dry-run mode)")
+	ollamaDirFlag := flag.String("ollama-dir", cfg.OllamaModelsDir, "Custom Ollama models directory")
 	lmStudioDirFlag := flag.String("lm-dir", cfg.LMStudioFilePaths, "Custom LM Studio models directory")
 	noCleanupFlag := flag.Bool("no-cleanup", false, "Don't cleanup broken symlinks")
 	cleanupFlag := flag.Bool("cleanup", false, "Remove all symlinked models and empty directories and exit")
@@ -139,6 +142,8 @@ func main() {
 	hostFlag := flag.String("h", "", "Override the config file to set the Ollama API host (e.g. http://localhost:11434)")
 	localHostFlag := flag.Bool("H", false, "Shortcut to connect to http://localhost:11434")
 	editFlag := flag.Bool("e", false, "Edit a model's modelfile")
+	logLevelFlag := flag.String("log-level", "", "Override log level (debug, info, warn, error)")
+	flag.StringVar(logLevelFlag, "log", "", "Override log level (debug, info, warn, error)")
 	// vRAM estimation flags
 	// flag.Float64Var(&fitsVRAM, "fits", 0, "Highlight quant sizes and context sizes that fit in this amount of vRAM (in GB)")
 	vramFlag := flag.String("vram", "", "Model to estimate VRAM usage for (e.g., 'qwen2:q4_0' or 'meta-llama/Llama-2-7b')")
@@ -164,6 +169,16 @@ func main() {
 
 	if *hostFlag != "" {
 		cfg.OllamaAPIURL = *hostFlag
+	}
+
+	if *logLevelFlag != "" {
+		cfg.LogLevel = *logLevelFlag
+		// Reinitialise logging with the new level
+		err = logging.Init(cfg.LogLevel, cfg.LogFilePath)
+		if err != nil {
+			fmt.Println("Error reinitialising logging with new level:", err)
+			os.Exit(1)
+		}
 	}
 
 	// Initialise the API client
@@ -430,6 +445,17 @@ func main() {
 	}
 
 	if *linkLMStudioFlag {
+		if !*dryRunFlag {
+			fmt.Println("WARNING: ***EXPERIMENTAL*** BACKUP YOUR MODELS! This will create symlinks in your Ollama models directory!")
+			fmt.Print("Do you want to continue? (y/n): ")
+			var response string
+			fmt.Scanln(&response)
+			if response != "y" && response != "Y" {
+				fmt.Println("Aborting...")
+				os.Exit(0)
+			}
+		}
+
 		fmt.Printf("Scanning for LM Studio models in: %s\n", app.lmStudioModelsDir)
 
 		models, err := lmstudio.ScanModels(app.lmStudioModelsDir)
@@ -452,7 +478,11 @@ func main() {
 		var successCount, failCount int
 
 		for _, model := range models {
-			fmt.Printf("%sProcessing model %s... ", prefix, model.Name)
+			if *dryRunFlag {
+				fmt.Printf("%sProcessing model %s...\n", prefix, model.Name)
+			} else {
+				fmt.Printf("%sProcessing model %s... ", prefix, model.Name)
+			}
 			if err := lmstudio.LinkModelToOllama(model, *dryRunFlag, cfg.OllamaAPIURL, app.ollamaModelsDir); err != nil {
 				logging.ErrorLogger.Printf("Error linking model %s: %v\n", model.Name, err)
 				fmt.Printf("failed: %v\n", err)
@@ -460,7 +490,11 @@ func main() {
 				continue
 			}
 			logging.InfoLogger.Printf("Model %s linked successfully\n", model.Name)
-			fmt.Println("success!")
+			if *dryRunFlag {
+				fmt.Printf("%sModel %s processed successfully\n\n", prefix, model.Name)
+			} else {
+				fmt.Println("success!")
+			}
 			successCount++
 		}
 
@@ -468,6 +502,67 @@ func main() {
 			fmt.Printf("\n[DRY RUN] Summary: Would link %d models, %d would fail\n", successCount, failCount)
 		} else {
 			fmt.Printf("\nSummary: %d models linked successfully, %d failed\n", successCount, failCount)
+		}
+		if failCount > 0 {
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
+
+	if *createFromLMStudioFlag {
+
+		if !*dryRunFlag {
+			fmt.Println("WARNING: EXPERIMENTAL, BACK UP YOUR MODELS FIRST!")
+			fmt.Print("Do you want to continue? (y/n): ")
+			var response string
+			fmt.Scanln(&response)
+			if response != "y" && response != "Y" {
+				fmt.Println("Aborting...")
+				os.Exit(0)
+			}
+		}
+
+		fmt.Printf("Scanning for unlinked LM Studio models in: %s\n", app.lmStudioModelsDir)
+
+		models, err := lmstudio.ScanUnlinkedModels(app.lmStudioModelsDir)
+		if err != nil {
+			logging.ErrorLogger.Printf("Error scanning LM Studio models: %v\n", err)
+			fmt.Printf("Failed to scan LM Studio models directory: %v\n", err)
+			os.Exit(1)
+		}
+
+		if len(models) == 0 {
+			fmt.Println("No unlinked LM Studio models found")
+			os.Exit(0)
+		}
+
+		prefix := ""
+		if *dryRunFlag {
+			prefix = "[DRY RUN] "
+		}
+		fmt.Printf("%sFound %d unlinked LM Studio models\n", prefix, len(models))
+		var successCount, failCount int
+
+		for _, model := range models {
+			fmt.Printf("%sProcessing model %s... ", prefix, model.Name)
+			if len(model.VisionFiles) > 0 {
+				fmt.Printf("(vision model with %d projection files) ", len(model.VisionFiles))
+			}
+			if err := lmstudio.CreateOllamaModel(model, *dryRunFlag, cfg.OllamaAPIURL, client); err != nil {
+				logging.ErrorLogger.Printf("Error creating model %s: %v\n", model.Name, err)
+				fmt.Printf("failed: %v\n", err)
+				failCount++
+				continue
+			}
+			logging.InfoLogger.Printf("Model %s created successfully\n", model.Name)
+			fmt.Println("success!")
+			successCount++
+		}
+
+		if *dryRunFlag {
+			fmt.Printf("\n[DRY RUN] Summary: Would create %d models, %d would fail\n", successCount, failCount)
+		} else {
+			fmt.Printf("\nSummary: %d models created successfully, %d failed\n", successCount, failCount)
 		}
 		if failCount > 0 {
 			os.Exit(1)
