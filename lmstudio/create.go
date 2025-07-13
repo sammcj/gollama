@@ -79,28 +79,6 @@ var defaultConfig = ModelConfig{
 	MinP:        0.01,
 }
 
-// Default Modelfile template for created models
-const CreateModelfileTemplate = `### MODEL CREATED FROM LM-STUDIO BY GOLLAMA ###
-
-# This model was created from an LM Studio model
-# Adjust the parameters below as needed for your use case
-
-FROM {{.ModelPath}}
-
-### Model Load Parameters ###
-PARAMETER num_ctx {{.NumCtx}}
-
-### Inference Parameters ###
-PARAMETER temperature {{.Temperature}}
-PARAMETER top_p {{.TopP}}
-PARAMETER min_p {{.MinP}}
-
-### Chat Template Parameters ###
-TEMPLATE """{{.Template}}"""
-
-PARAMETER stop "<|im_start|>"
-PARAMETER stop "<|im_end|>"
-`
 
 // calculateSHA256 calculates the SHA256 hash of a file
 func calculateSHA256(filePath string) (string, error) {
@@ -395,11 +373,10 @@ func CreateOllamaModel(model LMStudioModel, dryRun bool, ollamaHost string, clie
 	logging.DebugLogger.Printf("Creating Ollama model: %s from %s", modelName, model.Path)
 
 	// Use the Ollama API to create the model
+	// Let Ollama use the embedded template from the GGUF file rather than overriding it
 	createRequest := api.CreateRequest{
-		Model:    modelName,
-		From:     model.Path,
-		Template: "<|im_start|>system\n{{.System}}<|im_end|>\n<|im_start|>user\n{{.Prompt}}<|im_end|>\n<|im_start|>assistant\n",
-		System:   "You are a helpful assistant.",
+		Model: modelName,
+		From:  model.Path,
 		Parameters: map[string]any{
 			"num_ctx":     config.NumCtx,
 			"temperature": config.Temperature,
