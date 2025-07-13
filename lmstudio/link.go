@@ -22,29 +22,55 @@ type Model struct {
 // TODO: Make the default Modelfile template configurable
 const ModelfileTemplate = `### MODEL IMPORTED FROM LM-STUDIO BY GOLLAMA ###
 
-# Tune the below inference, model load parameters and template to your needs
-# The template and stop parameters are currently set to the default for models that use the ChatML format
-# If required update these match the prompt format your model expects
-# You can look at existing similar models on the Ollama model hub for examples
-# See https://github.com/ollama/ollama/blob/main/docs/modelfile.md for a complete reference
+# 1. You may need to add appropriate TEMPLATE and STOP parameters for your model
+# 2. Tune the below inference, model load parameters and template to your needs
+#   You can look at existing similar models on the Ollama model hub for examples
+#   - https://ollama.com/search
+#   - See https://github.com/ollama/ollama/blob/main/docs/modelfile.md for a complete Modelfile syntax reference
 
 FROM {{.ModelPath}}
 
 ### Model Load Parameters ###
-PARAMETER num_ctx 4096
+PARAMETER num_ctx 16384
+# PARAMETER num_gpu 99
+# PARAMETER num_batch 512
 
 ### Inference Parameters ####
-PARAMETER temperature 0.4
-PARAMETER top_p 0.6
+PARAMETER temperature 0.6
+PARAMETER top_p 0.95
+PARAMETER min_p 0.01
+# PARAMETER top_k 20
+# PARAMETER repeat_penalty 1.05
+# PARAMETER presence_penalty 1.5
 
-### Chat Template Parameters ###
-
-TEMPLATE """
-{{.Prompt}}
-"""
-
+# ChatML Family
 PARAMETER stop "<|im_start|>"
 PARAMETER stop "<|im_end|>"
+
+# DeepSeek R1 Family
+# PARAMETER stop "<｜begin▁of▁sentence｜>"
+# PARAMETER stop "<｜end▁of▁sentence｜>"
+# PARAMETER stop "<｜User｜>"
+# PARAMETER stop "<｜Assistant｜>"
+
+# Mistral Family
+# PARAMETER stop "[INST]"
+# PARAMETER stop "[/INST]"
+# PARAMETER stop "</s>"
+
+# Llama Family
+# PARAMETER stop "<|start_header_id|>"
+# PARAMETER stop "<|end_header_id|>"
+# PARAMETER stop "<|eot_id|>"
+
+# Cline / Roo Code Tool Calls
+# PARAMETER stop "</tool_call>"
+# PARAMETER stop "</tool_response>"
+# PARAMETER stop "</write_to_file>"
+# PARAMETER stop "</execute_command>"
+
+# TEMPLATE "{{.Prompt}}"
+# SYSTEM "You are a helpful assistant."
 `
 
 type ModelfileData struct {
