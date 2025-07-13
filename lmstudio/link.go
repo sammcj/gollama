@@ -203,8 +203,8 @@ func LinkModelToOllama(model Model, dryRun bool, ollamaHost string, ollamaDir st
 	// Create model-specific Modelfile
 	modelfilePath := filepath.Join(filepath.Dir(targetPath), fmt.Sprintf("Modelfile.%s", model.Name))
 	if dryRun {
-		fmt.Printf("[DRY RUN] Would create Modelfile at: %s\n", modelfilePath)
-		
+		fmt.Printf("\n\n[DRY RUN] *** Would create Modelfile at: %s ***\n", modelfilePath)
+
 		// Generate and display the Modelfile content that would be created
 		modelfileContent, err := generateModelfileContent(model.Name, targetPath)
 		if err != nil {
@@ -215,7 +215,7 @@ func LinkModelToOllama(model Model, dryRun bool, ollamaHost string, ollamaDir st
 			fmt.Printf("%s", modelfileContent)
 			fmt.Printf("--- END MODELFILE ---\n")
 		}
-		
+
 		fmt.Printf("[DRY RUN] Would create Ollama model: %s using Modelfile\n", model.Name)
 		return nil
 	}
