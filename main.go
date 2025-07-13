@@ -128,8 +128,10 @@ func main() {
 	listFlag := flag.Bool("l", false, "List all available Ollama models and exit")
 	linkFlag := flag.Bool("L", false, "Link Ollama models to LM Studio")
 	linkLMStudioFlag := flag.Bool("link-lmstudio", false, "Link LM Studio models to Ollama")
-	createFromLMStudioFlag := flag.Bool("create-from-lmstudio", false, "Create Ollama models from LM Studio models")
-	dryRunFlag := flag.Bool("dry-run", false, "Show what would be linked without making any changes (use with -L, -link-lmstudio, or -create-from-lmstudio)")
+	createFromLMStudioFlag := flag.Bool("C", false, "Create Ollama models from LM Studio models")
+	flag.BoolVar(createFromLMStudioFlag, "create-from-lmstudio", false, "Create Ollama models from LM Studio models")
+	dryRunFlag := flag.Bool("n", false, "Show what would happen without making any changes (dry-run mode)")
+	flag.BoolVar(dryRunFlag, "dry-run", false, "Show what would happen without making any changes (dry-run mode)")
 	ollamaDirFlag := flag.String("ollama-dir", cfg.OllamaAPIKey, "Custom Ollama models directory")
 	lmStudioDirFlag := flag.String("lm-dir", cfg.LMStudioFilePaths, "Custom LM Studio models directory")
 	noCleanupFlag := flag.Bool("no-cleanup", false, "Don't cleanup broken symlinks")
@@ -140,6 +142,8 @@ func main() {
 	hostFlag := flag.String("h", "", "Override the config file to set the Ollama API host (e.g. http://localhost:11434)")
 	localHostFlag := flag.Bool("H", false, "Shortcut to connect to http://localhost:11434")
 	editFlag := flag.Bool("e", false, "Edit a model's modelfile")
+	logLevelFlag := flag.String("log-level", "", "Override log level (debug, info, warn, error)")
+	flag.StringVar(logLevelFlag, "log", "", "Override log level (debug, info, warn, error)")
 	// vRAM estimation flags
 	// flag.Float64Var(&fitsVRAM, "fits", 0, "Highlight quant sizes and context sizes that fit in this amount of vRAM (in GB)")
 	vramFlag := flag.String("vram", "", "Model to estimate VRAM usage for (e.g., 'qwen2:q4_0' or 'meta-llama/Llama-2-7b')")
@@ -165,6 +169,16 @@ func main() {
 
 	if *hostFlag != "" {
 		cfg.OllamaAPIURL = *hostFlag
+	}
+
+	if *logLevelFlag != "" {
+		cfg.LogLevel = *logLevelFlag
+		// Reinitialise logging with the new level
+		err = logging.Init(cfg.LogLevel, cfg.LogFilePath)
+		if err != nil {
+			fmt.Println("Error reinitializing logging with new level:", err)
+			os.Exit(1)
+		}
 	}
 
 	// Initialise the API client
