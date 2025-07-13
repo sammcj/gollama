@@ -120,6 +120,26 @@ func modelExists(modelName string) bool {
 	return strings.Contains(string(output), modelName)
 }
 
+// generateModelfileContent generates the Modelfile content as a string
+func generateModelfileContent(modelName string, modelPath string) (string, error) {
+	tmpl, err := template.New("modelfile").Parse(ModelfileTemplate)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse Modelfile template: %w", err)
+	}
+
+	data := ModelfileData{
+		ModelPath: modelPath,     // Use full path instead of just the base name
+		Prompt:    "{{.Prompt}}", // Preserve this as a template variable for Ollama
+	}
+
+	var buf strings.Builder
+	if err := tmpl.Execute(&buf, data); err != nil {
+		return "", fmt.Errorf("failed to execute Modelfile template: %w", err)
+	}
+
+	return buf.String(), nil
+}
+
 // createModelfile creates a Modelfile for the given model
 func createModelfile(modelName string, modelPath string) error {
 	modelfilePath := filepath.Join(filepath.Dir(modelPath), fmt.Sprintf("Modelfile.%s", modelName))
@@ -130,35 +150,21 @@ func createModelfile(modelName string, modelPath string) error {
 		return nil
 	}
 
-	tmpl, err := template.New("modelfile").Parse(ModelfileTemplate)
+	// Generate Modelfile content using the helper function
+	content, err := generateModelfileContent(modelName, modelPath)
 	if err != nil {
-		return fmt.Errorf("failed to parse Modelfile template: %w", err)
+		return fmt.Errorf("failed to generate Modelfile content: %w", err)
 	}
 
-	data := ModelfileData{
-		ModelPath: modelPath,     // Use full path instead of just the base name
-		Prompt:    "{{.Prompt}}", // Preserve this as a template variable for Ollama
-	}
+	logging.DebugLogger.Printf("Creating Modelfile at: %s with model path: %s", modelfilePath, modelPath)
 
-	file, err := os.OpenFile(modelfilePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
-	if err != nil {
-		return fmt.Errorf("failed to create Modelfile: %w", err)
-	}
-	defer file.Close()
-
-	logging.DebugLogger.Printf("Creating Modelfile at: %s with model path: %s", modelfilePath, data.ModelPath)
-
-	if err := tmpl.Execute(file, data); err != nil {
-		return fmt.Errorf("failed to write Modelfile template: %w", err)
+	// Write the content to file
+	if err := os.WriteFile(modelfilePath, []byte(content), 0644); err != nil {
+		return fmt.Errorf("failed to write Modelfile: %w", err)
 	}
 
 	// Log the content of the created Modelfile for debugging
-	content, err := os.ReadFile(modelfilePath)
-	if err != nil {
-		logging.ErrorLogger.Printf("Warning: Could not read back Modelfile for verification: %v", err)
-	} else {
-		logging.DebugLogger.Printf("Created Modelfile content:\n%s", string(content))
-	}
+	logging.DebugLogger.Printf("Created Modelfile content:\n%s", content)
 
 	return nil
 }
@@ -172,7 +178,7 @@ func LinkModelToOllama(model Model, dryRun bool, ollamaHost string, ollamaDir st
 	}
 
 	if dryRun {
-		logging.InfoLogger.Printf("[DRY RUN] Would create Ollama models directory at: %s", ollamaDir)
+		fmt.Printf("[DRY RUN] Would create Ollama models directory at: %s\n", ollamaDir)
 	} else if err := os.MkdirAll(ollamaDir, 0755); err != nil {
 		return fmt.Errorf("failed to create Ollama models directory: %w", err)
 	}
@@ -180,7 +186,7 @@ func LinkModelToOllama(model Model, dryRun bool, ollamaHost string, ollamaDir st
 	targetPath := filepath.Join(ollamaDir, filepath.Base(model.Path))
 
 	if dryRun {
-		logging.InfoLogger.Printf("[DRY RUN] Would create symlink from %s to %s", model.Path, targetPath)
+		fmt.Printf("[DRY RUN] Would create symlink from %s to %s\n", model.Path, targetPath)
 	} else if err := os.Symlink(model.Path, targetPath); err != nil {
 		if os.IsExist(err) {
 			logging.InfoLogger.Printf("Symlink already exists for %s at %s", model.Name, targetPath)
@@ -197,8 +203,20 @@ func LinkModelToOllama(model Model, dryRun bool, ollamaHost string, ollamaDir st
 	// Create model-specific Modelfile
 	modelfilePath := filepath.Join(filepath.Dir(targetPath), fmt.Sprintf("Modelfile.%s", model.Name))
 	if dryRun {
-		logging.InfoLogger.Printf("[DRY RUN] Would create Modelfile at: %s", modelfilePath)
-		logging.InfoLogger.Printf("[DRY RUN] Would create Ollama model: %s using Modelfile", model.Name)
+		fmt.Printf("[DRY RUN] Would create Modelfile at: %s\n", modelfilePath)
+		
+		// Generate and display the Modelfile content that would be created
+		modelfileContent, err := generateModelfileContent(model.Name, targetPath)
+		if err != nil {
+			fmt.Printf("[DRY RUN] Error generating Modelfile content: %v\n", err)
+		} else {
+			fmt.Printf("[DRY RUN] Modelfile content that would be created:\n")
+			fmt.Printf("--- BEGIN MODELFILE ---\n")
+			fmt.Printf("%s", modelfileContent)
+			fmt.Printf("--- END MODELFILE ---\n")
+		}
+		
+		fmt.Printf("[DRY RUN] Would create Ollama model: %s using Modelfile\n", model.Name)
 		return nil
 	}
 
