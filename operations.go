@@ -515,6 +515,56 @@ func (m *AppModel) startPushModel(modelName string) tea.Cmd {
 	}
 }
 
+// ModelFiles represents the files associated with a model
+type ModelFiles struct {
+	MainModel string // Primary model file (usually .gguf)
+	Projector string // Vision projector file (mmproj, if present)
+}
+
+// getModelFiles returns all files associated with a model (main model + any projector files)
+func getModelFiles(modelName string, client *api.Client) (ModelFiles, error) {
+	ctx := context.Background()
+	req := &api.ShowRequest{Name: modelName}
+	resp, err := client.Show(ctx, req)
+	if err != nil {
+		return ModelFiles{}, err
+	}
+
+	output := []byte(resp.Modelfile)
+	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	
+	var files ModelFiles
+	var fromPaths []string
+	
+	// Collect all FROM lines
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "FROM ") {
+			path := strings.TrimSpace(line[5:])
+			fromPaths = append(fromPaths, path)
+		}
+	}
+	
+	if len(fromPaths) == 0 {
+		message := "failed to get model path for %s: no FROM line in output"
+		logging.ErrorLogger.Printf(message+"\n", modelName)
+		return files, fmt.Errorf(message, modelName)
+	}
+	
+	// First FROM line is always the main model
+	files.MainModel = fromPaths[0]
+	
+	// If there are additional FROM lines, the second one is typically the projector
+	// (This handles vision models with separate projector files)
+	if len(fromPaths) > 1 {
+		files.Projector = fromPaths[1]
+		logging.DebugLogger.Printf("Found multi-file model %s: main=%s, projector=%s", 
+			modelName, files.MainModel, files.Projector)
+	}
+	
+	return files, nil
+}
+
 func getModelPath(modelName string, client *api.Client) (string, error) {
 	ctx := context.Background()
 	req := &api.ShowRequest{Name: modelName}
@@ -785,9 +835,9 @@ func searchModels(models []Model, searchTerms ...string) {
 }
 
 func linkModel(modelName, lmStudioModelsDir string, noCleanup bool, dryRun bool, client *api.Client) (string, error) {
-	modelPath, err := getModelPath(modelName, client)
+	modelFiles, err := getModelFiles(modelName, client)
 	if err != nil {
-		return "", fmt.Errorf("error getting model path for %s: %v", modelName, err)
+		return "", fmt.Errorf("error getting model files for %s: %v", modelName, err)
 	}
 
 	// Extract author from model name (e.g., "fleo/tiny-r1-32b-preview:latest" -> "fleo")
@@ -806,27 +856,78 @@ func linkModel(modelName, lmStudioModelsDir string, noCleanup bool, dryRun bool,
 	lmStudioModelName = strings.ReplaceAll(lmStudioModelName, "/", "-")
 	lmStudioModelDir := filepath.Join(lmStudioModelsDir, author, lmStudioModelName+"-GGUF")
 
-	// Check if the model path is a valid file
-	fileInfo, err := os.Stat(modelPath)
+	// Check if the main model path is a valid file
+	fileInfo, err := os.Stat(modelFiles.MainModel)
 	if err != nil || fileInfo.IsDir() {
-		return "", fmt.Errorf("invalid model path for %s: %s", modelName, modelPath)
+		return "", fmt.Errorf("invalid main model path for %s: %s", modelName, modelFiles.MainModel)
 	}
 
-	// Check if the symlink already exists and is valid
-	lmStudioModelPath := filepath.Join(lmStudioModelDir, lmStudioModelName+".gguf")
-	if _, err := os.Lstat(lmStudioModelPath); err == nil {
-		if isValidSymlink(lmStudioModelPath, modelPath) {
-			message := "Model %s is already symlinked to %s"
-			logging.InfoLogger.Printf(message+"\n", modelName, lmStudioModelPath)
-			return "", nil
+	// Validate projector file if it exists
+	if modelFiles.Projector != "" {
+		projInfo, err := os.Stat(modelFiles.Projector)
+		if err != nil || projInfo.IsDir() {
+			logging.DebugLogger.Printf("Warning: projector file %s is invalid, skipping", modelFiles.Projector)
+			modelFiles.Projector = "" // Clear invalid projector path
 		}
-		// Remove the invalid symlink
-		err = os.Remove(lmStudioModelPath)
-		if err != nil {
-			message := "failed to remove invalid symlink %s: %v"
-			logging.ErrorLogger.Printf(message+"\n", lmStudioModelPath, err)
-			return "", fmt.Errorf(message, lmStudioModelPath, err)
+	}
+
+	// Define target paths for both files
+	lmStudioMainPath := filepath.Join(lmStudioModelDir, lmStudioModelName+".gguf")
+	var lmStudioProjPath string
+	if modelFiles.Projector != "" {
+		// Extract filename from projector path to preserve the mmproj naming
+		projFileName := filepath.Base(modelFiles.Projector)
+		// Create an mmproj filename based on the model name if the original doesn't contain mmproj
+		if !strings.Contains(strings.ToLower(projFileName), "mmproj") {
+			projFileName = "mmproj-" + lmStudioModelName + ".gguf"
+		} else {
+			// Keep original naming but replace model-specific parts with our naming
+			projFileName = "mmproj-" + lmStudioModelName + filepath.Ext(projFileName)
 		}
+		lmStudioProjPath = filepath.Join(lmStudioModelDir, projFileName)
+	}
+
+	// Check if the main model symlink already exists and is valid
+	mainLinkExists := false
+	if _, err := os.Lstat(lmStudioMainPath); err == nil {
+		if isValidSymlink(lmStudioMainPath, modelFiles.MainModel) {
+			mainLinkExists = true
+		} else {
+			// Remove the invalid symlink
+			err = os.Remove(lmStudioMainPath)
+			if err != nil {
+				message := "failed to remove invalid main model symlink %s: %v"
+				logging.ErrorLogger.Printf(message+"\n", lmStudioMainPath, err)
+				return "", fmt.Errorf(message, lmStudioMainPath, err)
+			}
+		}
+	}
+
+	// Check projector symlink if applicable
+	projLinkExists := false
+	if modelFiles.Projector != "" && lmStudioProjPath != "" {
+		if _, err := os.Lstat(lmStudioProjPath); err == nil {
+			if isValidSymlink(lmStudioProjPath, modelFiles.Projector) {
+				projLinkExists = true
+			} else {
+				// Remove the invalid projector symlink
+				err = os.Remove(lmStudioProjPath)
+				if err != nil {
+					logging.ErrorLogger.Printf("failed to remove invalid projector symlink %s: %v\n", lmStudioProjPath, err)
+					// Don't fail completely for projector issues, just log
+				}
+			}
+		}
+	}
+
+	// If all required symlinks exist, we're done
+	if mainLinkExists && (modelFiles.Projector == "" || projLinkExists) {
+		message := "Model %s is already symlinked to %s"
+		logging.InfoLogger.Printf(message+"\n", modelName, lmStudioMainPath)
+		if modelFiles.Projector != "" {
+			logging.InfoLogger.Printf("Vision projector also symlinked to %s\n", lmStudioProjPath)
+		}
+		return "", nil
 	}
 
 	if dryRun {
@@ -835,29 +936,55 @@ func linkModel(modelName, lmStudioModelsDir string, noCleanup bool, dryRun bool,
 
 		// Create message with full paths for display
 		message := "[DRY RUN] Would create directory %s and symlink %s to %s"
-		fullPathMessage := fmt.Sprintf(message, lmStudioModelDir, modelName, lmStudioModelPath)
+		fullPathMessage := fmt.Sprintf(message, lmStudioModelDir, modelName, lmStudioMainPath)
 		logging.InfoLogger.Println(fullPathMessage)
+		
+		if modelFiles.Projector != "" {
+			projMessage := fmt.Sprintf("[DRY RUN] Would also symlink vision projector to %s", lmStudioProjPath)
+			logging.InfoLogger.Println(projMessage)
+			fullPathMessage += "\n" + projMessage
+		}
 
 		return fullPathMessage, nil
 	} else {
-		// Create the symlink
+		// Create the directory
 		err = os.MkdirAll(lmStudioModelDir, os.ModePerm)
 		if err != nil {
 			message := "failed to create directory %s: %v"
 			logging.ErrorLogger.Printf(message+"\n", lmStudioModelDir, err)
 			return "", fmt.Errorf(message, lmStudioModelDir, err)
 		}
-		err = os.Symlink(modelPath, lmStudioModelPath)
-		if err != nil {
-			message := "failed to symlink %s: %v"
-			logging.ErrorLogger.Printf(message+"\n", modelName, err)
-			return "", fmt.Errorf(message, modelName, err)
+
+		// Create the main model symlink
+		if !mainLinkExists {
+			err = os.Symlink(modelFiles.MainModel, lmStudioMainPath)
+			if err != nil {
+				message := "failed to symlink main model %s: %v"
+				logging.ErrorLogger.Printf(message+"\n", modelName, err)
+				return "", fmt.Errorf(message, modelName, err)
+			}
 		}
+
+		// Create the projector symlink if needed
+		if modelFiles.Projector != "" && !projLinkExists && lmStudioProjPath != "" {
+			err = os.Symlink(modelFiles.Projector, lmStudioProjPath)
+			if err != nil {
+				// Log error but don't fail completely for projector issues
+				logging.ErrorLogger.Printf("failed to symlink projector for %s: %v (continuing with main model only)\n", modelName, err)
+			} else {
+				logging.InfoLogger.Printf("Created vision projector symlink: %s\n", lmStudioProjPath)
+			}
+		}
+
 		if !noCleanup {
 			cleanBrokenSymlinks(lmStudioModelsDir)
 		}
+		
 		message := "Symlinked %s to %s"
-		logging.InfoLogger.Printf(message+"\n", modelName, lmStudioModelPath)
+		logging.InfoLogger.Printf(message+"\n", modelName, lmStudioMainPath)
+		if modelFiles.Projector != "" && lmStudioProjPath != "" {
+			logging.InfoLogger.Printf("Vision projector symlinked to %s\n", lmStudioProjPath)
+		}
 		return "", nil
 	}
 }
