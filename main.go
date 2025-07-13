@@ -467,7 +467,11 @@ func main() {
 		var successCount, failCount int
 
 		for _, model := range models {
-			fmt.Printf("%sProcessing model %s... ", prefix, model.Name)
+			if *dryRunFlag {
+				fmt.Printf("%sProcessing model %s...\n", prefix, model.Name)
+			} else {
+				fmt.Printf("%sProcessing model %s... ", prefix, model.Name)
+			}
 			if err := lmstudio.LinkModelToOllama(model, *dryRunFlag, cfg.OllamaAPIURL, app.ollamaModelsDir); err != nil {
 				logging.ErrorLogger.Printf("Error linking model %s: %v\n", model.Name, err)
 				fmt.Printf("failed: %v\n", err)
@@ -475,7 +479,11 @@ func main() {
 				continue
 			}
 			logging.InfoLogger.Printf("Model %s linked successfully\n", model.Name)
-			fmt.Println("success!")
+			if *dryRunFlag {
+				fmt.Printf("%sModel %s processed successfully\n\n", prefix, model.Name)
+			} else {
+				fmt.Println("success!")
+			}
 			successCount++
 		}
 
