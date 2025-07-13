@@ -79,7 +79,6 @@ var defaultConfig = ModelConfig{
 	MinP:        0.01,
 }
 
-
 // calculateSHA256 calculates the SHA256 hash of a file
 func calculateSHA256(filePath string) (string, error) {
 	file, err := os.Open(filePath)
@@ -399,4 +398,3 @@ func CreateOllamaModel(model LMStudioModel, dryRun bool, ollamaHost string, clie
 	logging.InfoLogger.Printf("Successfully created Ollama model: %s", modelName)
 	return nil
 }
-
