@@ -22,11 +22,6 @@ The application allows users to interactively select models, sort, filter, edit,
     - [if "command not found: gollama"](#if-command-not-found-gollama)
   - [Usage](#usage)
     - [Key Bindings](#key-bindings)
-      - [Top](#top)
-      - [Inspect](#inspect)
-      - [Link](#link)
-      - [Spit (Copy to Remote)](#spit-copy-to-remote)
-      - [Command-line Options](#command-line-options)
   - [Configuration](#configuration)
   - [Installation and build from source](#installation-and-build-from-source)
     - [Themes](#themes)
@@ -51,8 +46,7 @@ It's in active development, so there are some bugs and missing features, however
 - Calculate approximate vRAM usage for a model
 - Bidirectional sync with LM Studio:
   - Link Ollama models to LM Studio
-  - Link LM Studio models to Ollama  
-  - Create Ollama models from LM Studio models (with vision model support)
+  - Create Ollama models from LM Studio models **EXPERIMENTAL**
 - Copy / rename models
 - Push models to a registry
 - Copy models to remote hosts (spit)
@@ -199,7 +193,7 @@ This functionality uses the [spitter](https://github.com/sammcj/spitter) package
 **LM Studio Integration:**
 - `-L`: Link all available Ollama models to LM Studio and exit
 - `--link-lmstudio`: Link all available LM Studio models to Ollama and exit
-- `-C` or `--create-from-lmstudio`: Create Ollama models from LM Studio models
+- `-C` or `--create-from-lmstudio`: Create Ollama models from LM Studio models **EXPERIMENTAL**
 - `-n` or `--dry-run`: Show what would happen without making any changes (works with all sync operations)
 
 **Configuration:**
@@ -335,6 +329,8 @@ Note: The estimator will attempt to use CUDA vRAM if available, otherwise it wil
 
 **Create Ollama models from LM Studio models:**
 
+**WARNING: EXPERIMENTAL, BACK UP YOUR MODELS FIRST!**
+
 ```shell
 # Dry-run to see what would be created (recommended first step)
 gollama -C -n
@@ -343,7 +339,7 @@ gollama --create-from-lmstudio --dry-run
 
 # Actually create the models
 gollama -C
-# or 
+# or
 gollama --create-from-lmstudio
 
 # Create with debug logging

@@ -499,6 +499,18 @@ func main() {
 	}
 
 	if *createFromLMStudioFlag {
+
+		if !*dryRunFlag {
+			fmt.Println("WARNING: EXPERIMENTAL, BACK UP YOUR MODELS FIRST!")
+			fmt.Print("Do you want to continue? (y/n): ")
+			var response string
+			fmt.Scanln(&response)
+			if response != "y" && response != "Y" {
+				fmt.Println("Aborting...")
+				os.Exit(0)
+			}
+		}
+
 		fmt.Printf("Scanning for unlinked LM Studio models in: %s\n", app.lmStudioModelsDir)
 
 		models, err := lmstudio.ScanUnlinkedModels(app.lmStudioModelsDir)
