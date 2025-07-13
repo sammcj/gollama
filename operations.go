@@ -532,10 +532,10 @@ func getModelFiles(modelName string, client *api.Client) (ModelFiles, error) {
 
 	output := []byte(resp.Modelfile)
 	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
-	
+
 	var files ModelFiles
 	var fromPaths []string
-	
+
 	// Collect all FROM lines
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
@@ -544,24 +544,24 @@ func getModelFiles(modelName string, client *api.Client) (ModelFiles, error) {
 			fromPaths = append(fromPaths, path)
 		}
 	}
-	
+
 	if len(fromPaths) == 0 {
 		message := "failed to get model path for %s: no FROM line in output"
 		logging.ErrorLogger.Printf(message+"\n", modelName)
 		return files, fmt.Errorf(message, modelName)
 	}
-	
+
 	// First FROM line is always the main model
 	files.MainModel = fromPaths[0]
-	
+
 	// If there are additional FROM lines, the second one is typically the projector
 	// (This handles vision models with separate projector files)
 	if len(fromPaths) > 1 {
 		files.Projector = fromPaths[1]
-		logging.DebugLogger.Printf("Found multi-file model %s: main=%s, projector=%s", 
+		logging.DebugLogger.Printf("Found multi-file model %s: main=%s, projector=%s",
 			modelName, files.MainModel, files.Projector)
 	}
-	
+
 	return files, nil
 }
 
@@ -938,7 +938,7 @@ func linkModel(modelName, lmStudioModelsDir string, noCleanup bool, dryRun bool,
 		message := "[DRY RUN] Would create directory %s and symlink %s to %s"
 		fullPathMessage := fmt.Sprintf(message, lmStudioModelDir, modelName, lmStudioMainPath)
 		logging.InfoLogger.Println(fullPathMessage)
-		
+
 		if modelFiles.Projector != "" {
 			projMessage := fmt.Sprintf("[DRY RUN] Would also symlink vision projector to %s", lmStudioProjPath)
 			logging.InfoLogger.Println(projMessage)
@@ -979,7 +979,7 @@ func linkModel(modelName, lmStudioModelsDir string, noCleanup bool, dryRun bool,
 		if !noCleanup {
 			cleanBrokenSymlinks(lmStudioModelsDir)
 		}
-		
+
 		message := "Symlinked %s to %s"
 		logging.InfoLogger.Printf(message+"\n", modelName, lmStudioMainPath)
 		if modelFiles.Projector != "" && lmStudioProjPath != "" {
