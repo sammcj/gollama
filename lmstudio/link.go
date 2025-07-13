@@ -20,7 +20,7 @@ type Model struct {
 
 // ModelfileTemplate contains the default template for creating Modelfiles
 // TODO: Make the default Modelfile template configurable
-const ModelfileTemplate = `### MODEL IMPORTED FROM LM-STUDIO BY GOLLAMA ###
+const ModelfileTemplate = `### MODEL IMPORTED FROM LM-STUDIO BY GOLLAMA - https://github.com/sammcj/gollama ###
 
 # 1. You may need to add appropriate TEMPLATE and STOP parameters for your model
 # 2. Tune the below inference, model load parameters and template to your needs
