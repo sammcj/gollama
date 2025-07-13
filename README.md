@@ -192,7 +192,7 @@ This functionality uses the [spitter](https://github.com/sammcj/spitter) package
 
 **LM Studio Integration:**
 - `-L`: Link all available Ollama models to LM Studio and exit
-- `--link-lmstudio`: Link all available LM Studio models to Ollama and exit
+- `--link-lmstudio`: Link all available LM Studio models to Ollama and exit **EXPERIMENTAL**
 - `-C` or `--create-from-lmstudio`: Create Ollama models from LM Studio models **EXPERIMENTAL**
 - `-n` or `--dry-run`: Show what would happen without making any changes (works with all sync operations)
 
