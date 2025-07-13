@@ -446,7 +446,7 @@ func main() {
 
 	if *linkLMStudioFlag {
 		if !*dryRunFlag {
-			fmt.Println("WARNING: This will create symlinks in your Ollama models directory!")
+			fmt.Println("WARNING: ***EXPERIMENTAL*** BACKUP YOUR MODELS! This will create symlinks in your Ollama models directory!")
 			fmt.Print("Do you want to continue? (y/n): ")
 			var response string
 			fmt.Scanln(&response)
