@@ -121,7 +121,7 @@ func main() {
 
 	err = logging.Init(cfg.LogLevel, cfg.LogFilePath)
 	if err != nil {
-		fmt.Println("Error initializing logging:", err)
+		fmt.Println("Error initialising logging:", err)
 		os.Exit(1)
 	}
 
@@ -176,7 +176,7 @@ func main() {
 		// Reinitialise logging with the new level
 		err = logging.Init(cfg.LogLevel, cfg.LogFilePath)
 		if err != nil {
-			fmt.Println("Error reinitializing logging with new level:", err)
+			fmt.Println("Error reinitialising logging with new level:", err)
 			os.Exit(1)
 		}
 	}
