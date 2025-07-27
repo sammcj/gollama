@@ -37,7 +37,7 @@ var defaultConfig = Config{
 	LogLevel:          "info",
 	SortOrder:         "modified",
 	StripString:       "",
-	Editor:            "/usr/bin/vim",
+	Editor:            "",
 	Theme:             "dark-neon",
 	DockerContainer:   "",
 }

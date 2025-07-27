@@ -328,9 +328,6 @@ func editModelfile(client *api.Client, modelName string) (string, error) {
 
 	// Get editor from environment or config
 	editor := getEditor()
-	if editor == "" {
-		editor = "vim" // Default fallback
-	}
 
 	logging.DebugLogger.Printf("Using editor: %s for model: %s\n", editor, modelName)
 
@@ -464,17 +461,230 @@ func parseContextSize(input string) (int, error) {
 }
 
 func getEditor() string {
+	// First check if editor is explicitly configured in config file
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		logging.ErrorLogger.Printf("Error loading config for editor: %v\n", err)
+	} else if cfg.Editor != "" {
+		// Config file has an editor explicitly set, use it
+		return cfg.Editor
+	}
+
+	// Fallback to environment variable
 	if editor := os.Getenv("EDITOR"); editor != "" {
 		return editor
 	}
 
-	cfg, err := config.LoadConfig()
+	// Final fallback to vim
+	return "vim"
+}
+
+func isExternalEditor(editor string) bool {
+	// Check if the editor is not vim/vi/nano (terminal-based editors)
+	switch editor {
+	case "vim", "vi", "nvim", "nano", "emacs", "":
+		return false
+	default:
+		// Check if it's a command with arguments (like "code --wait")
+		// External editors often need flags to wait for the file to be closed
+		return true
+	}
+}
+
+func startExternalEditor(client *api.Client, modelName string) (string, error) {
+	if client == nil {
+		return "", fmt.Errorf("error: Client is nil")
+	}
+	ctx := context.Background()
+
+	// Fetch the current modelfile from the server
+	showResp, err := client.Show(ctx, &api.ShowRequest{Name: modelName})
 	if err != nil {
-		logging.ErrorLogger.Printf("Error loading config for editor: %v\n", err)
-		return ""
+		return "", fmt.Errorf("error fetching modelfile for %s: %v", modelName, err)
+	}
+	modelfileContent := showResp.Modelfile
+
+	// Get editor from environment or config
+	editor := getEditor()
+
+	// Add --wait flag for VS Code if needed
+	if strings.Contains(editor, "code") && !strings.Contains(editor, "--wait") {
+		editor = editor + " --wait"
 	}
 
-	return cfg.Editor
+	logging.DebugLogger.Printf("Starting external editor: %s for model: %s\n", editor, modelName)
+
+	// Write the fetched content to a temporary file
+	tempDir := os.TempDir()
+	newModelfilePath := filepath.Join(tempDir, fmt.Sprintf("%s_modelfile.txt", modelName))
+
+	// Ensure parent directories exist
+	parentDir := filepath.Dir(newModelfilePath)
+	if err := os.MkdirAll(parentDir, 0755); err != nil {
+		return "", fmt.Errorf("error creating directory for modelfile: %v", err)
+	}
+
+	err = os.WriteFile(newModelfilePath, []byte(modelfileContent), 0644)
+	if err != nil {
+		return "", fmt.Errorf("error writing modelfile to temp file: %v", err)
+	}
+
+	// Try to launch the external editor immediately to catch any errors
+	logging.DebugLogger.Printf("Launching editor command: %s %s", editor, newModelfilePath)
+
+	// Build the command properly handling spaces and arguments
+	var cmd *exec.Cmd
+	var fullCommand string
+
+	// Handle complex editor paths and arguments
+	if strings.Contains(editor, " ") {
+		// For VS Code path with arguments, we need to properly separate the executable from args
+		// Special handling for VS Code paths that end with "code --wait" or similar
+		if strings.Contains(editor, "/code --wait") || strings.Contains(editor, "/code ") {
+			// Split at the last occurrence of "/code " to separate path from args
+			parts := strings.Split(editor, "/code ")
+			if len(parts) == 2 {
+				codePath := parts[0] + "/code"
+				args := strings.TrimSpace(parts[1])
+				if args != "" {
+					fullCommand = fmt.Sprintf(`"%s" %s "%s"`, codePath, args, newModelfilePath)
+				} else {
+					fullCommand = fmt.Sprintf(`"%s" "%s"`, codePath, newModelfilePath)
+				}
+			} else {
+				// Fallback: quote the whole thing
+				fullCommand = fmt.Sprintf(`"%s" "%s"`, editor, newModelfilePath)
+			}
+		} else {
+			// For other commands with spaces, quote the whole thing
+			fullCommand = fmt.Sprintf(`"%s" "%s"`, editor, newModelfilePath)
+		}
+		cmd = exec.Command("sh", "-c", fullCommand)
+		logging.DebugLogger.Printf("Using shell execution with command: sh -c '%s'", fullCommand)
+	} else {
+		// Simple command without spaces
+		cmd = exec.Command(editor, newModelfilePath)
+		logging.DebugLogger.Printf("Using direct execution: %s %s", editor, newModelfilePath)
+	}
+
+	// Start the command to validate it works
+	err = cmd.Start()
+	if err != nil {
+		return "", fmt.Errorf("failed to start editor: %v", err)
+	}
+
+	logging.DebugLogger.Printf("Successfully started editor process with PID: %d", cmd.Process.Pid)
+
+	// Let it run in background but don't wait for completion here
+	go func() {
+		err := cmd.Wait()
+		if err != nil {
+			logging.ErrorLogger.Printf("Editor process ended with error: %v", err)
+		}
+		logging.DebugLogger.Printf("External editor process completed")
+	}()
+
+	return newModelfilePath, nil
+}
+
+func finishExternalEdit(client *api.Client, modelName, tempFilePath string) (string, error) {
+	if client == nil {
+		return "", fmt.Errorf("error: Client is nil")
+	}
+	ctx := context.Background()
+
+	// Read the edited content from the local file
+	newModelfileContent, err := os.ReadFile(tempFilePath)
+	if err != nil {
+		return "", fmt.Errorf("error reading edited modelfile: %v", err)
+	}
+
+	// Clean up the temporary file
+	defer os.Remove(tempFilePath)
+
+	// Fetch the current modelfile from the server to compare
+	showResp, err := client.Show(ctx, &api.ShowRequest{Name: modelName})
+	if err != nil {
+		return "", fmt.Errorf("error fetching modelfile for %s: %v", modelName, err)
+	}
+	originalContent := showResp.Modelfile
+
+	// If there were no changes, return early
+	if string(newModelfileContent) == originalContent {
+		return fmt.Sprintf("No changes made to model %s", modelName), nil
+	}
+
+	// Extract TEMPLATE, SYSTEM, and parameters from both original and new content
+	var origTemplate, origSystem, newTemplate, newSystem string
+
+	// Create request with base fields
+	createReq := &api.CreateRequest{
+		Model: modelName, // The model to update
+		From:  modelName, // Required: use the model's own name as the base
+	}
+
+	origTemplate, origSystem = extractTemplateAndSystem(originalContent)
+	newTemplate, newSystem = extractTemplateAndSystem(string(newModelfileContent))
+
+	// Only include template if it was changed
+	if newTemplate != origTemplate {
+		logging.DebugLogger.Printf("Template was modified for model %s", modelName)
+		createReq.Template = newTemplate
+	}
+
+	if newSystem != origSystem {
+		logging.DebugLogger.Printf("System prompt was modified for model %s", modelName)
+		createReq.System = newSystem
+	}
+
+	// Parse new content for parameters
+	newLines := strings.Split(string(newModelfileContent), "\n")
+	params := make(map[string]interface{})
+	for _, line := range newLines {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+
+		// Skip TEMPLATE and SYSTEM lines
+		if strings.HasPrefix(strings.ToUpper(line), "TEMPLATE") ||
+			strings.HasPrefix(strings.ToUpper(line), "SYSTEM") ||
+			strings.HasPrefix(strings.ToUpper(line), "FROM") {
+			continue
+		}
+
+		if strings.HasPrefix(strings.ToUpper(line), "PARAMETER") {
+			parts := strings.SplitN(line, " ", 3)
+			if len(parts) >= 3 {
+				paramName := strings.ToLower(parts[1])
+				paramValue := strings.TrimSpace(parts[2])
+
+				if floatVal, err := strconv.ParseFloat(paramValue, 64); err == nil {
+					params[paramName] = floatVal
+				} else if intVal, err := strconv.Atoi(paramValue); err == nil {
+					params[paramName] = intVal
+				} else {
+					params[paramName] = paramValue
+				}
+			}
+		}
+	}
+
+	if len(params) > 0 {
+		createReq.Parameters = params
+	}
+
+	// Stream the model creation
+	err = client.Create(ctx, createReq, func(resp api.ProgressResponse) error {
+		logging.DebugLogger.Printf("Create response: %s\n", resp.Status)
+		return nil
+	})
+
+	if err != nil {
+		return "", fmt.Errorf("error updating model: %v", err)
+	}
+
+	return fmt.Sprintf("Successfully updated model %s", modelName), nil
 }
 
 func createModelFromModelfile(modelName, modelfilePath string, client *api.Client) error {

@@ -4,6 +4,9 @@
 SHELL := /bin/bash
 .SHELLFLAGS := -o pipefail -c
 
+# Default goal
+.DEFAULT_GOAL := build
+
 # Name of this Makefile
 MAKEFILE_NAME := $(lastword $(MAKEFILE_LIST))
 
@@ -39,7 +42,7 @@ menu: ## Makefile Interactive Menu
 	fi
 
 # Default target
-all: menu
+all: build
 
 help: ## This help function
 	@egrep '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'

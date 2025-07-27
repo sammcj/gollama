@@ -25,6 +25,7 @@ const (
 	MainView View = iota
 	TopView
 	HelpView
+	ExternalEditorView
 )
 
 func (m *AppModel) Init() tea.Cmd {
@@ -179,7 +180,12 @@ func (m *AppModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.list.ResetFilter()
 			return m, nil
 		}
-		if m.view == TopView || m.inspecting || m.view == HelpView {
+		if m.view == TopView || m.inspecting || m.view == HelpView || m.view == ExternalEditorView {
+			if m.view == ExternalEditorView {
+				m.externalEditing = false
+				m.externalEditorFile = ""
+				m.externalEditorModel = ""
+			}
 			m.view = MainView
 			m.inspecting = false
 			m.editing = false
@@ -193,7 +199,12 @@ func (m *AppModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.list.ResetFilter()
 			return m, nil
 		}
-		if m.view == TopView || m.inspecting || m.view == HelpView {
+		if m.view == TopView || m.inspecting || m.view == HelpView || m.view == ExternalEditorView {
+			if m.view == ExternalEditorView {
+				m.externalEditing = false
+				m.externalEditorFile = ""
+				m.externalEditorModel = ""
+			}
 			m.view = MainView
 			m.inspecting = false
 			m.editing = false
@@ -201,6 +212,30 @@ func (m *AppModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		} else {
 			return m, nil
 		}
+	}
+
+	// Handle external editor workflow
+	if m.view == ExternalEditorView {
+		switch msg.String() {
+		case "s":
+			// Save the modelfile
+			message, err := finishExternalEdit(m.client, m.externalEditorModel, m.externalEditorFile)
+			if err != nil {
+				m.message = fmt.Sprintf("Error saving model: %v", err)
+			} else {
+				m.message = message
+			}
+			// Return to main view
+			m.view = MainView
+			m.externalEditing = false
+			m.externalEditorFile = ""
+			m.externalEditorModel = ""
+			m.clearScreen()
+			m.refreshList()
+			return m, nil
+		}
+		// Let q and esc keys fall through to the general handlers above
+		return m, nil
 	}
 
 	if m.confirmDeletion {
@@ -589,19 +624,41 @@ func (m *AppModel) handleTopKey() (tea.Model, tea.Cmd) {
 func (m *AppModel) handleUpdateModelKey() (tea.Model, tea.Cmd) {
 	logging.DebugLogger.Println("UpdateModel key matched")
 	if item, ok := m.list.SelectedItem().(Model); ok {
-		m.editing = true
-		message, err := editModelfile(m.client, item.Name)
-		if err != nil {
-			m.message = fmt.Sprintf("Error updating model: %v", err)
+		editor := getEditor()
+
+		logging.DebugLogger.Printf("Editor configured: %s", editor)
+		logging.DebugLogger.Printf("Is external editor: %v", isExternalEditor(editor))
+
+		if isExternalEditor(editor) {
+			// Handle external editor workflow
+			tempFilePath, err := startExternalEditor(m.client, item.Name)
+			if err != nil {
+				m.message = fmt.Sprintf("Error starting external editor: %v", err)
+				return m, nil
+			}
+
+			// Set state for external editing
+			m.externalEditing = true
+			m.externalEditorFile = tempFilePath
+			m.externalEditorModel = item.Name
+			m.view = ExternalEditorView
+			return m, nil
 		} else {
-			m.message = message
-			// Automatically return to main view after editing
-			m.view = MainView
-			m.editing = false
+			// Handle vim/terminal editor workflow (existing code)
+			m.editing = true
+			message, err := editModelfile(m.client, item.Name)
+			if err != nil {
+				m.message = fmt.Sprintf("Error updating model: %v", err)
+			} else {
+				m.message = message
+				// Automatically return to main view after editing
+				m.view = MainView
+				m.editing = false
+			}
+			m.clearScreen()
+			m.refreshList()
+			return m, nil
 		}
-		m.clearScreen()
-		m.refreshList()
-		return m, nil
 	}
 	m.refreshList()
 	return m, nil
@@ -825,6 +882,8 @@ func (m *AppModel) View() string {
 		return m.topView()
 	case HelpView:
 		return m.printFullHelp()
+	case ExternalEditorView:
+		return m.externalEditorView()
 	default:
 		if m.confirmDeletion {
 			return m.confirmDeletionView()
@@ -1129,4 +1188,41 @@ func (m *AppModel) refreshModelsAfterPull() tea.Cmd {
 		m.refreshList()
 		return nil
 	}
+}
+
+func (m *AppModel) externalEditorView() string {
+	headerStyle := styles.HeaderStyle()
+	infoStyle := styles.InfoStyle()
+	helpStyle := styles.HelpTextStyle()
+	warningStyle := styles.WarningStyle()
+
+	// Create a styled border box around the content
+	title := headerStyle.Render("🎨 External Editor Mode")
+
+	modelInfo := fmt.Sprintf("Editing modelfile for: %s", m.externalEditorModel)
+	editorInfo := fmt.Sprintf("Temporary file: %s", m.externalEditorFile)
+
+	instructions := []string{
+		warningStyle.Render("📝 Edit the Modelfile in your configured editor."),
+		"",
+		helpStyle.Render("💾 Press 's' to save after making your changes"),
+		helpStyle.Render("🚪 Press any other key to return to the application"),
+	}
+
+	content := []string{
+		"",
+		title,
+		"",
+		infoStyle.Render("🎯 " + modelInfo),
+		infoStyle.Render("📁 " + editorInfo),
+		"",
+	}
+
+	for _, instruction := range instructions {
+		content = append(content, instruction)
+	}
+
+	content = append(content, "")
+
+	return strings.Join(content, "\n")
 }

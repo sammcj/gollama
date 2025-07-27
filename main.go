@@ -30,35 +30,38 @@ import (
 )
 
 type AppModel struct {
-	width              int
-	height             int
-	ollamaModelsDir    string
-	cfg                *config.Config
-	inspectedModel     Model
-	list               list.Model
-	models             []Model
-	selectedModels     []Model
-	confirmDeletion    bool
-	inspecting         bool
-	editing            bool
-	message            string
-	keys               KeyMap
-	client             *api.Client
-	lmStudioModelsDir  string
-	noCleanup          bool
-	table              table.Model
-	filterInput        tea.Model
-	showTop            bool
-	progress           progress.Model
-	altScreenActive    bool
-	view               View
-	showProgress       bool
-	pullInput          textinput.Model
-	pulling            bool
-	pullProgress       float64
-	newModelPull       bool
-	comparingModelfile bool
-	modelfileDiffs     []ModelfileDiff
+	width               int
+	height              int
+	ollamaModelsDir     string
+	cfg                 *config.Config
+	inspectedModel      Model
+	list                list.Model
+	models              []Model
+	selectedModels      []Model
+	confirmDeletion     bool
+	inspecting          bool
+	editing             bool
+	message             string
+	keys                KeyMap
+	client              *api.Client
+	lmStudioModelsDir   string
+	noCleanup           bool
+	table               table.Model
+	filterInput         tea.Model
+	showTop             bool
+	progress            progress.Model
+	altScreenActive     bool
+	view                View
+	showProgress        bool
+	pullInput           textinput.Model
+	pulling             bool
+	pullProgress        float64
+	newModelPull        bool
+	comparingModelfile  bool
+	modelfileDiffs      []ModelfileDiff
+	externalEditing     bool
+	externalEditorFile  string
+	externalEditorModel string
 }
 
 // TODO: Refactor: we don't need unique message types for every single action
@@ -95,7 +98,7 @@ var Version string // Version is set by the build system
 
 func main() {
 	if Version == "" {
-		Version = "1.34.0"
+		Version = "1.34.1"
 	}
 
 	cfg, err := config.LoadConfig()
