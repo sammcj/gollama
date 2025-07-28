@@ -331,21 +331,21 @@ func editModelfile(client *api.Client, modelName string) (string, error) {
 
 	logging.DebugLogger.Printf("Using editor: %s for model: %s\n", editor, modelName)
 
-	// Write the fetched content to a temporary file
-	tempDir := os.TempDir()
-	newModelfilePath := filepath.Join(tempDir, fmt.Sprintf("%s_modelfile.txt", modelName))
-
-	// Ensure parent directories exist
-	parentDir := filepath.Dir(newModelfilePath)
-	if err := os.MkdirAll(parentDir, 0755); err != nil {
-		return "", fmt.Errorf("error creating directory for modelfile: %v", err)
+	// Create a secure temporary file with random name
+	tempFile, err := os.CreateTemp("", fmt.Sprintf("gollama_%s_*.modelfile", strings.ReplaceAll(modelName, ":", "_")))
+	if err != nil {
+		return "", fmt.Errorf("error creating temporary file: %v", err)
 	}
+	defer tempFile.Close()
+	defer os.Remove(tempFile.Name())
 
-	err = os.WriteFile(newModelfilePath, []byte(modelfileContent), 0644)
+	newModelfilePath := tempFile.Name()
+
+	// Write the content to the temporary file
+	_, err = tempFile.Write([]byte(modelfileContent))
 	if err != nil {
 		return "", fmt.Errorf("error writing modelfile to temp file: %v", err)
 	}
-	defer os.Remove(newModelfilePath)
 
 	// Open the local modelfile in the editor
 	cmd := exec.Command(editor, newModelfilePath)
@@ -505,27 +505,29 @@ func startExternalEditor(client *api.Client, modelName string) (string, error) {
 	modelfileContent := showResp.Modelfile
 
 	// Get editor from environment or config
-	editor := getEditor()
+	originalEditor := getEditor()
 
-	// Add --wait flag for VS Code if needed
+	// Prepare editor command with flags if needed (don't modify original config)
+	editor := originalEditor
 	if strings.Contains(editor, "code") && !strings.Contains(editor, "--wait") {
 		editor = editor + " --wait"
 	}
 
 	logging.DebugLogger.Printf("Starting external editor: %s for model: %s\n", editor, modelName)
 
-	// Write the fetched content to a temporary file
-	tempDir := os.TempDir()
-	newModelfilePath := filepath.Join(tempDir, fmt.Sprintf("%s_modelfile.txt", modelName))
-
-	// Ensure parent directories exist
-	parentDir := filepath.Dir(newModelfilePath)
-	if err := os.MkdirAll(parentDir, 0755); err != nil {
-		return "", fmt.Errorf("error creating directory for modelfile: %v", err)
-	}
-
-	err = os.WriteFile(newModelfilePath, []byte(modelfileContent), 0644)
+	// Create a secure temporary file with random name
+	tempFile, err := os.CreateTemp("", fmt.Sprintf("gollama_%s_*.modelfile", strings.ReplaceAll(modelName, ":", "_")))
 	if err != nil {
+		return "", fmt.Errorf("error creating temporary file: %v", err)
+	}
+	defer tempFile.Close()
+
+	newModelfilePath := tempFile.Name()
+
+	// Write the content to the temporary file
+	_, err = tempFile.Write([]byte(modelfileContent))
+	if err != nil {
+		os.Remove(newModelfilePath) // Clean up on error
 		return "", fmt.Errorf("error writing modelfile to temp file: %v", err)
 	}
 
@@ -570,6 +572,7 @@ func startExternalEditor(client *api.Client, modelName string) (string, error) {
 	// Start the command to validate it works
 	err = cmd.Start()
 	if err != nil {
+		os.Remove(newModelfilePath) // Clean up temp file on error
 		return "", fmt.Errorf("failed to start editor: %v", err)
 	}
 

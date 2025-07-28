@@ -182,9 +182,8 @@ func (m *AppModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		if m.view == TopView || m.inspecting || m.view == HelpView || m.view == ExternalEditorView {
 			if m.view == ExternalEditorView {
-				m.externalEditing = false
-				m.externalEditorFile = ""
-				m.externalEditorModel = ""
+				m.resetExternalEditorState()
+				return m, nil
 			}
 			m.view = MainView
 			m.inspecting = false
@@ -201,9 +200,8 @@ func (m *AppModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		if m.view == TopView || m.inspecting || m.view == HelpView || m.view == ExternalEditorView {
 			if m.view == ExternalEditorView {
-				m.externalEditing = false
-				m.externalEditorFile = ""
-				m.externalEditorModel = ""
+				m.resetExternalEditorState()
+				return m, nil
 			}
 			m.view = MainView
 			m.inspecting = false
@@ -226,10 +224,7 @@ func (m *AppModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.message = message
 			}
 			// Return to main view
-			m.view = MainView
-			m.externalEditing = false
-			m.externalEditorFile = ""
-			m.externalEditorModel = ""
+			m.resetExternalEditorState()
 			m.clearScreen()
 			m.refreshList()
 			return m, nil
@@ -1225,4 +1220,12 @@ func (m *AppModel) externalEditorView() string {
 	content = append(content, "")
 
 	return strings.Join(content, "\n")
+}
+
+// resetExternalEditorState resets all external editor state to initial values
+func (m *AppModel) resetExternalEditorState() {
+	m.externalEditing = false
+	m.externalEditorFile = ""
+	m.externalEditorModel = ""
+	m.view = MainView
 }
