@@ -405,14 +405,14 @@ Example configuration:
   "log_file_path": "/Users/username/.config/gollama/gollama.log",
   "sort_order": "Size",
   "strip_string": "my-private-registry.internal/",
-  "editor": "",
+  "editor": "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code",
   "docker_container": ""
 }
 ```
 
 - `strip_string` can be used to remove a prefix from model names as they are displayed in the TUI. This can be useful if you have a common prefix such as a private registry that you want to remove for display purposes.
+- `editor` specifies which editor to use for editing modelfiles when pressing 'e'. If empty, falls back to the `EDITOR` environment variable, then defaults to `vim`. External editors like VS Code are supported and will show a popup interface.
 - `docker_container` - **experimental** - if set, gollama will attempt to perform any run operations inside the specified container.
-- `editor` - **experimental** - if set, gollama will use this editor to open the Modelfile for editing.
 - `theme` - **experimental** The name of the theme to use (without .json extension)
 
 ## Installation and build from source
