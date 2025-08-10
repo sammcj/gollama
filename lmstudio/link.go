@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"text/template"
+	"time"
 
 	"github.com/sammcj/gollama/logging"
 	"github.com/sammcj/gollama/utils"
@@ -203,21 +204,44 @@ func LinkModelToOllama(model Model, dryRun bool, ollamaHost string, ollamaDir st
 		return fmt.Errorf("linking LM Studio models to Ollama is only supported when connecting to a local Ollama instance (got %s)", ollamaHost)
 	}
 
+	// Get the source model file's modification time
+	sourceInfo, err := os.Stat(model.Path)
+	if err != nil {
+		return fmt.Errorf("failed to get source model file info: %w", err)
+	}
+	sourceModTime := sourceInfo.ModTime()
+
 	if dryRun {
 		fmt.Printf("[DRY RUN] Would create Ollama models directory at: %s\n", ollamaDir)
-	} else if err := os.MkdirAll(ollamaDir, 0755); err != nil {
-		return fmt.Errorf("failed to create Ollama models directory: %w", err)
+		fmt.Printf("[DRY RUN] Would set directory modification time to: %s\n", sourceModTime.Format(time.RFC3339))
+	} else {
+		if err := os.MkdirAll(ollamaDir, 0755); err != nil {
+			return fmt.Errorf("failed to create Ollama models directory: %w", err)
+		}
+		// Set the directory's modification time to match the source model
+		if err := os.Chtimes(ollamaDir, sourceModTime, sourceModTime); err != nil {
+			logging.ErrorLogger.Printf("Warning: Failed to set directory modification time: %v", err)
+		}
 	}
 
 	targetPath := filepath.Join(ollamaDir, filepath.Base(model.Path))
 
 	if dryRun {
 		fmt.Printf("[DRY RUN] Would create symlink from %s to %s\n", model.Path, targetPath)
-	} else if err := os.Symlink(model.Path, targetPath); err != nil {
-		if os.IsExist(err) {
-			logging.InfoLogger.Printf("Symlink already exists for %s at %s", model.Name, targetPath)
+		fmt.Printf("[DRY RUN] Would set symlink modification time to: %s\n", sourceModTime.Format(time.RFC3339))
+	} else {
+		if err := os.Symlink(model.Path, targetPath); err != nil {
+			if os.IsExist(err) {
+				logging.InfoLogger.Printf("Symlink already exists for %s at %s", model.Name, targetPath)
+			} else {
+				return fmt.Errorf("failed to create symlink for %s to %s: %w", model.Name, targetPath, err)
+			}
 		} else {
-			return fmt.Errorf("failed to create symlink for %s to %s: %w", model.Name, targetPath, err)
+			// Set the symlink's modification time to match the source model
+			// Note: For symlinks, we set the time on the link itself, not the target
+			if err := os.Chtimes(targetPath, sourceModTime, sourceModTime); err != nil {
+				logging.ErrorLogger.Printf("Warning: Failed to set symlink modification time: %v", err)
+			}
 		}
 	}
 
