@@ -16,6 +16,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/ollama/ollama/api"
+	ollama_model "github.com/ollama/ollama/types/model"
 	"github.com/sammcj/gollama/config"
 	"github.com/sammcj/gollama/logging"
 	"github.com/sammcj/gollama/styles"
@@ -1052,16 +1053,15 @@ func linkModel(modelName, lmStudioModelsDir string, noCleanup bool, dryRun bool,
 	if err != nil {
 		return "", fmt.Errorf("error getting model files for %s: %v", modelName, err)
 	}
+	fullModelName := ollama_model.ParseName(modelName)
 
-	// Extract author from model name (e.g., "fleo/tiny-r1-32b-preview:latest" -> "fleo")
-	parts := strings.Split(modelName, ":")
-	author := "unknown"
-	if len(parts) > 1 && strings.Contains(parts[0], "/") {
-		authorParts := strings.Split(parts[0], "/")
-		author = authorParts[0]
-	} else if strings.Contains(modelName, "/") {
-		authorParts := strings.Split(modelName, "/")
-		author = authorParts[0]
+	// Extract author from model name, e.g.:
+	// * "fleo/tiny-r1-32b-preview:latest" -> "registry.ollama.ai/fleo/tiny-r1-32b-preview" -> "fleo"
+	// * "huggingface.co/fleo/tiny-r1-32b-preview" -> "fleo"
+	// * "tiny-r1-32b-preview:latest" -> "registry.ollama.ai/library/tiny-r1-32b-preview" -> "registry.ollama.ai" (Use host as author if the namespace is default `library`)
+	author := fullModelName.Namespace
+	if author == ollama_model.DefaultName().Namespace {
+		author = fullModelName.Host
 	}
 
 	// Create a clean model name for the file
