@@ -1065,9 +1065,12 @@ func linkModel(modelName, lmStudioModelsDir string, noCleanup bool, dryRun bool,
 	}
 
 	// Create a clean model name for the file
-	lmStudioModelName := strings.ReplaceAll(strings.ReplaceAll(modelName, ":", "-"), "_", "-")
-	lmStudioModelName = strings.ReplaceAll(lmStudioModelName, "/", "-")
-	lmStudioModelDir := filepath.Join(lmStudioModelsDir, author, lmStudioModelName+"-GGUF")
+	// * model tag is appended to the model name if it's not the default `latest` tag
+	lmStudioModelName := fullModelName.Model
+	if fullModelName.Tag != ollama_model.DefaultName().Tag {
+		lmStudioModelName += "-" + fullModelName.Tag
+	}
+	lmStudioModelDir := filepath.Join(lmStudioModelsDir, author, lmStudioModelName)
 
 	// Check if the main model path is a valid file
 	fileInfo, err := os.Stat(modelFiles.MainModel)
