@@ -856,10 +856,9 @@ func isGollamaSymlink(symlinkPath, lmStudioModelsDir string) bool {
 	}
 
 	// Check if target points to Ollama blob storage
-	// Paths like: /root/.ollama/models/blobs/sha256-* or ~/.ollama/models/blobs/sha256-*
-	isOllamaBlob := strings.Contains(target, "/.ollama/models/blobs/") ||
-		strings.Contains(target, "\\.ollama\\models\\blobs\\") ||
-		strings.Contains(target, "\\ollama\\models\\blobs\\")
+	// Normalise path separators for cross-platform compatibility
+	normalisedTarget := filepath.ToSlash(target)
+	isOllamaBlob := strings.Contains(normalisedTarget, "/.ollama/models/blobs/")
 
 	if !isOllamaBlob {
 		return false
@@ -889,12 +888,25 @@ func isGollamaSymlink(symlinkPath, lmStudioModelsDir string) bool {
 func isBrokenSymlink(symlinkPath string) bool {
 	target, err := os.Readlink(symlinkPath)
 	if err != nil {
-		return true // Can't read the symlink, consider it broken
+		// Only treat as broken if the symlink itself doesn't exist
+		if os.IsNotExist(err) {
+			return true
+		}
+		// For permission errors or other issues, don't consider it broken
+		logging.DebugLogger.Printf("Error reading symlink %s: %v (not considering broken)\n", symlinkPath, err)
+		return false
 	}
 
 	// Check if target exists
 	_, err = os.Stat(target)
-	return os.IsNotExist(err)
+	if err == nil {
+		return false // Target exists, symlink is not broken
+	}
+	if os.IsNotExist(err) {
+		return true // Target does not exist, symlink is broken
+	}
+	// For other stat errors (permission, etc.), don't consider broken
+	return false
 }
 
 func cleanBrokenSymlinks(lmStudioModelsDir string) {
