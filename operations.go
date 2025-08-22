@@ -845,6 +845,58 @@ func isValidSymlink(symlinkPath, targetPath string) bool {
 	return true
 }
 
+// isGollamaSymlink checks if a symlink was created by gollama by validating:
+// 1. The symlink target points to Ollama's blob storage
+// 2. The directory structure follows gollama's pattern (author/model/file.gguf)
+func isGollamaSymlink(symlinkPath, lmStudioModelsDir string) bool {
+	// Get the symlink target
+	target, err := os.Readlink(symlinkPath)
+	if err != nil {
+		return false
+	}
+
+	// Check if target points to Ollama blob storage
+	// Paths like: /root/.ollama/models/blobs/sha256-* or ~/.ollama/models/blobs/sha256-*
+	isOllamaBlob := strings.Contains(target, "/.ollama/models/blobs/") ||
+		strings.Contains(target, "\\.ollama\\models\\blobs\\") ||
+		strings.Contains(target, "\\ollama\\models\\blobs\\")
+
+	if !isOllamaBlob {
+		return false
+	}
+
+	// Check if it follows gollama's directory structure: author/model/file.gguf
+	relPath, err := filepath.Rel(lmStudioModelsDir, symlinkPath)
+	if err != nil {
+		return false
+	}
+
+	pathParts := strings.Split(filepath.ToSlash(relPath), "/")
+	if len(pathParts) != 3 {
+		return false
+	}
+
+	// Check if the filename follows gollama's pattern
+	filename := pathParts[2]
+	modelDir := pathParts[1]
+
+	// Gollama creates files like: modelname.gguf or mmproj-modelname.gguf
+	return strings.HasSuffix(filename, ".gguf") &&
+		(strings.HasPrefix(filename, modelDir) || strings.HasPrefix(filename, "mmproj-"+modelDir))
+}
+
+// isBrokenSymlink checks if a symlink is broken (target doesn't exist)
+func isBrokenSymlink(symlinkPath string) bool {
+	target, err := os.Readlink(symlinkPath)
+	if err != nil {
+		return true // Can't read the symlink, consider it broken
+	}
+
+	// Check if target exists
+	_, err = os.Stat(target)
+	return os.IsNotExist(err)
+}
+
 func cleanBrokenSymlinks(lmStudioModelsDir string) {
 	err := filepath.Walk(lmStudioModelsDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -863,12 +915,10 @@ func cleanBrokenSymlinks(lmStudioModelsDir string) {
 				}
 			}
 		} else if info.Mode()&os.ModeSymlink != 0 {
-			linkPath, err := os.Readlink(path)
-			if err != nil {
-				return err
-			}
-			if !isValidSymlink(path, linkPath) {
-				logging.InfoLogger.Printf("Removing invalid symlink: %s\n", path)
+			// Only remove truly broken symlinks (where target doesn't exist)
+			// Don't remove valid symlinks from other tools
+			if isBrokenSymlink(path) {
+				logging.InfoLogger.Printf("Removing broken symlink: %s\n", path)
 				err = os.Remove(path)
 				if err != nil {
 					return err
@@ -992,10 +1042,28 @@ func cleanupSymlinkedModels(lmStudioModelsDir string) {
 					hasEmptyDir = true
 				}
 			} else if info.Mode()&os.ModeSymlink != 0 {
-				logging.InfoLogger.Printf("Removing symlinked model: %s\n", path)
-				err = os.Remove(path)
-				if err != nil {
-					return err
+				// Only remove symlinks that are either:
+				// 1. Created by gollama, or
+				// 2. Broken (safe to remove)
+				shouldRemove := false
+				reason := ""
+
+				if isBrokenSymlink(path) {
+					shouldRemove = true
+					reason = "broken symlink"
+				} else if isGollamaSymlink(path, lmStudioModelsDir) {
+					shouldRemove = true
+					reason = "gollama-created symlink"
+				}
+
+				if shouldRemove {
+					logging.InfoLogger.Printf("Removing %s: %s\n", reason, path)
+					err = os.Remove(path)
+					if err != nil {
+						return err
+					}
+				} else {
+					logging.DebugLogger.Printf("Preserving non-gollama symlink: %s\n", path)
 				}
 			}
 			return nil
