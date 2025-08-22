@@ -572,12 +572,21 @@ Please fork the repository and create a pull request with your changes.
                 </a>
             </td>
             <td align="center">
+                <a href="https://github.com/Vigilans">
+                    <img src="https://avatars.githubusercontent.com/u/20227484?v=4" width="50;" alt="Vigilans"/>
+                    <br />
+                    <sub><b>Vigilans</b></sub>
+                </a>
+            </td>
+            <td align="center">
                 <a href="https://github.com/agustif">
                     <img src="https://avatars.githubusercontent.com/u/6601142?v=4" width="50;" alt="agustif"/>
                     <br />
                     <sub><b>agustif</b></sub>
                 </a>
             </td>
+		</tr>
+		<tr>
             <td align="center">
                 <a href="https://github.com/anrgct">
                     <img src="https://avatars.githubusercontent.com/u/16172523?v=4" width="50;" alt="anrgct"/>
@@ -585,8 +594,6 @@ Please fork the repository and create a pull request with your changes.
                     <sub><b>anrgct</b></sub>
                 </a>
             </td>
-		</tr>
-		<tr>
             <td align="center">
                 <a href="https://github.com/fuho">
                     <img src="https://avatars.githubusercontent.com/u/539452?v=4" width="50;" alt="fuho"/>
