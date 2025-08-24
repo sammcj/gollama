@@ -73,7 +73,7 @@ build: ## Run build
 		sed -i -e "s/Version = \".*\"/Version = \"$(GOLLAMA_VERSION)\"/g" main.go ; \
 	fi
 
-	@go build -v -ldflags="-X 'main.Version=$(GOLLAMA_VERSION)'"
+	@go build -v -ldflags="-w -s -X 'main.Version=$(GOLLAMA_VERSION)'"
 	@echo "Build completed, run ./gollama"
 
 ci: ## build for linux and macOS
@@ -86,9 +86,9 @@ ci: ## build for linux and macOS
 	@echo "Building with version: $(GOLLAMA_VERSION)"
 
 	@mkdir -p ./dist/macos ./dist/linux_amd64 ./dist/linux_arm64
-	GOOS=darwin GOARCH=arm64 go build -v -ldflags="-X 'main.Version=$(GOLLAMA_VERSION)'" -o ./dist/macos/
-	GOOS=linux GOARCH=amd64 go build -v -ldflags="-X 'main.Version=$(GOLLAMA_VERSION)'" -o ./dist/linux_amd64/
-	GOOS=linux GOARCH=arm64 go build -v -ldflags="-X 'main.Version=$(GOLLAMA_VERSION)'" -o ./dist/linux_arm64/
+	GOOS=darwin GOARCH=arm64 go build -v -ldflags="-w -s -X 'main.Version=$(GOLLAMA_VERSION)'" -o ./dist/macos/
+	GOOS=linux GOARCH=amd64 go build -v -ldflags="-w -s -X 'main.Version=$(GOLLAMA_VERSION)'" -o ./dist/linux_amd64/
+	GOOS=linux GOARCH=arm64 go build -v -ldflags="-w -s -X 'main.Version=$(GOLLAMA_VERSION)'" -o ./dist/linux_arm64/
 
 	@zip -rj gollama-macos.zip ./dist/macos/gollama
 	@zip -rj gollama-linux-amd64.zip ./dist/linux_amd64/gollama
