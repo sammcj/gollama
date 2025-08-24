@@ -879,9 +879,15 @@ func isGollamaSymlink(symlinkPath, lmStudioModelsDir string) bool {
 	filename := pathParts[2]
 	modelDir := pathParts[1]
 
+	// Strip -GGUF suffix from modelDir if present (common in LM Studio imports)
+	baseModelName := modelDir
+	if strings.HasSuffix(modelDir, "-GGUF") {
+		baseModelName = modelDir[:len(modelDir)-5]
+	}
+
 	// Gollama creates files like: modelname.gguf or mmproj-modelname.gguf
 	return strings.HasSuffix(filename, ".gguf") &&
-		(strings.HasPrefix(filename, modelDir) || strings.HasPrefix(filename, "mmproj-"+modelDir))
+		(strings.HasPrefix(filename, baseModelName) || strings.HasPrefix(filename, "mmproj-"+baseModelName))
 }
 
 // isBrokenSymlink checks if a symlink is broken (target doesn't exist)
