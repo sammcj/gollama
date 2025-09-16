@@ -333,7 +333,7 @@ func editModelfile(client *api.Client, modelName string) (string, error) {
 	logging.DebugLogger.Printf("Using editor: %s for model: %s\n", editor, modelName)
 
 	// Create a secure temporary file with random name
-	tempFile, err := os.CreateTemp("", fmt.Sprintf("gollama_%s_*.modelfile", strings.ReplaceAll(modelName, ":", "_")))
+	tempFile, err := os.CreateTemp("", fmt.Sprintf("gollama_%s_*.modelfile", strings.ReplaceAll(strings.ReplaceAll(modelName, ":", "_"), "/", "_")))
 	if err != nil {
 		return "", fmt.Errorf("error creating temporary file: %v", err)
 	}
@@ -517,7 +517,7 @@ func startExternalEditor(client *api.Client, modelName string) (string, error) {
 	logging.DebugLogger.Printf("Starting external editor: %s for model: %s\n", editor, modelName)
 
 	// Create a secure temporary file with random name
-	tempFile, err := os.CreateTemp("", fmt.Sprintf("gollama_%s_*.modelfile", strings.ReplaceAll(modelName, ":", "_")))
+	tempFile, err := os.CreateTemp("", fmt.Sprintf("gollama_%s_*.modelfile", strings.ReplaceAll(strings.ReplaceAll(modelName, ":", "_"), "/", "_")))
 	if err != nil {
 		return "", fmt.Errorf("error creating temporary file: %v", err)
 	}

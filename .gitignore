@@ -16,3 +16,6 @@ node_modules/
 Modelfile*
 **/*.DS_Store
 **/cache
+
+# serena https://github.com/oraios/serena
+.serena/
