@@ -1040,48 +1040,59 @@ func (m *AppModel) startPullModelPreserveConfig(modelName string) tea.Cmd {
 type editorFinishedMsg struct{ err error }
 
 func cleanupSymlinkedModels(lmStudioModelsDir string) {
+	// First pass: remove broken symlinks and gollama-created symlinks
+	err := filepath.Walk(lmStudioModelsDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			// Only remove symlinks that are either:
+			// 1. Created by gollama, or
+			// 2. Broken (safe to remove)
+			shouldRemove := false
+			reason := ""
+
+			if isBrokenSymlink(path) {
+				shouldRemove = true
+				reason = "broken symlink"
+			} else if isGollamaSymlink(path, lmStudioModelsDir) {
+				shouldRemove = true
+				reason = "gollama-created symlink"
+			}
+
+			if shouldRemove {
+				logging.InfoLogger.Printf("Removing %s: %s\n", reason, path)
+				err = os.Remove(path)
+				if err != nil {
+					return err
+				}
+			} else {
+				logging.DebugLogger.Printf("Preserving non-gollama symlink: %s\n", path)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		logging.ErrorLogger.Printf("Error removing symlinks: %v\n", err)
+		return
+	}
+
+	// Second pass: collect and remove empty directories
+	// We need to do this iteratively since removing a directory may make its parent empty
 	for {
-		hasEmptyDir := false
+		var emptyDirs []string
+
 		err := filepath.Walk(lmStudioModelsDir, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return err
 			}
-			if info.IsDir() {
+			if info.IsDir() && path != lmStudioModelsDir {
 				files, err := os.ReadDir(path)
 				if err != nil {
 					return err
 				}
 				if len(files) == 0 {
-					logging.InfoLogger.Printf("Removing empty directory: %s\n", path)
-					err = os.Remove(path)
-					if err != nil {
-						return err
-					}
-					hasEmptyDir = true
-				}
-			} else if info.Mode()&os.ModeSymlink != 0 {
-				// Only remove symlinks that are either:
-				// 1. Created by gollama, or
-				// 2. Broken (safe to remove)
-				shouldRemove := false
-				reason := ""
-
-				if isBrokenSymlink(path) {
-					shouldRemove = true
-					reason = "broken symlink"
-				} else if isGollamaSymlink(path, lmStudioModelsDir) {
-					shouldRemove = true
-					reason = "gollama-created symlink"
-				}
-
-				if shouldRemove {
-					logging.InfoLogger.Printf("Removing %s: %s\n", reason, path)
-					err = os.Remove(path)
-					if err != nil {
-						return err
-					}
-				} else {
-					logging.DebugLogger.Printf("Preserving non-gollama symlink: %s\n", path)
+					emptyDirs = append(emptyDirs, path)
 				}
 			}
 			return nil
@@ -1090,8 +1101,24 @@ func cleanupSymlinkedModels(lmStudioModelsDir string) {
 			logging.ErrorLogger.Printf("Error walking LM Studio models directory: %v\n", err)
 			return
 		}
-		if !hasEmptyDir {
+
+		if len(emptyDirs) == 0 {
 			break
+		}
+
+		// Sort directories by depth (deepest first) to avoid removing parent before child
+		sort.Slice(emptyDirs, func(i, j int) bool {
+			return len(strings.Split(emptyDirs[i], string(filepath.Separator))) > len(strings.Split(emptyDirs[j], string(filepath.Separator)))
+		})
+
+		// Remove empty directories
+		for _, dir := range emptyDirs {
+			logging.InfoLogger.Printf("Removing empty directory: %s\n", dir)
+			err = os.Remove(dir)
+			if err != nil {
+				logging.ErrorLogger.Printf("Error removing empty directory %s: %v\n", dir, err)
+				// Continue with other directories even if one fails
+			}
 		}
 	}
 }
