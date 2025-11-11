@@ -121,6 +121,11 @@ func extractPublisherAndModel(modelPath, lmStudioDir string) (string, string, er
 	publisher := parts[0]
 	model := parts[1]
 
+	// Strip common suffixes like -GGUF, -gguf, etc.
+	model = strings.TrimSuffix(model, "-GGUF")
+	model = strings.TrimSuffix(model, "-gguf")
+	model = strings.TrimSuffix(model, "-Gguf")
+
 	return publisher, model, nil
 }
 
@@ -156,6 +161,7 @@ func isVisionModel(modelDir string) (bool, []string, error) {
 // ScanUnlinkedModels scans for LM Studio models that are not symlinked from Ollama
 func ScanUnlinkedModels(lmStudioDir string) ([]LMStudioModel, error) {
 	var models []LMStudioModel
+	seenDirs := make(map[string]bool)
 
 	// First check if directory exists
 	if _, err := os.Stat(lmStudioDir); os.IsNotExist(err) {
@@ -205,6 +211,15 @@ func ScanUnlinkedModels(lmStudioDir string) ([]LMStudioModel, error) {
 
 			// Check for vision model files
 			modelDir := filepath.Dir(path)
+
+			// Skip if we've already processed this model directory
+			modelKey := fmt.Sprintf("%s/%s", publisher, modelName)
+			if seenDirs[modelKey] {
+				logging.DebugLogger.Printf("Skipping duplicate model in same directory: %s", path)
+				return nil
+			}
+			seenDirs[modelKey] = true
+
 			isVision, visionFiles, err := isVisionModel(modelDir)
 			if err != nil {
 				logging.ErrorLogger.Printf("Error checking for vision files in %s: %v", modelDir, err)
@@ -212,7 +227,7 @@ func ScanUnlinkedModels(lmStudioDir string) ([]LMStudioModel, error) {
 			}
 
 			model := LMStudioModel{
-				Name:        fmt.Sprintf("%s/%s", publisher, modelName),
+				Name:        modelKey,
 				Path:        path,
 				FileType:    strings.TrimPrefix(ext, "."),
 				VisionFiles: visionFiles,
@@ -314,6 +329,41 @@ func generateManifest(model LMStudioModel, hashes map[string]string, config Mode
 	return manifest, nil
 }
 
+// createBlobSymlink creates a symlink in Ollama's blob directory
+func createBlobSymlink(sourcePath, hash, ollamaModelsDir string) (string, error) {
+	blobsDir := filepath.Join(ollamaModelsDir, "blobs")
+
+	// Ensure blobs directory exists
+	if err := os.MkdirAll(blobsDir, 0o755); err != nil {
+		return "", fmt.Errorf("failed to create blobs directory: %w", err)
+	}
+
+	// Create symlink with the format sha256-<hash>
+	blobPath := filepath.Join(blobsDir, fmt.Sprintf("sha256-%s", hash))
+
+	// Remove existing symlink if it exists
+	_ = os.Remove(blobPath)
+
+	// Create the symlink
+	if err := os.Symlink(sourcePath, blobPath); err != nil {
+		return "", fmt.Errorf("failed to create symlink from %s to %s: %w", sourcePath, blobPath, err)
+	}
+
+	logging.DebugLogger.Printf("Created blob symlink: %s -> %s", blobPath, sourcePath)
+	return blobPath, nil
+}
+
+// cleanupBlobSymlinks removes symlinks created for the model
+func cleanupBlobSymlinks(symlinks []string) {
+	for _, symlink := range symlinks {
+		if err := os.Remove(symlink); err != nil {
+			logging.ErrorLogger.Printf("Failed to remove symlink %s: %v", symlink, err)
+		} else {
+			logging.DebugLogger.Printf("Removed blob symlink: %s", symlink)
+		}
+	}
+}
+
 // CreateOllamaModel creates an Ollama model from an LM Studio model
 func CreateOllamaModel(model LMStudioModel, dryRun bool, ollamaHost string, client *api.Client) error {
 	// Check if we're connecting to a local Ollama instance
@@ -334,8 +384,28 @@ func CreateOllamaModel(model LMStudioModel, dryRun bool, ollamaHost string, clie
 
 	logging.InfoLogger.Printf("Creating Ollama model: %s from LM Studio model: %s", modelName, model.Name)
 
+	// Get Ollama models directory
+	ollamaModelsDir := os.Getenv("OLLAMA_MODELS")
+	if ollamaModelsDir == "" {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return fmt.Errorf("failed to get home directory: %w", err)
+		}
+		ollamaModelsDir = filepath.Join(homeDir, ".ollama", "models")
+	}
+
 	// Step 1: Calculate SHA256 hashes for all files
 	hashes := make(map[string]string)
+	var createdSymlinks []string
+	cleanupOnError := true
+
+	defer func() {
+		// Only clean up on error, keep symlinks on success so Ollama can access the files
+		if cleanupOnError && len(createdSymlinks) > 0 {
+			logging.DebugLogger.Printf("Cleaning up symlinks due to error")
+			cleanupBlobSymlinks(createdSymlinks)
+		}
+	}()
 
 	// Hash main model file
 	logging.DebugLogger.Printf("Calculating SHA256 for main file: %s", model.Path)
@@ -345,6 +415,13 @@ func CreateOllamaModel(model LMStudioModel, dryRun bool, ollamaHost string, clie
 	}
 	hashes[model.Path] = mainHash
 
+	// Create symlink for main model file
+	symlinkPath, err := createBlobSymlink(model.Path, mainHash, ollamaModelsDir)
+	if err != nil {
+		return fmt.Errorf("failed to create blob symlink for main file: %w", err)
+	}
+	createdSymlinks = append(createdSymlinks, symlinkPath)
+
 	// Hash vision files if present
 	for _, visionFile := range model.VisionFiles {
 		logging.DebugLogger.Printf("Calculating SHA256 for vision file: %s", visionFile)
@@ -353,9 +430,16 @@ func CreateOllamaModel(model LMStudioModel, dryRun bool, ollamaHost string, clie
 			return fmt.Errorf("failed to calculate hash for vision file %s: %w", visionFile, err)
 		}
 		hashes[visionFile] = visionHash
+
+		// Create symlink for vision file
+		visionSymlinkPath, err := createBlobSymlink(visionFile, visionHash, ollamaModelsDir)
+		if err != nil {
+			return fmt.Errorf("failed to create blob symlink for vision file: %w", err)
+		}
+		createdSymlinks = append(createdSymlinks, visionSymlinkPath)
 	}
 
-	// Step 2: Generate manifest
+	// Step 2: Generate manifest (for informational purposes)
 	config := defaultConfig
 	manifest, err := generateManifest(model, hashes, config)
 	if err != nil {
@@ -364,18 +448,26 @@ func CreateOllamaModel(model LMStudioModel, dryRun bool, ollamaHost string, clie
 
 	logging.DebugLogger.Printf("Generated manifest with %d layers", len(manifest.Layers))
 
-	// Step 3: Create the model using Ollama's API
-	// For now, we'll use the simple approach of creating a Modelfile and using ollama create
-	// TODO: Implement direct blob upload and manifest creation when Ollama's Go API supports it
+	// Step 3: Create the model using Ollama's API with Files parameter
+	logging.DebugLogger.Printf("Creating Ollama model: %s using blob symlinks", modelName)
 
-	// Use Ollama's create API directly
-	logging.DebugLogger.Printf("Creating Ollama model: %s from %s", modelName, model.Path)
+	// Build the files map with relative paths and digests
+	files := make(map[string]string)
 
-	// Use the Ollama API to create the model
-	// Let Ollama use the embedded template from the GGUF file rather than overriding it
+	// Use a simple relative path for the main model with sha256: prefix
+	mainFileName := filepath.Base(model.Path)
+	files[mainFileName] = fmt.Sprintf("sha256:%s", mainHash)
+
+	// Add vision files if present
+	for _, visionFile := range model.VisionFiles {
+		visionFileName := filepath.Base(visionFile)
+		files[visionFileName] = fmt.Sprintf("sha256:%s", hashes[visionFile])
+	}
+
+	// Use the Ollama API to create the model with Files instead of From
 	createRequest := api.CreateRequest{
 		Model: modelName,
-		From:  model.Path,
+		Files: files,
 		Parameters: map[string]any{
 			"num_ctx":     config.NumCtx,
 			"temperature": config.Temperature,
@@ -395,6 +487,9 @@ func CreateOllamaModel(model LMStudioModel, dryRun bool, ollamaHost string, clie
 		return fmt.Errorf("failed to create Ollama model %s: %w", modelName, err)
 	}
 
+	// Success - don't clean up symlinks, Ollama needs them to access the model files
+	cleanupOnError = false
 	logging.InfoLogger.Printf("Successfully created Ollama model: %s", modelName)
+	logging.DebugLogger.Printf("Created %d permanent symlinks in Ollama blob store", len(createdSymlinks))
 	return nil
 }
