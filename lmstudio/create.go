@@ -397,7 +397,7 @@ func CreateOllamaModel(model LMStudioModel, dryRun bool, ollamaHost string, clie
 	// Step 1: Calculate SHA256 hashes for all files
 	hashes := make(map[string]string)
 	var createdSymlinks []string
-	var cleanupOnError bool = true
+	cleanupOnError := true
 
 	defer func() {
 		// Only clean up on error, keep symlinks on success so Ollama can access the files

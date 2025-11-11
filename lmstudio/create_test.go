@@ -3,6 +3,7 @@ package lmstudio
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -86,7 +87,7 @@ func TestCleanupBlobSymlinks(t *testing.T) {
 	// Create test files and symlinks
 	var symlinks []string
 	for i := 0; i < 3; i++ {
-		sourcePath, hash := createTestFile(t, sourceDir, filepath.Base(t.Name())+"-test.gguf", "content")
+		sourcePath, hash := createTestFile(t, sourceDir, fmt.Sprintf("%s-%d-test.gguf", filepath.Base(t.Name()), i), fmt.Sprintf("content-%d", i))
 		symlinkPath, err := createBlobSymlink(sourcePath, hash, ollamaModelsDir)
 		if err != nil {
 			t.Fatalf("Failed to create symlink: %v", err)
