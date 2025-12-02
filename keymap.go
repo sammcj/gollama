@@ -17,8 +17,6 @@ type KeyMap struct {
 	RunModel         key.Binding
 	ConfirmYes       key.Binding
 	ConfirmNo        key.Binding
-	LinkModel        key.Binding
-	LinkAllModels    key.Binding
 	ClearScreen      key.Binding
 	CompareModelfile key.Binding
 	InspectModel     key.Binding
@@ -55,8 +53,6 @@ func NewKeyMap() *KeyMap {
 		Help:             key.NewBinding(key.WithKeys("h"), key.WithHelp("h", "help")),
 		InspectModel:     key.NewBinding(key.WithKeys("i"), key.WithHelp("i", "inspect")),
 		EditModel:        key.NewBinding(key.WithKeys("e"), key.WithHelp("e", "edit model")),
-		LinkAllModels:    key.NewBinding(key.WithKeys("L"), key.WithHelp("L", "link all")),
-		LinkModel:        key.NewBinding(key.WithKeys("l"), key.WithHelp("l", "link (L=all)")),
 		PushModel:        key.NewBinding(key.WithKeys("P"), key.WithHelp("P", "push")),
 		PullModel:        key.NewBinding(key.WithKeys("p"), key.WithHelp("p", "pull")),
 		PullKeepConfig:   key.NewBinding(key.WithKeys("ctrl+k"), key.WithHelp("ctrl+k", "pull & keep config")),
