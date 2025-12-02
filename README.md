@@ -4,7 +4,7 @@
 
 Gollama is a macOS / Linux tool for managing Ollama models.
 
-It provides a TUI (Text User Interface) for listing, inspecting, deleting, copying, and pushing Ollama models as well as bidirectional syncing with LM Studio*.
+It provides a TUI (Text User Interface) for listing, inspecting, deleting, copying, and pushing Ollama models.
 
 The application allows users to interactively select models, sort, filter, edit, run, unload and perform actions on them using hotkeys.
 
@@ -32,7 +32,7 @@ The application allows users to interactively select models, sort, filter, edit,
 
 ## Features
 
-The project started off as a rewrite of my [llamalink](https://smcleod.net/2024/03/llamalink-ollama-to-lm-studio-llm-model-linker/) project, but I decided to expand it to include more features and make it more user-friendly.
+Gollama is a tool for managing Ollama models with an easy-to-use interface.
 
 It's in active development, so there are some bugs and missing features, however I'm finding it useful for managing my models every day, especially for cleaning up old models.
 
@@ -44,12 +44,8 @@ It's in active development, so there are some bugs and missing features, however
 - Run and unload models
 - Inspect model for additional details
 - Calculate approximate vRAM usage for a model
-- Bidirectional sync with LM Studio:
-  - Link Ollama models to LM Studio
-  - Create Ollama models from LM Studio models **EXPERIMENTAL**
 - Copy / rename models
 - Push models to a registry
-- Copy models to remote hosts (spit)
 - Show running models
 - Has some cool bugs
 
@@ -124,8 +120,6 @@ echo "alias g=gollama" >> ~/.zshrc
 - `k`: Sort by quantisation
 - `f`: Sort by family
 - `B`: Sort by parameter size
-- `l`: Link model to LM Studio
-- `L`: Link all models to LM Studio
 - `r`: Rename model _**(Work in progress)**_
 - `q`: Quit
 
@@ -141,44 +135,6 @@ Inspect (`i`)
 
 ![](screenshots/gollama-inspect.png)
 
-#### Link
-
-Gollama supports bidirectional syncing between Ollama and LM Studio:
-
-**Ollama → LM Studio:**
-- Link (`l`): Link selected model to LM Studio
-- Link All (`L`): Link all models to LM Studio
-
-**LM Studio → Ollama:**
-- `--link-lmstudio`: Link LM Studio models to Ollama (creates symlinks)
-- `-C` or `--create-from-lmstudio`: Create Ollama models from LM Studio models
-
-**Key Features:**
-- **Vision model support**: Automatically detects and handles mmproj files for vision models
-- **Smart filtering**: Skips models already linked between systems
-- **Safe operation**: Dry-run mode (`-n` or `--dry-run`) shows what would happen without making changes
-- **Configurable parameters**: Uses sensible defaults (16K context, 0.6 temperature, etc.)
-
-When linking models to LM Studio, Gollama creates a Modelfile with the template from LM-Studio and a set of default parameters that you can adjust.
-
-Note: Linking requires admin privileges if you're running Windows.
-
-#### Spit (Copy to Remote)
-
-The spit functionality allows you to copy Ollama models to remote hosts. This is useful for distributing models across multiple machines or creating backups.
-
-You can use the command-line interface:
-
-```shell
-# Copy a specific model to a remote host
-gollama --spit my-model --remote http://remote-host:11434
-
-# Copy all models to a remote host
-gollama --spit-all --remote http://remote-host:11434
-```
-
-This functionality uses the [spitter](https://github.com/sammcj/spitter) package to handle the model copying process.
-
 #### Command-line Options
 
 **Model Management:**
@@ -190,27 +146,14 @@ This functionality uses the [spitter](https://github.com/sammcj/spitter) package
 - `-u`: Unload all running models
 - `-v`: Print the version and exit
 
-**LM Studio Integration:**
-- `-L`: Link all available Ollama models to LM Studio and exit
-- `--link-lmstudio`: Link all available LM Studio models to Ollama and exit **EXPERIMENTAL**
-- `-C` or `--create-from-lmstudio`: Create Ollama models from LM Studio models **EXPERIMENTAL**
-- `-n` or `--dry-run`: Show what would happen without making any changes (works with all sync operations)
-
 **Configuration:**
 - `-h`, or `--host`: Specify the host for the Ollama API
 - `-H`: Shortcut for `-h http://localhost:11434` (connect to local Ollama API)
 - `--ollama-dir`: Custom Ollama models directory
-- `--lm-dir`: Custom LM Studio models directory
 - `--log` or `--log-level`: Override log level (debug, info, warn, error)
 
 **Cleanup:**
-- `--cleanup`: Remove all symlinked models and empty directories and exit
 - `--no-cleanup`: Don't cleanup broken symlinks
-
-**Remote Operations:**
-- `--spit <model>`: Copy a model to a remote host
-- `--spit-all`: Copy all models to a remote host
-- `--remote <url>`: Remote host URL for spit operations (e.g., http://remote-host:11434)
 
 **vRAM Analysis:**
 - `--vram`: Estimate vRAM usage for a model. Accepts:
@@ -325,62 +268,6 @@ The vRAM estimator works by:
 
 Note: The estimator will attempt to use CUDA vRAM if available, otherwise it will fall back to system RAM for calculations.
 
-##### LM Studio Integration Examples
-
-**Create Ollama models from LM Studio models:**
-
-**WARNING: EXPERIMENTAL, BACK UP YOUR MODELS FIRST!**
-
-```shell
-# Dry-run to see what would be created (recommended first step)
-gollama -C -n
-# or
-gollama --create-from-lmstudio --dry-run
-
-# Actually create the models
-gollama -C
-# or
-gollama --create-from-lmstudio
-
-# Create with debug logging
-gollama -C --log debug
-```
-
-**Link LM Studio models to Ollama (symlinks):**
-
-```shell
-# Dry-run first
-gollama --link-lmstudio -n
-
-# Create symlinks
-gollama --link-lmstudio
-```
-
-**Link Ollama models to LM Studio:**
-
-```shell
-# Link all models with dry-run
-gollama -L -n
-
-# Actually link all models
-gollama -L
-```
-
-**Key differences between linking and creating:**
-
-- **`--link-lmstudio`**: Creates symlinks, LM Studio uses original Ollama files
-- **`-C` / `--create-from-lmstudio`**: Creates new Ollama models, independent copies with proper metadata
-
-**Vision model support:**
-
-The create functionality automatically detects and handles vision models with mmproj files:
-
-```shell
-$ gollama -C -n
-[DRY RUN] Found 5 unlinked LM Studio models
-[DRY RUN] Processing model publisher/vision-model... (vision model with 1 projection files) success!
-```
-
 ## Configuration
 
 Gollama uses a JSON configuration file located at `~/.config/gollama/config.json`. The configuration file includes options for sorting, columns, API keys, log levels, theme etc...
@@ -400,7 +287,6 @@ Example configuration:
   ],
   "ollama_api_key": "",
   "ollama_api_url": "http://localhost:11434",
-  "lm_studio_file_paths": "",
   "log_level": "info",
   "log_file_path": "/Users/username/.config/gollama/gollama.log",
   "sort_order": "Size",
@@ -611,7 +497,6 @@ Please fork the repository and create a pull request with your changes.
 - [Ollama](https://ollama.com/)
 - [Llama.cpp](https://github.com/ggerganov/llama.cpp)
 - [Charmbracelet](https://charm.sh/)
-- [Spitter](https://github.com/sammcj/spitter) - For model copying functionality
 
 Thank you to folks such as Matt Williams, Fahd Mirza and AI Code King for giving this a shot and providing feedback.
 

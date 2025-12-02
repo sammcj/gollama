@@ -22,11 +22,9 @@ import (
 	"golang.org/x/term"
 
 	"github.com/sammcj/gollama/config"
-	"github.com/sammcj/gollama/lmstudio"
 	"github.com/sammcj/gollama/logging"
 	"github.com/sammcj/gollama/styles"
 	"github.com/sammcj/gollama/vramestimator"
-	"github.com/sammcj/spitter/spitter"
 )
 
 type AppModel struct {
@@ -44,7 +42,6 @@ type AppModel struct {
 	message             string
 	keys                KeyMap
 	client              *api.Client
-	lmStudioModelsDir   string
 	noCleanup           bool
 	table               table.Model
 	filterInput         tea.Model
@@ -98,7 +95,7 @@ var Version string // Version is set by the build system
 
 func main() {
 	if Version == "" {
-		Version = "1.37.3"
+		Version = "1.37.4"
 	}
 
 	cfg, err := config.LoadConfig()
@@ -129,16 +126,8 @@ func main() {
 	}
 
 	listFlag := flag.Bool("l", false, "List all available Ollama models and exit")
-	linkFlag := flag.Bool("L", false, "Link Ollama models to LM Studio")
-	linkLMStudioFlag := flag.Bool("link-lmstudio", false, "Link LM Studio models to Ollama")
-	createFromLMStudioFlag := flag.Bool("C", false, "Create Ollama models from LM Studio models")
-	flag.BoolVar(createFromLMStudioFlag, "create-from-lmstudio", false, "Create Ollama models from LM Studio models")
-	dryRunFlag := flag.Bool("n", false, "Show what would happen without making any changes (dry-run mode)")
-	flag.BoolVar(dryRunFlag, "dry-run", false, "Show what would happen without making any changes (dry-run mode)")
 	ollamaDirFlag := flag.String("ollama-dir", cfg.OllamaModelsDir, "Custom Ollama models directory")
-	lmStudioDirFlag := flag.String("lm-dir", cfg.LMStudioFilePaths, "Custom LM Studio models directory")
 	noCleanupFlag := flag.Bool("no-cleanup", false, "Don't cleanup broken symlinks")
-	cleanupFlag := flag.Bool("cleanup", false, "Remove all symlinked models and empty directories and exit")
 	searchFlag := flag.String("s", "", "Search - return a list of models that contain the search term in their name")
 	unloadModelsFlag := flag.Bool("u", false, "Unload all models and exit")
 	versionFlag := flag.Bool("v", false, "Print the version and exit")
@@ -154,10 +143,6 @@ func main() {
 	contextFlag := flag.String("context", "", "Maximum context length (e.g., '32k' or '128k')")
 	quantFlag := flag.String("quant", "", "Specific quantisation level (e.g., 'Q4_0', 'Q5_K_M')")
 	vramToNthFlag := flag.String("vram-to-nth", "65536", "Top context length to search for (e.g., 65536, 32k, 2m)")
-	// Spitter flags
-	spitFlag := flag.String("spit", "", "Copy a model to a remote host (specify model name)")
-	spitAllFlag := flag.Bool("spit-all", false, "Copy all models to a remote host")
-	remoteHostFlag := flag.String("remote", "", "Remote host URL for spit operations (e.g., http://remote-host:11434)")
 
 	flag.Parse()
 
@@ -335,51 +320,26 @@ func main() {
 	}
 
 	app := AppModel{
-		client:            client,
-		keys:              *keys,
-		models:            groupedModels,
-		width:             width,
-		height:            height,
-		ollamaModelsDir:   *ollamaDirFlag,
-		lmStudioModelsDir: *lmStudioDirFlag,
-		noCleanup:         *noCleanupFlag,
-		cfg:               &cfg,
-		progress:          progress.New(progress.WithDefaultGradient()),
-		pullInput:         textinput.New(),
-		pulling:           false,
-		pullProgress:      0,
+		client:          client,
+		keys:            *keys,
+		models:          groupedModels,
+		width:           width,
+		height:          height,
+		ollamaModelsDir: *ollamaDirFlag,
+		noCleanup:       *noCleanupFlag,
+		cfg:             &cfg,
+		progress:        progress.New(progress.WithDefaultGradient()),
+		pullInput:       textinput.New(),
+		pulling:         false,
+		pullProgress:    0,
 	}
 
 	if *ollamaDirFlag == "" {
 		app.ollamaModelsDir = cfg.OllamaModelsDir
 	}
-	if *lmStudioDirFlag == "" {
-		// If LM Studio directory is not specified in the config, use the default
-		if cfg.LMStudioFilePaths == "" {
-			app.lmStudioModelsDir = config.GetLMStudioModelDir()
-			// Update the config with the default LM Studio directory
-			logging.InfoLogger.Printf("Setting LM Studio directory to default: %s\n", app.lmStudioModelsDir)
-			cfg.LMStudioFilePaths = app.lmStudioModelsDir
-			cfg.SetModified()
-			logging.InfoLogger.Printf("Saving config with LM Studio directory: %s\n", cfg.LMStudioFilePaths)
-			if err := cfg.SaveIfModified(); err != nil {
-				logging.ErrorLogger.Printf("Error saving config: %v\n", err)
-			} else {
-				logging.InfoLogger.Printf("Config saved successfully\n")
-			}
-		} else {
-			app.lmStudioModelsDir = cfg.LMStudioFilePaths
-			logging.InfoLogger.Printf("Using LM Studio directory from config: %s\n", app.lmStudioModelsDir)
-		}
-	}
 
 	if *listFlag {
 		listModels(models)
-		os.Exit(0)
-	}
-
-	if *cleanupFlag {
-		cleanupSymlinkedModels(app.lmStudioModelsDir)
 		os.Exit(0)
 	}
 
@@ -390,186 +350,6 @@ func main() {
 			searchTerms = []string{*searchFlag}
 		}
 		searchModels(models, searchTerms...)
-		os.Exit(0)
-	}
-
-	if *linkFlag {
-		// Make sure we're not running on a remote host by checking the API URL to ensure it contains localhost or 127.0.0.1
-		if !isLocalhost(cfg.OllamaAPIURL) {
-			fmt.Println("Error: Linking models is only supported on localhost")
-			os.Exit(1)
-		}
-
-		prefix := ""
-		if *dryRunFlag {
-			prefix = "[DRY RUN] "
-			fmt.Printf("%sWould link Ollama models to LM Studio (directory: %s)\n", prefix, app.lmStudioModelsDir)
-		} else {
-			fmt.Printf("Linking Ollama models to LM Studio (directory: %s)\n", app.lmStudioModelsDir)
-		}
-
-		fmt.Printf("\nFound %d models to link:\n", len(models))
-
-		// Display a summary of models to be linked
-		for i, model := range models {
-			fmt.Printf("%d. %s\n", i+1, model.Name)
-		}
-
-		fmt.Printf("\nStarting linking process...\n\n")
-
-		// link all models
-		successCount := 0
-		for _, model := range models {
-			fmt.Printf("%sLinking model: %s... ", prefix, model.Name)
-			message, err := linkModel(model.Name, app.lmStudioModelsDir, false, *dryRunFlag, client)
-
-			if err != nil {
-				logging.ErrorLogger.Printf("Error linking model %s: %v\n", model.Name, err)
-				fmt.Printf("failed: %v\n", err)
-				continue
-			}
-
-			if message != "" {
-				logging.InfoLogger.Println(message)
-				fmt.Printf("%s\n", message)
-			} else {
-				fmt.Printf("success!\n")
-				successCount++
-			}
-		}
-
-		// Print summary
-		if *dryRunFlag {
-			fmt.Printf("\n%sSummary: Would link %d of %d models\n", prefix, successCount, len(models))
-		} else {
-			fmt.Printf("\nSummary: Successfully linked %d of %d models\n", successCount, len(models))
-		}
-		os.Exit(0)
-	}
-
-	if *linkLMStudioFlag {
-		if !*dryRunFlag {
-			fmt.Println("WARNING: ***EXPERIMENTAL*** BACKUP YOUR MODELS! This will create symlinks in your Ollama models directory!")
-			fmt.Print("Do you want to continue? (y/n): ")
-			var response string
-			fmt.Scanln(&response)
-			if response != "y" && response != "Y" {
-				fmt.Println("Aborting...")
-				os.Exit(0)
-			}
-		}
-
-		fmt.Printf("Scanning for LM Studio models in: %s\n", app.lmStudioModelsDir)
-
-		models, err := lmstudio.ScanModels(app.lmStudioModelsDir)
-		if err != nil {
-			logging.ErrorLogger.Printf("Error scanning LM Studio models: %v\n", err)
-			fmt.Printf("Failed to scan LM Studio models directory: %v\n", err)
-			os.Exit(1)
-		}
-
-		if len(models) == 0 {
-			fmt.Println("No LM Studio models found")
-			os.Exit(0)
-		}
-
-		prefix := ""
-		if *dryRunFlag {
-			prefix = "[DRY RUN] "
-		}
-		fmt.Printf("%sFound %d LM Studio models\n", prefix, len(models))
-		var successCount, failCount int
-
-		for _, model := range models {
-			if *dryRunFlag {
-				fmt.Printf("%sProcessing model %s...\n", prefix, model.Name)
-			} else {
-				fmt.Printf("%sProcessing model %s... ", prefix, model.Name)
-			}
-			if err := lmstudio.LinkModelToOllama(model, *dryRunFlag, cfg.OllamaAPIURL, app.ollamaModelsDir); err != nil {
-				logging.ErrorLogger.Printf("Error linking model %s: %v\n", model.Name, err)
-				fmt.Printf("failed: %v\n", err)
-				failCount++
-				continue
-			}
-			logging.InfoLogger.Printf("Model %s linked successfully\n", model.Name)
-			if *dryRunFlag {
-				fmt.Printf("%sModel %s processed successfully\n\n", prefix, model.Name)
-			} else {
-				fmt.Println("success!")
-			}
-			successCount++
-		}
-
-		if *dryRunFlag {
-			fmt.Printf("\n[DRY RUN] Summary: Would link %d models, %d would fail\n", successCount, failCount)
-		} else {
-			fmt.Printf("\nSummary: %d models linked successfully, %d failed\n", successCount, failCount)
-		}
-		if failCount > 0 {
-			os.Exit(1)
-		}
-		os.Exit(0)
-	}
-
-	if *createFromLMStudioFlag {
-
-		if !*dryRunFlag {
-			fmt.Println("WARNING: EXPERIMENTAL, BACK UP YOUR MODELS FIRST!")
-			fmt.Print("Do you want to continue? (y/n): ")
-			var response string
-			fmt.Scanln(&response)
-			if response != "y" && response != "Y" {
-				fmt.Println("Aborting...")
-				os.Exit(0)
-			}
-		}
-
-		fmt.Printf("Scanning for unlinked LM Studio models in: %s\n", app.lmStudioModelsDir)
-
-		models, err := lmstudio.ScanUnlinkedModels(app.lmStudioModelsDir)
-		if err != nil {
-			logging.ErrorLogger.Printf("Error scanning LM Studio models: %v\n", err)
-			fmt.Printf("Failed to scan LM Studio models directory: %v\n", err)
-			os.Exit(1)
-		}
-
-		if len(models) == 0 {
-			fmt.Println("No unlinked LM Studio models found")
-			os.Exit(0)
-		}
-
-		prefix := ""
-		if *dryRunFlag {
-			prefix = "[DRY RUN] "
-		}
-		fmt.Printf("%sFound %d unlinked LM Studio models\n", prefix, len(models))
-		var successCount, failCount int
-
-		for _, model := range models {
-			fmt.Printf("%sProcessing model %s... ", prefix, model.Name)
-			if len(model.VisionFiles) > 0 {
-				fmt.Printf("(vision model with %d projection files) ", len(model.VisionFiles))
-			}
-			if err := lmstudio.CreateOllamaModel(model, *dryRunFlag, cfg.OllamaAPIURL, client); err != nil {
-				logging.ErrorLogger.Printf("Error creating model %s: %v\n", model.Name, err)
-				fmt.Printf("failed: %v\n", err)
-				failCount++
-				continue
-			}
-			logging.InfoLogger.Printf("Model %s created successfully\n", model.Name)
-			fmt.Println("success!")
-			successCount++
-		}
-
-		if *dryRunFlag {
-			fmt.Printf("\n[DRY RUN] Summary: Would create %d models, %d would fail\n", successCount, failCount)
-		} else {
-			fmt.Printf("\nSummary: %d models created successfully, %d failed\n", successCount, failCount)
-		}
-		if failCount > 0 {
-			os.Exit(1)
-		}
 		os.Exit(0)
 	}
 
@@ -614,59 +394,6 @@ func main() {
 		os.Exit(0)
 	}
 
-	// Handle spitter flags
-	if *spitFlag != "" || *spitAllFlag {
-		if *remoteHostFlag == "" {
-			fmt.Println("Error: Remote host URL is required for spit operations. Use --remote flag.")
-			os.Exit(1)
-		}
-
-		// Create a spitter configuration
-		config := spitter.SyncConfig{
-			RemoteServer: *remoteHostFlag,
-		}
-
-		// If Docker container is specified in the config, use it for the Ollama command
-		if cfg.DockerContainer != "" && strings.ToLower(cfg.DockerContainer) != "false" {
-			config.OllamaCommand = fmt.Sprintf("docker exec -it %s ollama", cfg.DockerContainer)
-		}
-
-		// Set the custom model directory if specified
-		if app.ollamaModelsDir != "" {
-			config.CustomModelDir = app.ollamaModelsDir
-		}
-
-		if *spitAllFlag {
-			// Copy all models
-			config.AllModels = true
-			fmt.Printf("Copying all models to remote host %s...\n", *remoteHostFlag)
-
-			// We still need to provide a model name even though we're copying all models
-			// The spitter package will ignore this when AllModels is true
-			if len(groupedModels) > 0 {
-				config.LocalModel = groupedModels[0].Name
-			}
-		} else {
-			// Copy a single model
-			config.LocalModel = *spitFlag
-			fmt.Printf("Copying model %s to remote host %s...\n", *spitFlag, *remoteHostFlag)
-		}
-
-		// Sync the model(s)
-		err := spitter.Sync(config)
-		if err != nil {
-			fmt.Printf("Error copying model(s) to remote host: %v\n", err)
-			os.Exit(1)
-		}
-
-		if *spitAllFlag {
-			fmt.Printf("Successfully copied %d models to %s\n", len(groupedModels), *remoteHostFlag)
-		} else {
-			fmt.Printf("Successfully copied model %s to %s\n", *spitFlag, *remoteHostFlag)
-		}
-		os.Exit(0)
-	}
-
 	// TUI App
 	l := list.New(items, NewItemDelegate(&app), width, height-5)
 	l.Title = fmt.Sprintf("Ollama Models - Connected to %s", cfg.OllamaAPIURL)
@@ -690,8 +417,6 @@ func main() {
 			keys.RunModel,
 			keys.ConfirmYes,
 			keys.ConfirmNo,
-			keys.LinkModel,
-			keys.LinkAllModels,
 			keys.CopyModel,
 			keys.PushModel,
 			keys.Top,

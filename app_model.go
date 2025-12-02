@@ -283,10 +283,6 @@ func (m *AppModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleUpdateModelKey()
 	case key.Matches(msg, m.keys.UnloadModels):
 		return m.handleUnloadModelsKey()
-	case key.Matches(msg, m.keys.LinkModel):
-		return m.handleLinkModelKey()
-	case key.Matches(msg, m.keys.LinkAllModels):
-		return m.handleLinkAllModelsKey()
 	case key.Matches(msg, m.keys.CopyModel):
 		return m.handleCopyModelKey()
 	case key.Matches(msg, m.keys.PushModel):
@@ -681,49 +677,6 @@ func (m *AppModel) handleUnloadModelsKey() (tea.Model, tea.Cmd) {
 		}
 		return genericMsg{message: styles.SuccessStyle().Render(fmt.Sprintf("Models unloaded: %v", unloadedModels))}
 	}
-}
-
-func (m *AppModel) handleLinkModelKey() (tea.Model, tea.Cmd) {
-	logging.DebugLogger.Println("LinkModel key matched")
-	// Function not available on remote Ollama servers
-	if msg := m.isRemoteHost(); msg != "" {
-		m.message = msg
-		return m, nil
-	}
-	if item, ok := m.list.SelectedItem().(Model); ok {
-		message, err := linkModel(item.Name, m.lmStudioModelsDir, m.noCleanup, false, m.client)
-		if err != nil {
-			m.message = fmt.Sprintf("Error linking model: %v", err)
-		} else if message != "" {
-			m.message = message
-		} else {
-			m.message = fmt.Sprintf("Model %s linked successfully", item.Name)
-		}
-	}
-	return m, nil
-}
-
-func (m *AppModel) handleLinkAllModelsKey() (tea.Model, tea.Cmd) {
-	logging.DebugLogger.Println("LinkAllModels key matched")
-	// Function not available on remote Ollama servers
-	if msg := m.isRemoteHost(); msg != "" {
-		m.message = msg
-		return m, nil
-	}
-	var messages []string
-	for _, model := range m.models {
-		message, err := linkModel(model.Name, m.lmStudioModelsDir, m.noCleanup, false, m.client)
-		if err != nil {
-			messages = append(messages, fmt.Sprintf("Error linking model %s: %v", model.Name, err))
-		} else if message != "" {
-			continue
-		} else {
-			messages = append(messages, fmt.Sprintf("Model %s linked successfully", model.Name))
-		}
-	}
-	messages = append(messages, "Linking complete")
-	m.message = strings.Join(messages, "\n")
-	return m, nil
 }
 
 func (m *AppModel) handleCopyModelKey() (tea.Model, tea.Cmd) {
@@ -1127,7 +1080,7 @@ func (m *AppModel) topView() string {
 // FullHelp returns keybindings for the expanded help view. It's part of the key.Map interface.
 func (k KeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.Space, k.Delete, k.RunModel, k.LinkModel, k.LinkAllModels, k.CopyModel, k.PushModel},          // first column
+		{k.Space, k.Delete, k.RunModel, k.CopyModel, k.PushModel},                                        // first column
 		{k.SortByName, k.SortBySize, k.SortByModified, k.SortByQuant, k.SortByFamily, k.SortByParamSize}, // second column
 		{k.Top, k.EditModel, k.InspectModel, k.Quit},                                                     // third column
 	}

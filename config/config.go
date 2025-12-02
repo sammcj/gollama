@@ -13,33 +13,31 @@ import (
 )
 
 type Config struct {
-	Columns           []string `mapstructure:"columns"`
-	OllamaAPIKey      string   `mapstructure:"ollama_api_key"`
-	OllamaAPIURL      string   `mapstructure:"ollama_api_url"`
-	OllamaModelsDir   string   `mapstructure:"ollama_models_dir"`
-	LMStudioFilePaths string   `mapstructure:"lm_studio_file_paths"`
-	LogLevel          string   `mapstructure:"log_level"`
-	LogFilePath       string   `mapstructure:"log_file_path"`
-	SortOrder         string   `mapstructure:"sort_order"`   // Current sort order
-	StripString       string   `mapstructure:"strip_string"` // Optional string to strip from model names in the TUI (e.g. a private registry URL)
-	Editor            string   `mapstructure:"editor"`
-	Theme             string   `mapstructure:"theme"`            // Name of the theme to use (without .json extension)
-	DockerContainer   string   `mapstructure:"docker_container"` // Optionally specify a docker container to run the ollama commands in
-	modified          bool     // Internal flag to track if the config has been modified
+	Columns         []string `mapstructure:"columns"`
+	OllamaAPIKey    string   `mapstructure:"ollama_api_key"`
+	OllamaAPIURL    string   `mapstructure:"ollama_api_url"`
+	OllamaModelsDir string   `mapstructure:"ollama_models_dir"`
+	LogLevel        string   `mapstructure:"log_level"`
+	LogFilePath     string   `mapstructure:"log_file_path"`
+	SortOrder       string   `mapstructure:"sort_order"`   // Current sort order
+	StripString     string   `mapstructure:"strip_string"` // Optional string to strip from model names in the TUI (e.g. a private registry URL)
+	Editor          string   `mapstructure:"editor"`
+	Theme           string   `mapstructure:"theme"`            // Name of the theme to use (without .json extension)
+	DockerContainer string   `mapstructure:"docker_container"` // Optionally specify a docker container to run the ollama commands in
+	modified        bool     // Internal flag to track if the config has been modified
 }
 
 var defaultConfig = Config{
-	Columns:           []string{"Name", "Size", "Quant", "Family", "Modified", "ID"},
-	OllamaAPIKey:      "",
-	OllamaAPIURL:      getAPIUrl(),
-	OllamaModelsDir:   GetOllamaModelDir(),
-	LMStudioFilePaths: GetLMStudioModelDir(),
-	LogLevel:          "info",
-	SortOrder:         "modified",
-	StripString:       "",
-	Editor:            "",
-	Theme:             "dark-neon",
-	DockerContainer:   "",
+	Columns:         []string{"Name", "Size", "Quant", "Family", "Modified", "ID"},
+	OllamaAPIKey:    "",
+	OllamaAPIURL:    getAPIUrl(),
+	OllamaModelsDir: GetOllamaModelDir(),
+	LogLevel:        "info",
+	SortOrder:       "modified",
+	StripString:     "",
+	Editor:          "",
+	Theme:           "dark-neon",
+	DockerContainer: "",
 }
 
 // GetOllamaModelDir returns the default Ollama models directory for the current OS
@@ -52,18 +50,6 @@ func GetOllamaModelDir() string {
 	}
 	// Add Windows path if needed
 	return filepath.Join(homeDir, ".ollama", "models")
-}
-
-// GetLMStudioModelDir returns the default LM Studio models directory for the current OS
-func GetLMStudioModelDir() string {
-	homeDir := utils.GetHomeDir()
-	if runtime.GOOS == "darwin" {
-		return filepath.Join(homeDir, ".lmstudio", "models")
-	} else if runtime.GOOS == "linux" {
-		return filepath.Join(homeDir, ".lmstudio", "models")
-	}
-	// Add Windows path if needed
-	return filepath.Join(homeDir, ".lmstudio", "models")
 }
 
 // getAPIUrl determines the API URL based on environment variables.
@@ -87,7 +73,6 @@ func CreateDefaultConfig() error {
 	viper.SetDefault("columns", defaultConfig.Columns)
 	viper.SetDefault("ollama_api_key", defaultConfig.OllamaAPIKey)
 	viper.SetDefault("ollama_api_url", defaultConfig.OllamaAPIURL)
-	viper.SetDefault("lm_studio_file_paths", defaultConfig.LMStudioFilePaths)
 	viper.SetDefault("log_level", defaultConfig.LogLevel)
 	viper.SetDefault("log_file_path", defaultConfig.LogFilePath)
 	viper.SetDefault("sort_order", defaultConfig.SortOrder)
@@ -139,7 +124,6 @@ func LoadConfig() (Config, error) {
 	viper.SetDefault("ollama_api_key", defaultConfig.OllamaAPIKey)
 	viper.SetDefault("ollama_api_url", defaultConfig.OllamaAPIURL)
 	viper.SetDefault("ollama_models_dir", defaultConfig.OllamaModelsDir)
-	viper.SetDefault("lm_studio_file_paths", defaultConfig.LMStudioFilePaths)
 	viper.SetDefault("log_level", defaultConfig.LogLevel)
 	viper.SetDefault("log_file_path", defaultConfig.LogFilePath)
 	viper.SetDefault("sort_order", defaultConfig.SortOrder)
@@ -152,7 +136,6 @@ func LoadConfig() (Config, error) {
 	config.OllamaAPIKey = viper.GetString("ollama_api_key")
 	config.OllamaAPIURL = viper.GetString("ollama_api_url")
 	config.OllamaModelsDir = viper.GetString("ollama_models_dir")
-	config.LMStudioFilePaths = viper.GetString("lm_studio_file_paths")
 	config.LogLevel = viper.GetString("log_level")
 	config.LogFilePath = viper.GetString("log_file_path")
 	config.SortOrder = viper.GetString("sort_order")
@@ -175,7 +158,6 @@ func SaveConfig(config Config) error {
 	viper.Set("ollama_api_key", config.OllamaAPIKey)
 	viper.Set("ollama_api_url", config.OllamaAPIURL)
 	viper.Set("ollama_models_dir", config.OllamaModelsDir)
-	viper.Set("lm_studio_file_paths", config.LMStudioFilePaths)
 	viper.Set("log_level", config.LogLevel)
 	viper.Set("log_file_path", config.LogFilePath)
 	viper.Set("sort_order", config.SortOrder)
