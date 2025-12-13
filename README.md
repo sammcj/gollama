@@ -16,15 +16,9 @@ The application allows users to interactively select models, sort, filter, edit,
   - [Table of Contents](#table-of-contents)
   - [Features](#features)
   - [Installation](#installation)
-    - [go install (recommended)](#go-install-recommended)
-    - [curl](#curl)
-    - [Manually](#manually)
-    - [if "command not found: gollama"](#if-command-not-found-gollama)
   - [Usage](#usage)
-    - [Key Bindings](#key-bindings)
   - [Configuration](#configuration)
   - [Installation and build from source](#installation-and-build-from-source)
-    - [Themes](#themes)
   - [Logging](#logging)
   - [Contributing](#contributing)
   - [Acknowledgements](#acknowledgements)
@@ -51,9 +45,19 @@ It's in active development, so there are some bugs and missing features, however
 
 See also - [ingest](https://github.com/sammcj/ingest) for passing directories/repos of code to markdown formatted for LLMs.
 
-Gollama Intro ("Podcast" Episode):
+---
 
-<audio src="https://github.com/sammcj/smcleod_files/raw/refs/heads/master/audio/podcast-ep-sw/Podcast%20Episode%20-%20Gollama.mp3" controls preload></audio>
+### Update [2025-12-02]: Removal of LM Studio linking & Gollama maintenance slowing
+
+As of the [v2.0.1 release](https://github.com/sammcj/gollama/releases/tag/v2.0.1) of Gollama, LM Studio linking will no longer be available.
+
+Linking from/to LM Studio became more hassle to maintain than it was worth. Ongoing changes to both upstream applications and trying to cater for each users local configuration meant investing too much of my time for a feature I rarely used.
+
+I'm simply not dog-fooding with Ollama enough. This has meant that development has slowed down as I focus on other projects.
+
+I was an early adopter and contributor to Ollama, but the value I got from Ollama has diminished throughout 2025 to the point where I rarely ever use it. For model serving I have mostly moved to llama.cpp running with [llama-swap](https://github.com/mostlygeek/llama-swap). Llama.cpp has become far more user friendly over the past year, the project is well maintained, easier to configure, with _many_ more features and _significantly_ better performance. For serving models on my laptop I use [LM Studio](https://lmstudio.ai) as it provides both MLX models and the standard llama.cpp runtime for GGUF models.
+
+---
 
 ## Installation
 
