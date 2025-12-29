@@ -19,7 +19,8 @@ type textInputModel struct {
 }
 
 // promptForNewName displays a text input prompt for renaming a model.
-func promptForNewName(oldName string) string {
+// Returns the new name and a boolean indicating if the operation was cancelled.
+func promptForNewName(oldName string) (string, bool) {
 	ti := textinput.New()
 	// print 'renaming oldName' to the console with the oldName in purple
 	ti.Prompt = oldName + "\n" + "Name for new model: "
@@ -47,20 +48,21 @@ func promptForNewName(oldName string) string {
 		logging.ErrorLogger.Printf("Error starting text input program: %v\n", err)
 	}
 
-	// If the user cancelled (Ctrl-C or Esc), return the old name
+	// If the user cancelled (Ctrl-C or Esc), return empty string and cancelled=true
 	if m.cancelled {
-		logging.InfoLogger.Println("Rename cancelled by user, returning old name")
-		return oldName
+		logging.InfoLogger.Println("Rename cancelled by user")
+		return "", true
 	}
 
 	newName := m.textInput.Value()
 
+	// If user pressed enter without typing anything, return empty string
 	if newName == "" {
-		logging.ErrorLogger.Println("No new name entered, returning old name")
-		return oldName
+		logging.DebugLogger.Println("No new name entered, returning empty string")
+		return "", false
 	}
 
-	return newName
+	return newName, false
 }
 
 func (m *textInputModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
