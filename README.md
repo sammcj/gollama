@@ -485,6 +485,13 @@ Please fork the repository and create a pull request with your changes.
                 </a>
             </td>
             <td align="center">
+                <a href="https://github.com/majiayu000">
+                    <img src="https://avatars.githubusercontent.com/u/19658300?v=4" width="50;" alt="majiayu000"/>
+                    <br />
+                    <sub><b>lif</b></sub>
+                </a>
+            </td>
+            <td align="center">
                 <a href="https://github.com/fuho">
                     <img src="https://avatars.githubusercontent.com/u/539452?v=4" width="50;" alt="fuho"/>
                     <br />
