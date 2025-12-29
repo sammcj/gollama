@@ -688,6 +688,9 @@ func (m *AppModel) handleCopyModelKey() (tea.Model, tea.Cmd) {
 		newName := promptForNewName(item.Name) // Pass the selected item as the model
 		if newName == "" {
 			m.message = "Error: name can't be empty"
+		} else if newName == item.Name {
+			// User cancelled the copy operation
+			m.message = styles.InfoStyle().Render("Copy cancelled")
 		} else {
 			copyModel(m, m.client, item.Name, newName)
 			m.message = fmt.Sprintf("Model %s copied to %s", item.Name, newName)
@@ -793,6 +796,9 @@ func (m *AppModel) handleRenameModelKey() (tea.Model, tea.Cmd) {
 		newName := promptForNewName(item.Name)
 		if newName == "" {
 			m.message = styles.ErrorStyle().Render("Error: name can't be empty")
+		} else if newName == item.Name {
+			// User cancelled the rename operation
+			m.message = styles.InfoStyle().Render("Rename cancelled")
 		} else {
 			err := renameModel(m, item.Name, newName)
 			if err != nil {
