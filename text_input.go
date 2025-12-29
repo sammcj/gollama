@@ -15,10 +15,12 @@ type textInputModel struct {
 	textInput textinput.Model
 	oldName   string
 	quitting  bool
+	cancelled bool
 }
 
 // promptForNewName displays a text input prompt for renaming a model.
-func promptForNewName(oldName string) string {
+// Returns the new name and a boolean indicating if the operation was cancelled.
+func promptForNewName(oldName string) (string, bool) {
 	ti := textinput.New()
 	// print 'renaming oldName' to the console with the oldName in purple
 	ti.Prompt = oldName + "\n" + "Name for new model: "
@@ -46,15 +48,21 @@ func promptForNewName(oldName string) string {
 		logging.ErrorLogger.Printf("Error starting text input program: %v\n", err)
 	}
 
-	newName := m.textInput.Value()
-
-	if newName == "" {
-		// error handling
-		logging.ErrorLogger.Println("No new name entered, returning old name")
-		return oldName
+	// If the user cancelled (Ctrl-C or Esc), return empty string and cancelled=true
+	if m.cancelled {
+		logging.InfoLogger.Println("Rename cancelled by user")
+		return "", true
 	}
 
-	return newName
+	newName := m.textInput.Value()
+
+	// If user pressed enter without typing anything, return empty string
+	if newName == "" {
+		logging.DebugLogger.Println("No new name entered, returning empty string")
+		return "", false
+	}
+
+	return newName, false
 }
 
 func (m *textInputModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -62,7 +70,11 @@ func (m *textInputModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "ctrl+c", "enter":
+		case "ctrl+c", "esc":
+			m.quitting = true
+			m.cancelled = true
+			return m, tea.Quit
+		case "enter":
 			m.quitting = true
 			return m, tea.Quit
 		}
@@ -83,6 +95,6 @@ func (m textInputModel) View() string {
 	return fmt.Sprintf(
 		"\n%s\n\n%s",
 		m.textInput.View(),
-		"(ctrl+c to cancel)",
+		"(esc or ctrl+c to cancel)",
 	)
 }

@@ -685,9 +685,13 @@ func (m *AppModel) handleCopyModelKey() (tea.Model, tea.Cmd) {
 	}()
 	logging.DebugLogger.Println("CopyModel key matched")
 	if item, ok := m.list.SelectedItem().(Model); ok {
-		newName := promptForNewName(item.Name) // Pass the selected item as the model
-		if newName == "" {
-			m.message = "Error: name can't be empty"
+		newName, cancelled := promptForNewName(item.Name)
+		if cancelled {
+			m.message = styles.InfoStyle().Render("Copy cancelled")
+		} else if newName == "" {
+			m.message = styles.ErrorStyle().Render("Error: name can't be empty")
+		} else if newName == item.Name {
+			m.message = styles.ErrorStyle().Render("Error: new name must be different from the original name")
 		} else {
 			copyModel(m, m.client, item.Name, newName)
 			m.message = fmt.Sprintf("Model %s copied to %s", item.Name, newName)
@@ -790,9 +794,14 @@ func (m *AppModel) handleInspectModelKey() (tea.Model, tea.Cmd) {
 func (m *AppModel) handleRenameModelKey() (tea.Model, tea.Cmd) {
 	logging.DebugLogger.Println("RenameModel key matched")
 	if item, ok := m.list.SelectedItem().(Model); ok {
-		newName := promptForNewName(item.Name)
-		if newName == "" {
+		newName, cancelled := promptForNewName(item.Name)
+		if cancelled {
+			m.message = styles.InfoStyle().Render("Rename cancelled")
+		} else if newName == "" {
 			m.message = styles.ErrorStyle().Render("Error: name can't be empty")
+		} else if newName == item.Name {
+			// User explicitly confirmed the same name, no action needed
+			m.message = styles.InfoStyle().Render("Name unchanged")
 		} else {
 			err := renameModel(m, item.Name, newName)
 			if err != nil {
