@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
-	"github.com/sammcj/gollama/utils"
+	"github.com/sammcj/gollama/v2/utils"
 	"github.com/spf13/viper"
 )
 

@@ -21,10 +21,10 @@ import (
 	"github.com/ollama/ollama/api"
 	"golang.org/x/term"
 
-	"github.com/sammcj/gollama/config"
-	"github.com/sammcj/gollama/logging"
-	"github.com/sammcj/gollama/styles"
-	"github.com/sammcj/gollama/vramestimator"
+	"github.com/sammcj/gollama/v2/config"
+	"github.com/sammcj/gollama/v2/logging"
+	"github.com/sammcj/gollama/v2/styles"
+	"github.com/sammcj/gollama/v2/vramestimator"
 )
 
 type AppModel struct {
@@ -95,7 +95,7 @@ var Version string // Version is set by the build system
 
 func main() {
 	if Version == "" {
-		Version = "2.0.0"
+		Version = "2.0.2"
 	}
 
 	cfg, err := config.LoadConfig()

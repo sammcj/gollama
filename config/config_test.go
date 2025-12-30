@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/sammcj/gollama/logging"
+	"github.com/sammcj/gollama/v2/logging"
 )
 
 func TestGenerateDefaultConfig(t *testing.T) {
