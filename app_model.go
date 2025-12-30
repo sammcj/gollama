@@ -400,7 +400,15 @@ func (m *AppModel) handleEditorFinishedMsg(msg editorFinishedMsg) (tea.Model, te
 		return m, nil
 	}
 	if item, ok := m.list.SelectedItem().(Model); ok {
-		newModelName := promptForNewName(item.Name)
+		newModelName, cancelled := promptForNewName(item.Name)
+		if cancelled {
+			m.message = "Model creation cancelled"
+			return m, nil
+		}
+		if strings.TrimSpace(newModelName) == "" {
+			m.message = "Model name cannot be empty"
+			return m, nil
+		}
 		modelfilePath := fmt.Sprintf("Modelfile-%s", strings.ReplaceAll(newModelName, " ", "_"))
 		err := createModelFromModelfile(newModelName, modelfilePath, m.client)
 		if err != nil {
@@ -494,50 +502,45 @@ func (m *AppModel) handleDeleteKey() (tea.Model, tea.Cmd) {
 func (m *AppModel) handleSortByNameKey() (tea.Model, tea.Cmd) {
 	logging.DebugLogger.Println("SortByName key matched")
 	m.cfg.SortOrder = "name"
-	sort.Slice(m.models, func(i, j int) bool {
+	m.refreshListWithSort(func(i, j int) bool {
 		return m.models[i].Name < m.models[j].Name
 	})
-	m.refreshList()
 	return m, nil
 }
 
 func (m *AppModel) handleSortBySizeKey() (tea.Model, tea.Cmd) {
 	logging.DebugLogger.Println("SortBySize key matched")
 	m.cfg.SortOrder = "size"
-	sort.Slice(m.models, func(i, j int) bool {
+	m.refreshListWithSort(func(i, j int) bool {
 		return m.models[i].Size > m.models[j].Size
 	})
-	m.refreshList()
 	return m, nil
 }
 
 func (m *AppModel) handleSortByModifiedKey() (tea.Model, tea.Cmd) {
 	logging.DebugLogger.Println("SortByModified key matched")
 	m.cfg.SortOrder = "modified"
-	sort.Slice(m.models, func(i, j int) bool {
+	m.refreshListWithSort(func(i, j int) bool {
 		return m.models[i].Modified.After(m.models[j].Modified)
 	})
-	m.refreshList()
 	return m, nil
 }
 
 func (m *AppModel) handleSortByQuantKey() (tea.Model, tea.Cmd) {
 	logging.DebugLogger.Println("SortByQuant key matched")
 	m.cfg.SortOrder = "quant"
-	sort.Slice(m.models, func(i, j int) bool {
+	m.refreshListWithSort(func(i, j int) bool {
 		return m.models[i].QuantizationLevel < m.models[j].QuantizationLevel
 	})
-	m.refreshList()
 	return m, nil
 }
 
 func (m *AppModel) handleSortByFamilyKey() (tea.Model, tea.Cmd) {
 	logging.DebugLogger.Println("SortByFamily key matched")
 	m.cfg.SortOrder = "family"
-	sort.Slice(m.models, func(i, j int) bool {
+	m.refreshListWithSort(func(i, j int) bool {
 		return m.models[i].Family < m.models[j].Family
 	})
-	m.refreshList()
 	return m, nil
 }
 
@@ -566,13 +569,12 @@ func (m *AppModel) handleSortByParamSizeKey() (tea.Model, tea.Cmd) {
 	}
 
 	// Sort models by parameter size (largest first)
-	sort.Slice(m.models, func(i, j int) bool {
+	m.refreshListWithSort(func(i, j int) bool {
 		sizeI := getParamSizeValue(m.models[i].ParameterSize)
 		sizeJ := getParamSizeValue(m.models[j].ParameterSize)
 		return sizeI > sizeJ
 	})
 
-	m.refreshList()
 	return m, nil
 }
 
@@ -1025,6 +1027,64 @@ func (m *AppModel) refreshList() {
 		items[i] = model
 	}
 	m.list.SetItems(items)
+}
+
+// refreshListWithSort updates the list view after sorting, preserving active filter state
+func (m *AppModel) refreshListWithSort(sortFunc func(i, j int) bool) {
+	// Always sort the master models list
+	sort.Slice(m.models, sortFunc)
+
+	// Check if a filter is currently active
+	filterActive := m.list.FilterState() == list.Filtering || m.list.FilterState() == list.FilterApplied
+
+	if filterActive {
+		// Get the currently visible (filtered) items
+		filteredItems := m.list.Items()
+
+		// Early return if no filtered items
+		if len(filteredItems) == 0 {
+			m.refreshList()
+			return
+		}
+
+		currentIndex := m.list.Index()
+
+		// Create a map for O(1) lookup instead of nested loop
+		modelIndexMap := make(map[string]int, len(m.models))
+		for idx, model := range m.models {
+			modelIndexMap[model.Name] = idx
+		}
+
+		// Sort the filtered items using the same sort function
+		sort.Slice(filteredItems, func(i, j int) bool {
+			modelI, okI := filteredItems[i].(Model)
+			modelJ, okJ := filteredItems[j].(Model)
+			if !okI || !okJ {
+				return false
+			}
+			// Find the indices in the sorted m.models to determine order
+			idxI, foundI := modelIndexMap[modelI.Name]
+			idxJ, foundJ := modelIndexMap[modelJ.Name]
+			if !foundI || !foundJ {
+				return false
+			}
+			return idxI < idxJ
+		})
+
+		// Update the list with sorted filtered items (avoid nil assignment to prevent flicker)
+		m.list.SetItems(filteredItems)
+
+		// Restore cursor position (clamped to valid range)
+		if currentIndex >= len(filteredItems) {
+			currentIndex = len(filteredItems) - 1
+		}
+		if currentIndex >= 0 {
+			m.list.Select(currentIndex)
+		}
+	} else {
+		// No filter active, just refresh with all models
+		m.refreshList()
+	}
 }
 
 func (m *AppModel) clearScreen() tea.Model {
