@@ -100,7 +100,7 @@ ci: ## build for linux and macOS
 	@echo "Linux (arm64): ./dist/linux_arm64/gollama"
 
 install: ## Install latest
-	go install github.com/sammcj/gollama@latest
+	go install github.com/sammcj/gollama/v2@latest
 
 run: ## Run
 	@go run $(shell find *.go -not -name '*_test.go')

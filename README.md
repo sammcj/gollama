@@ -64,7 +64,7 @@ I was an early adopter and contributor to Ollama, but the value I got from Ollam
 ### go install (recommended)
 
 ```shell
-go install github.com/sammcj/gollama@HEAD
+go install github.com/sammcj/gollama/v2@latest
 ```
 
 ### curl
