@@ -6,7 +6,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/progress"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/sammcj/gollama/styles"
+	"github.com/sammcj/gollama/v2/styles"
 )
 
 // TODO: Complete the progress bar and implement in the operations

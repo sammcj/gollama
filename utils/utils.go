@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/sammcj/gollama/logging"
+	"github.com/sammcj/gollama/v2/logging"
 )
 
 func GetHomeDir() string {

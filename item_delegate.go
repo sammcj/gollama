@@ -7,8 +7,8 @@ import (
 	"io"
 	"strings"
 
-	"github.com/sammcj/gollama/logging"
-	"github.com/sammcj/gollama/styles"
+	"github.com/sammcj/gollama/v2/logging"
+	"github.com/sammcj/gollama/v2/styles"
 
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"

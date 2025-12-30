@@ -6,7 +6,7 @@ import (
 	"sync"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/sammcj/gollama/config"
+	"github.com/sammcj/gollama/v2/config"
 )
 
 var (

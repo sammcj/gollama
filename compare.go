@@ -11,8 +11,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/ollama/ollama/api"
-	"github.com/sammcj/gollama/logging"
-	"github.com/sammcj/gollama/styles"
+	"github.com/sammcj/gollama/v2/logging"
+	"github.com/sammcj/gollama/v2/styles"
 )
 
 type ModelfileDiff struct {

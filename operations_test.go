@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/sammcj/gollama/config"
+	"github.com/sammcj/gollama/v2/config"
 )
 
 func TestRunModel(t *testing.T) {
