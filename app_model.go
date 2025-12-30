@@ -405,6 +405,10 @@ func (m *AppModel) handleEditorFinishedMsg(msg editorFinishedMsg) (tea.Model, te
 			m.message = "Model creation cancelled"
 			return m, nil
 		}
+		if strings.TrimSpace(newModelName) == "" {
+			m.message = "Model name cannot be empty"
+			return m, nil
+		}
 		modelfilePath := fmt.Sprintf("Modelfile-%s", strings.ReplaceAll(newModelName, " ", "_"))
 		err := createModelFromModelfile(newModelName, modelfilePath, m.client)
 		if err != nil {
@@ -1036,7 +1040,20 @@ func (m *AppModel) refreshListWithSort(sortFunc func(i, j int) bool) {
 	if filterActive {
 		// Get the currently visible (filtered) items
 		filteredItems := m.list.Items()
+
+		// Early return if no filtered items
+		if len(filteredItems) == 0 {
+			m.refreshList()
+			return
+		}
+
 		currentIndex := m.list.Index()
+
+		// Create a map for O(1) lookup instead of nested loop
+		modelIndexMap := make(map[string]int, len(m.models))
+		for idx, model := range m.models {
+			modelIndexMap[model.Name] = idx
+		}
 
 		// Sort the filtered items using the same sort function
 		sort.Slice(filteredItems, func(i, j int) bool {
@@ -1046,30 +1063,24 @@ func (m *AppModel) refreshListWithSort(sortFunc func(i, j int) bool) {
 				return false
 			}
 			// Find the indices in the sorted m.models to determine order
-			var idxI, idxJ int
-			for idx, model := range m.models {
-				if model.Name == modelI.Name {
-					idxI = idx
-				}
-				if model.Name == modelJ.Name {
-					idxJ = idx
-				}
+			idxI, foundI := modelIndexMap[modelI.Name]
+			idxJ, foundJ := modelIndexMap[modelJ.Name]
+			if !foundI || !foundJ {
+				return false
 			}
 			return idxI < idxJ
 		})
 
-		// Update the list with sorted filtered items
-		m.list.SetItems(nil)
+		// Update the list with sorted filtered items (avoid nil assignment to prevent flicker)
 		m.list.SetItems(filteredItems)
 
 		// Restore cursor position (clamped to valid range)
 		if currentIndex >= len(filteredItems) {
 			currentIndex = len(filteredItems) - 1
 		}
-		if currentIndex < 0 {
-			currentIndex = 0
+		if currentIndex >= 0 {
+			m.list.Select(currentIndex)
 		}
-		m.list.Select(currentIndex)
 	} else {
 		// No filter active, just refresh with all models
 		m.refreshList()
