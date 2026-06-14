@@ -12,17 +12,23 @@ The application allows users to interactively select models, sort, filter, edit,
 
 ## Table of Contents
 
-- [Gollama](#gollama)
-  - [Table of Contents](#table-of-contents)
-  - [Features](#features)
-  - [Installation](#installation)
-  - [Usage](#usage)
-  - [Configuration](#configuration)
-  - [Installation and build from source](#installation-and-build-from-source)
-  - [Logging](#logging)
-  - [Contributing](#contributing)
-  - [Acknowledgements](#acknowledgements)
-  - [License](#license)
+- [Table of Contents](#table-of-contents)
+- [Features](#features)
+  - [Update \[2025-12-02\]: Removal of LM Studio linking \& Gollama maintenance slowing](#update-2025-12-02-removal-of-lm-studio-linking--gollama-maintenance-slowing)
+- [Installation](#installation)
+  - [go install (recommended)](#go-install-recommended)
+  - [curl](#curl)
+  - [Manually](#manually)
+  - [if "command not found: gollama"](#if-command-not-found-gollama)
+- [Usage](#usage)
+  - [Key Bindings](#key-bindings)
+- [Configuration](#configuration)
+- [Installation and build from source](#installation-and-build-from-source)
+  - [Themes](#themes)
+- [Logging](#logging)
+- [Contributing](#contributing)
+- [Acknowledgements](#acknowledgements)
+- [License](#license)
 
 ## Features
 
@@ -55,7 +61,7 @@ Linking from/to LM Studio became more hassle to maintain than it was worth. Ongo
 
 I'm simply not dog-fooding with Ollama enough. This has meant that development has slowed down as I focus on other projects.
 
-I was an early adopter and contributor to Ollama, but the value I got from Ollama has diminished throughout 2025 to the point where I rarely ever use it. For model serving I have mostly moved to llama.cpp running with [llama-swap](https://github.com/mostlygeek/llama-swap). Llama.cpp has become far more user friendly over the past year, the project is well maintained, easier to configure, with _many_ more features and _significantly_ better performance. For serving models on my laptop I use [LM Studio](https://lmstudio.ai) as it provides both MLX models and the standard llama.cpp runtime for GGUF models.
+I was an early adopter and contributor to Ollama, but the value I got from Ollama has diminished throughout 2025 to the point where I rarely ever use it. For model serving I have mostly moved to llama.cpp running with [llama-swap](https://github.com/mostlygeek/llama-swap). Llama.cpp has become far more user friendly over the past year, the project is well maintained, easier to configure, with _many_ more features and _significantly_ better performance. For serving models on my laptop I use [LM Studio](https://lmstudio.ai) as it provides both MLX models and the standard llama.cpp runtime for GGUF models, in addition to [oMLX](github.com/jundot/omlx) which has been great for serving MLX models locally for agentic coding with tools like Pi or OpenCode.
 
 ---
 
