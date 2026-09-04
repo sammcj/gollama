@@ -173,6 +173,20 @@ Inspect (`i`)
   - `--vram-to-nth` or `--context`: Maximum context length to analyze (e.g. `32k` or `128k`)
   - `--quant`: Override quantisation level (e.g. `Q4_0`, `Q5_K_M`)
 
+#### Using with llmman
+
+[llmman](https://github.com/llmmanorg/llmman) is a local model runner that serves the Ollama API (alongside OpenAI- and Anthropic-compatible ones) on port 17434. Point Gollama at it with `-h`, or set `LLMMAN_HOST` (used when `OLLAMA_HOST` is not set):
+
+```shell
+gollama -h http://localhost:17434
+
+# or
+export LLMMAN_HOST=127.0.0.1:17434
+gollama
+```
+
+`Enter` (run) shells out to the `ollama` CLI, so also export `OLLAMA_HOST=127.0.0.1:17434` if you want that to target llmman. Editing Modelfiles and `--ollama-dir` rely on Ollama's Modelfile handling and on-disk model store.
+
 ##### Simple model listing
 
 Gollama can also be called with `-l` to list models without the TUI.

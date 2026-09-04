@@ -132,6 +132,29 @@ func TestLoadConfig(t *testing.T) {
 			expectedError: false,
 		},
 		{
+			name: "Config file does not exist (with LLMMAN_HOST)",
+			prepFunc: func(configPath string) error {
+				// LLMMAN_HOST is used when OLLAMA_HOST is unset
+				os.Unsetenv("OLLAMA_API_URL")
+				os.Unsetenv("OLLAMA_HOST")
+				os.Setenv("LLMMAN_HOST", "127.0.0.1:17434")
+				return nil
+			},
+			expected: Config{
+				Columns:         []string{"Name", "Size", "Quant", "Family", "Modified", "ID"},
+				OllamaAPIKey:    "",
+				OllamaAPIURL:    "http://127.0.0.1:17434",
+				OllamaModelsDir: GetOllamaModelDir(),
+				LogLevel:        "info",
+				SortOrder:       "modified",
+				StripString:     "",
+				Editor:          "",
+				Theme:           "dark-neon",
+				DockerContainer: "",
+			},
+			expectedError: false,
+		},
+		{
 			name: "Config file is invalid",
 			prepFunc: func(configPath string) error {
 				// Ensure environment variables are unset for this test
@@ -187,6 +210,7 @@ func TestLoadConfig(t *testing.T) {
 			// Ensure environment variables are unset at the start of each test
 			os.Unsetenv("OLLAMA_HOST")
 			os.Unsetenv("OLLAMA_API_URL")
+			os.Unsetenv("LLMMAN_HOST")
 
 			tempDir, err := os.MkdirTemp("", "config_test")
 			if err != nil {

@@ -53,17 +53,20 @@ func GetOllamaModelDir() string {
 }
 
 // getAPIUrl determines the API URL based on environment variables.
+// OLLAMA_HOST takes precedence over LLMMAN_HOST (llmman serves the Ollama API on 17434).
 func getAPIUrl() string {
 	if apiUrl := os.Getenv("OLLAMA_API_URL"); apiUrl != "" {
 		return apiUrl
 	}
-	if host := os.Getenv("OLLAMA_HOST"); host != "" {
-		// Check if the host already starts with http:// or https://
-		if len(host) >= 7 && host[:7] == "http://" || len(host) >= 8 && host[:8] == "https://" {
-			return host
+	for _, env := range []string{"OLLAMA_HOST", "LLMMAN_HOST"} {
+		if host := os.Getenv(env); host != "" {
+			// Check if the host already starts with http:// or https://
+			if len(host) >= 7 && host[:7] == "http://" || len(host) >= 8 && host[:8] == "https://" {
+				return host
+			}
+			// If not, prepend http://
+			return "http://" + host
 		}
-		// If not, prepend http://
-		return "http://" + host
 	}
 	return "http://127.0.0.1:11434"
 }
