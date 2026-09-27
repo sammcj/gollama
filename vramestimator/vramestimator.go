@@ -785,15 +785,30 @@ func GenerateQuantTable(modelID string, fitsVRAM float64, ollamaModelInfo *Ollam
 	return table, nil
 }
 
-// generateContextSizes generates a slice of context sizes based on the topContext
+// generateContextSizes returns context lengths up to topContext.
+// 2048 and 8192 are included only when they fit, and the requested top is always included.
 func generateContextSizes(topContext int) []int {
-	sizes := []int{2048, 8192}
+	if topContext < 1 {
+		return []int{}
+	}
+
+	sizes := make([]int, 0, 8)
+	for _, size := range []int{2048, 8192} {
+		if size > topContext {
+			break
+		}
+		sizes = append(sizes, size)
+	}
+
 	current := 16384
-	for current <= topContext {
+	for current < topContext {
 		sizes = append(sizes, current)
+		if current > topContext/2 {
+			break
+		}
 		current *= 2
 	}
-	if current/2 < topContext {
+	if len(sizes) == 0 || sizes[len(sizes)-1] != topContext {
 		sizes = append(sizes, topContext)
 	}
 	return sizes
