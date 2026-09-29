@@ -185,6 +185,8 @@ export LLMMAN_HOST=127.0.0.1:17434
 gollama
 ```
 
+Like `OLLAMA_HOST`, `LLMMAN_HOST` only sets the default; an `ollama_api_url` already saved in your config file takes precedence, so use `-h` or edit the config to retarget.
+
 `Enter` (run) shells out to the `ollama` CLI, so also export `OLLAMA_HOST=127.0.0.1:17434` if you want that to target llmman. Editing Modelfiles and `--ollama-dir` rely on Ollama's Modelfile handling and on-disk model store.
 
 ##### Simple model listing

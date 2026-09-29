@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/sammcj/gollama/v2/logging"
+	"github.com/spf13/viper"
 )
 
 func TestGenerateDefaultConfig(t *testing.T) {
@@ -235,6 +236,41 @@ func TestLoadConfig(t *testing.T) {
 			}
 			if !tt.expectedError && !compareConfigs(got, tt.expected) {
 				t.Errorf("LoadConfig() got = %v, want %v", got, tt.expected)
+			}
+		})
+	}
+}
+
+// A saved ollama_api_url wins over host env vars (OLLAMA_HOST and LLMMAN_HOST alike).
+func TestLoadConfigSavedURLWinsOverEnv(t *testing.T) {
+	for _, env := range []string{"OLLAMA_HOST", "LLMMAN_HOST"} {
+		t.Run(env, func(t *testing.T) {
+			viper.Reset()
+			t.Cleanup(viper.Reset)
+
+			home := t.TempDir()
+			t.Setenv("HOME", home)
+			t.Setenv("USERPROFILE", home)
+			t.Setenv("OLLAMA_API_URL", "")
+			t.Setenv("OLLAMA_HOST", "")
+			t.Setenv("LLMMAN_HOST", "")
+			t.Setenv(env, "env.example.com:1234")
+
+			dir := filepath.Join(home, ".config", "gollama")
+			if err := os.MkdirAll(dir, 0755); err != nil {
+				t.Fatal(err)
+			}
+			saved := []byte(`{"ollama_api_url": "http://saved:1"}`)
+			if err := os.WriteFile(filepath.Join(dir, "config.json"), saved, 0644); err != nil {
+				t.Fatal(err)
+			}
+
+			got, err := LoadConfig()
+			if err != nil {
+				t.Fatalf("LoadConfig() error = %v", err)
+			}
+			if got.OllamaAPIURL != "http://saved:1" {
+				t.Errorf("OllamaAPIURL = %q, want saved value", got.OllamaAPIURL)
 			}
 		})
 	}
