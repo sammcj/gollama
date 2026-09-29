@@ -53,7 +53,7 @@ func GetOllamaModelDir() string {
 }
 
 // getAPIUrl determines the API URL based on environment variables.
-// OLLAMA_HOST takes precedence over LLMMAN_HOST (llmman serves the Ollama API on 17434).
+// Precedence: OLLAMA_API_URL, then OLLAMA_HOST, then LLMMAN_HOST (llmman serves the Ollama API on 17434).
 func getAPIUrl() string {
 	if apiUrl := os.Getenv("OLLAMA_API_URL"); apiUrl != "" {
 		return apiUrl
