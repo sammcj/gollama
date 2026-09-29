@@ -498,6 +498,13 @@ Please fork the repository and create a pull request with your changes.
                 </a>
             </td>
             <td align="center">
+                <a href="https://github.com/groda">
+                    <img src="https://avatars.githubusercontent.com/u/851647?v=4" width="50;" alt="groda"/>
+                    <br />
+                    <sub><b>groda</b></sub>
+                </a>
+            </td>
+            <td align="center">
                 <a href="https://github.com/fuho">
                     <img src="https://avatars.githubusercontent.com/u/539452?v=4" width="50;" alt="fuho"/>
                     <br />
