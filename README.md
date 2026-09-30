@@ -468,12 +468,21 @@ Please fork the repository and create a pull request with your changes.
                 </a>
             </td>
             <td align="center">
+                <a href="https://github.com/SashaMIT">
+                    <img src="https://avatars.githubusercontent.com/u/33847880?v=4" width="50;" alt="SashaMIT"/>
+                    <br />
+                    <sub><b>Sash</b></sub>
+                </a>
+            </td>
+            <td align="center">
                 <a href="https://github.com/southwolf">
                     <img src="https://avatars.githubusercontent.com/u/150648?v=4" width="50;" alt="southwolf"/>
                     <br />
                     <sub><b>SouthWolf</b></sub>
                 </a>
             </td>
+		</tr>
+		<tr>
             <td align="center">
                 <a href="https://github.com/Vigilans">
                     <img src="https://avatars.githubusercontent.com/u/20227484?v=4" width="50;" alt="Vigilans"/>
@@ -481,8 +490,6 @@ Please fork the repository and create a pull request with your changes.
                     <sub><b>Vigilans</b></sub>
                 </a>
             </td>
-		</tr>
-		<tr>
             <td align="center">
                 <a href="https://github.com/agustif">
                     <img src="https://avatars.githubusercontent.com/u/6601142?v=4" width="50;" alt="agustif"/>
