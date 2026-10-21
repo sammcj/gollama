@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"os/exec"
 	"testing"
 
 	"github.com/sammcj/gollama/v2/config"
@@ -48,6 +49,13 @@ func TestRunModel(t *testing.T) {
 
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
+				bin := "ollama"
+				if tt.expectDocker {
+					bin = "docker"
+				}
+				if _, err := exec.LookPath(bin); err != nil {
+					t.Skipf("%s not found in PATH", bin)
+				}
 				cmd := runModel(tt.model, tt.cfg)
 				if (cmd == nil) != tt.expectError {
 					t.Errorf("runModel() error = %v, expectError %v", cmd == nil, tt.expectError)

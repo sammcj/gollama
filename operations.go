@@ -79,7 +79,7 @@ func copyModel(m *AppModel, client *api.Client, oldName string, newName string) 
 		Source:      oldName,
 		Destination: newName,
 	}
-	err := client.Copy(ctx, req)
+	_, err := client.Copy(ctx, req)
 	if err != nil {
 		// Check if error indicates cancellation
 		if strings.Contains(err.Error(), "operation was canceled") {
